@@ -5,17 +5,16 @@ A consolidated repository for Zorin OS fixes, including wake-source suspend fixe
 ## Included Fixes
 
 - `Zorin OS Stay Asleep` wake-source service and script for persistent suspend reliability.
-- NVIDIA display-resolution fix for Secure Boot systems where the driver is installed but blocked until the local MOK key is enrolled.
+- Link to the dedicated NVIDIA display-resolution fix for Secure Boot systems where the driver is installed but blocked until the local MOK key is enrolled.
 - Reference links to existing repositories:
   - https://github.com/shawnmbrooks85/Zorin-OS-Stay-Asleep
+  - https://github.com/shawnmbrooks85/Zorin-OS-NVIDIA-Display-Fix
   - https://github.com/shawnmbrooks85/zorin-imsm-raid0-busybox-fix
 
 ## Contents
 
 - `mini-disable-wakeup.service` — systemd service unit for applying wake-source settings.
 - `mini-disable-wakeup.sh` — shell script disabling known wake sources and clearing RTC wake alarms.
-- `boot-mok-display-fix/` — NVIDIA Secure Boot / MOK display resolution fix.
-- `boot-mok-display-fix/apply-boot-mok-display-fix.sh` — guided script that enables NVIDIA DRM KMS, rebuilds initramfs, refreshes GRUB, and stages MOK enrollment.
 - `commands.sh` — convenience command record for install/test operations.
 - `README.md` — documentation for this consolidated fix repository.
 
@@ -37,7 +36,11 @@ sudo systemctl start mini-disable-wakeup.service
 
 ## Display Resolution / MOK Boot Fix
 
-Use this fix when Zorin OS is stuck at a fallback resolution such as `1024x768` on an NVIDIA system with Secure Boot enabled.
+The NVIDIA display-resolution repair now lives in its own repository:
+
+https://github.com/shawnmbrooks85/Zorin-OS-NVIDIA-Display-Fix
+
+Use that fix when Zorin OS is stuck at a fallback resolution such as `1024x768` on an NVIDIA system with Secure Boot enabled.
 
 Observed failure pattern:
 
@@ -47,17 +50,19 @@ modprobe: ERROR: could not insert 'nvidia': Key was rejected by service
 SecureBoot enabled
 ```
 
-The NVIDIA bootloader configuration should stay simple. Do not add `nomodeset`. A separate GRUB NVIDIA argument is usually not required because this repository enables NVIDIA DRM KMS through modprobe configuration:
+The NVIDIA bootloader configuration should stay simple. Do not add `nomodeset`. A separate GRUB NVIDIA argument is usually not required because the dedicated fix enables NVIDIA DRM KMS through modprobe configuration:
 
 ```text
 /etc/modprobe.d/zorin-nvidia-kms.conf
 options nvidia_drm modeset=1
 ```
 
-Apply the fix:
+Apply it from the dedicated repository:
 
 ```bash
-sudo ./boot-mok-display-fix/apply-boot-mok-display-fix.sh
+git clone https://github.com/shawnmbrooks85/Zorin-OS-NVIDIA-Display-Fix.git
+cd Zorin-OS-NVIDIA-Display-Fix
+sudo ./apply-boot-mok-display-fix.sh
 sudo reboot
 ```
 
@@ -78,7 +83,7 @@ xrandr --query
 
 If `nvidia-smi` works, the NVIDIA module is loaded and normal monitor resolutions should return in Zorin Settings.
 
-See `boot-mok-display-fix/README.md` for details and troubleshooting notes.
+See the dedicated repository for the full script and troubleshooting notes.
 
 ## Next Steps
 
@@ -98,5 +103,5 @@ sudo systemctl start mini-disable-wakeup.service
 ## Notes
 
 - The current contents are copied from the existing `Zorin OS Stay Asleep` fix.
-- The display fix documents the NVIDIA Secure Boot / MOK path used when the driver package is present but the kernel rejects the module signature.
+- The NVIDIA display fix is maintained separately at https://github.com/shawnmbrooks85/Zorin-OS-NVIDIA-Display-Fix.
 - This repo is a starting point for a broader Zorin OS fix collection.

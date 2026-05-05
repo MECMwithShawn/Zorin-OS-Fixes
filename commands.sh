@@ -17,6 +17,5 @@ echo 0 | sudo tee /sys/class/rtc/rtc0/wakealarm
 loginctl lock-session
 systemctl suspend
 
-# Optional display-resolution repair for NVIDIA systems with Secure Boot enabled.
-# Reboot after this command and complete the blue MOK enrollment screen.
-sudo ./boot-mok-display-fix/apply-boot-mok-display-fix.sh
+# Optional display-resolution repair for NVIDIA systems with Secure Boot enabled:
+# https://github.com/shawnmbrooks85/Zorin-OS-NVIDIA-Display-Fix
