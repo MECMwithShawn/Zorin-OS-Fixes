@@ -19,3 +19,6 @@ systemctl suspend
 
 # Optional display-resolution repair for NVIDIA systems with Secure Boot enabled:
 # https://github.com/shawnmbrooks85/Zorin-OS-NVIDIA-Display-Fix
+
+# Keyboard double-typing (key chatter) fix: enable Bounce Keys at 40 ms (no sudo).
+./keyboard-bounce-keys.sh 40
