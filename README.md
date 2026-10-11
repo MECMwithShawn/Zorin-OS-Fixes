@@ -6,6 +6,7 @@ A consolidated repository for Zorin OS fixes, including wake-source suspend fixe
 
 - `Zorin OS Stay Asleep` wake-source service and script for persistent suspend reliability.
 - Keyboard double-typing (key chatter) fix using Bounce Keys, for mechanical/gaming keyboards.
+- Slow qBittorrent downloads fix: open the listening port through UFW and the router, with a checker script.
 - Link to the dedicated NVIDIA display-resolution fix for Secure Boot systems where the driver is installed but blocked until the local MOK key is enrolled.
 - Reference links to existing repositories:
   - https://github.com/shawnmbrooks85/Zorin-OS-Stay-Asleep
@@ -17,6 +18,7 @@ A consolidated repository for Zorin OS fixes, including wake-source suspend fixe
 - `mini-disable-wakeup.service` — systemd service unit for applying wake-source settings.
 - `mini-disable-wakeup.sh` — shell script disabling known wake sources and clearing RTC wake alarms.
 - `keyboard-bounce-keys.sh` — enables Bounce Keys to stop a keyboard from double-typing characters.
+- `qbittorrent-port-check.sh` — checks whether qBittorrent's listening port is open from the internet and says what to fix.
 - `commands.sh` — convenience command record for install/test operations.
 - `README.md` — documentation for this consolidated fix repository.
 
@@ -120,6 +122,68 @@ xfconf-query -c accessibility -lv | grep -i bounce
 ```
 
 If the same one or two keys keep chattering even at 60 ms, the switch is likely worn or dirty. Try compressed air under the keycap; hot-swappable boards (like the K70 CORE) can have a single switch replaced.
+
+## qBittorrent Slow Downloads (Closed Port) Fix
+
+Fixes slow qBittorrent downloads on Zorin OS 18.1 (qBittorrent 5.2.4 Flatpak) behind a home router.
+
+**Cause:** qBittorrent's settings were fine (defaults), but its listening port was closed from the internet. Zorin OS has UFW enabled, which drops incoming connections by default, and the router had no port forward. Peers could not connect in, so qBittorrent could only make outgoing connections, reaching far fewer peers.
+
+Things that were ruled out: qBittorrent's settings (defaults are tuned for speed), a DNS ad blocker (Pi-hole had not blocked any tracker lookups) and Wi-Fi (6 GHz, decent signal).
+
+### Find the port
+
+qBittorrent: **Tools → Options → Connection → Port used for incoming connections**. Or from the config file:
+
+| Install | Config file |
+|---|---|
+| Flatpak | `~/.var/app/org.qbittorrent.qBittorrent/config/qBittorrent/qBittorrent.conf` |
+| Native (apt) | `~/.config/qBittorrent/qBittorrent.conf` |
+
+```bash
+grep 'Session\\Port=' ~/.var/app/org.qbittorrent.qBittorrent/config/qBittorrent/qBittorrent.conf
+```
+
+If both files exist, the Flatpak one is the one the Flatpak app uses. The examples below use port `4522`; substitute yours.
+
+### Fix
+
+1. **Open the port in UFW:**
+
+   ```bash
+   sudo ufw allow 4522 comment 'qBittorrent'
+   ```
+
+2. **Forward the port on the router** to this machine's LAN IP (give the machine a DHCP reservation so the IP doesn't change). On ASUS routers: **WAN → Virtual Server / Port Forwarding**:
+   - Turn **Enable Port Forwarding** **ON** (master switch at the top; rules do nothing while it's off).
+   - Add a rule: Service Name `qBittorrent`, Protocol **BOTH** (TCP and UDP; DHT and uTP use UDP), External Port `4522`, Internal Port `4522`, Internal IP = this machine's LAN IP, Source IP empty.
+   - Click **OK**, then **Apply**.
+
+3. **ISP gateway:** if the ISP gateway is in bridge or IP Passthrough mode to your router (AT&T gateways in this setup), nothing is needed there. If both devices do NAT (double NAT), forward the port on the ISP gateway to the router as well.
+
+### Verify
+
+```bash
+./qbittorrent-port-check.sh          # reads the port from qBittorrent's config
+./qbittorrent-port-check.sh 4522     # or check a specific port
+```
+
+It checks that qBittorrent is listening, counts UFW drops on that port, and asks canyouseeme.org whether the port is reachable from the internet (this sends your public IP and the port number to that site). Exit code is 0 when open. Example output after the fix:
+
+```text
+port:      4522
+listening: yes (TCP)
+firewall:  0 UFW drop(s) on port 4522 from the network in the last hour
+internet:  Success: I can see your service on <public-ip> on port ( 4522 )
+OK: peers can connect to you.
+```
+
+In qBittorrent, the connection icon in the status bar turns into a green globe within a few minutes, and downloads speed up as peers connect in.
+
+Gotchas found while fixing this:
+- **Testing from a Docker container is misleading.** Containers on this host couldn't reach the host's LAN IP at all (even a known-open web port timed out), so a container-based "port closed" result says nothing about the firewall. Test from the internet instead.
+- **Check that the forward rule was actually saved.** Rules added in the ASUS dialog aren't active until you click OK, then Apply.
+- The checker only tests TCP. With the router rule set to BOTH and the UFW rule covering both protocols, UDP is open too.
 
 ## Next Steps
 

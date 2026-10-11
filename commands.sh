@@ -22,3 +22,7 @@ systemctl suspend
 
 # Keyboard double-typing (key chatter) fix: enable Bounce Keys at 40 ms (no sudo).
 ./keyboard-bounce-keys.sh 40
+
+# qBittorrent slow downloads: open the listening port (4522 here) and verify from the internet.
+sudo ufw allow 4522 comment 'qBittorrent'
+./qbittorrent-port-check.sh
