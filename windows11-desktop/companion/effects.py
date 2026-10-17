@@ -25,7 +25,9 @@ def save(state):
 
 
 def environment():
-    return dict(os.environ,XDG_CONFIG_HOME=str(CONFIG/'compiz'),GSETTINGS_BACKEND='keyfile')
+    # Zorin exports GTK_CSD=1 for applications. The decorator itself must draw
+    # undecorated backing windows, or its pixmaps cannot be used by Compiz.
+    return dict(os.environ,XDG_CONFIG_HOME=str(CONFIG/'compiz'),GSETTINGS_BACKEND='keyfile',GTK_CSD='0')
 
 
 def configure():
