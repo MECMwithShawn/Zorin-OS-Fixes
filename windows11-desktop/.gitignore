@@ -1,0 +1,13 @@
+__pycache__/
+node_modules/
+*.log
+*.zip
+*.AppImage
+*.tar.gz
+reference-icons/
+reference-fonts/
+reference-avatar.*
+presentation.json
+layout.json
+*-backup.json
+*-restored.json

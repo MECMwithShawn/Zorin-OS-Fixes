@@ -1,0 +1,29 @@
+{
+  "powershell": {
+    "version": "v7.6.7",
+    "url": "https://github.com/PowerShell/PowerShell/releases/download/v7.6.7/powershell-7.6.7-linux-x64.tar.gz",
+    "sha256": "6896f9e3a6b0a354bf470835a96da76d2f801cd50dcf047ad7c4563bf93bf431"
+  },
+  "wezterm": {
+    "version": "20240203-110809-5046fc22",
+    "url": "https://github.com/wezterm/wezterm/releases/download/20240203-110809-5046fc22/WezTerm-20240203-110809-5046fc22-Ubuntu20.04.AppImage",
+    "sha256": "34010a07076d2272c4d4f94b5e0dae608a679599e8d729446323f88f956c60f0"
+  },
+  "cascadia": {
+    "version": "v2407.24",
+    "url": "https://github.com/microsoft/cascadia-code/releases/download/v2407.24/CascadiaCode-2407.24.zip",
+    "sha256": "e67a68ee3386db63f48b9054bd196ea752bc6a4ebb4df35adce6733da50c8474"
+  },
+  "icons": {
+    "url": "https://github.com/yeyushengfan258/Win11-icon-theme.git",
+    "commit": "a5b460a407da143b32f19a503d7fcebb3edf2371"
+  },
+  "powershell_icon": {
+    "url": "https://raw.githubusercontent.com/PowerShell/PowerShell/v7.6.7/assets/Powershell_256.png",
+    "sha256": "1734e52435cf6cdddef2b340039986a8487fdd1ceaed44d1b93b39293e4a9dd4"
+  },
+  "cascadia_license": {
+    "url": "https://raw.githubusercontent.com/microsoft/cascadia-code/v2407.24/LICENSE",
+    "sha256": "51882cd3cdba4e16f220f44ddb08a635c38c44ea6e0975db2574f4be6f958238"
+  }
+}

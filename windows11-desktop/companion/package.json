@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "esbuild": "~0.25.12"
+  },
+  "name": "zorin11-desktop-companion",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "node build.mjs",
+    "test:model": "python3 -m unittest -v test_model.py test_native.py"
+  }
+}
