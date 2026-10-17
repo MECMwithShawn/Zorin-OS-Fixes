@@ -23,6 +23,7 @@ Run `python3 setup.py install` again after pulling updates. It retains the origi
 | Component | Behavior |
 |---|---|
 | Desktop | Dark Zorin theme, 48 px bottom taskbar, centered Start/app area, Windows-style spacing and controls |
+| Window captions | Original flat dark Xfwm/Compiz frames, thin borders, 46 px caption controls, red Close hover, and matching GTK3 title buttons |
 | Start | Pinned apps, drag ordering, search, All apps, categories, recent launches, power/session actions |
 | File Explorer / This PC | Tabs, sidebar, address navigation, details view, mounted drives and capacity bars, create/rename/copy/cut/paste/trash |
 | Desktop Groups | Movable, resizable shortcut groups and live folder portals; original files stay in place |
@@ -37,7 +38,7 @@ The duplicate Wi-Fi icon is removed by using `nm-applet --no-indicator` with `sh
 
 ## Match the Windows shell icons and fonts
 
-The default installer uses the community [Win11 icon theme](https://github.com/yeyushengfan258/Win11-icon-theme) plus the bundled [Microsoft Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons) for the status tray. For the closest match in This PC, drive icons, and folders, export shell icons from **your own Windows installation**:
+The default installer uses the community [Win11 icon theme](https://github.com/yeyushengfan258/Win11-icon-theme) plus the bundled [Microsoft Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons) for the status tray, Explorer toolbar, and Quick Settings. For the closest match in This PC, drive icons, and folders, export shell icons from **your own Windows installation**:
 
 1. Boot Windows and copy `export-windows-assets.ps1` there.
 2. Run it in **Windows PowerShell 5.1**, without administrator privileges:
@@ -97,6 +98,8 @@ python3 "$HOME/.local/share/zorin11-hub/install.py" --uninstall
 The installer saves the original file contents and typed Xfconf/GSettings values **before** modifying them in `~/.config/zorin11-hub/integration-backup.json`. Restore changes only entries that still match the installed values. Later manual edits are preserved and reported. Saved pins, groups, imported reference assets, source files, downloaded tools, icon themes, fonts, and installed system packages remain available. Restore does not remove packages or personal files.
 
 ## Files and limits
+
+Caption changes appear immediately for native window frames. Reopen an existing GTK3 application if it has cached the previous styling. Applications that draw their own controls, including GTK4/libadwaita and some cross-platform apps, may retain their own title bars. Compiz theme updates refresh the decorator without replacing the window manager or changing the saved wobble preference.
 
 - Application: `~/.local/share/zorin11-hub/`
 - Pins/groups: `~/.config/zorin11-hub/layout.json`

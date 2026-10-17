@@ -8,6 +8,7 @@ import subprocess
 import dbus
 from panel_layout import find_panel, plan
 import appearance
+import window_style
 
 
 def upgrade():
@@ -228,6 +229,8 @@ X-XFCE-CommandsWithParameter={launcher} --explorer "%s";
         css=home/'.config/gtk-3.0/gtk.css'
         content=css.read_text() if css.exists() else ''
         content=appearance.css(content,layout['show'])
+        window_style.apply(home,source,setting,file)
+        content=window_style.css(content,dest)
         content=re.sub(r'/\* BEGIN Windows 11 tray \*/.*?/\* END Windows 11 tray \*/\n?','',content,flags=re.S)
         content+=f'''\n/* BEGIN Windows 11 tray */
 #launcher-{search} button {{ border-radius: 18px; min-width: 160px; padding: 0 10px; margin: 6px 4px; background-color: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.086); background-image: url('{dest/'search.svg'}'); background-repeat: no-repeat; background-position: 12px center; background-size: 16px 16px; }}
@@ -305,4 +308,6 @@ Context=Applications
     log=open(config/'desktop.log','a')
     subprocess.Popen(['/usr/bin/python3',str(dest/'app.py'),'--background'],stdout=log,stderr=log,start_new_session=True)
     installer.wait_owner('local.zorin11.DesktopHub',True)
+    if shutil.which('compiz'):
+        subprocess.run(['/usr/bin/python3',str(dest/'effects.py'),'--refresh'],check=True,timeout=15)
     print('Installed anchored Start, compact tray with Quick Settings, and File Explorer integration.')

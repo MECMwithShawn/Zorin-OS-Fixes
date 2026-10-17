@@ -2,3 +2,5 @@ Microsoft Fluent UI System Icons
 https://github.com/microsoft/fluentui-system-icons
 Revision a347af95478f989038cccbf085978865264c048a
 MIT license. Tray composites recolor and combine these glyphs.
+Explorer and Quick Settings use the same 20 px regular icon family.
+src/fluent-paths.js contains the path data of the bundled SVG files.

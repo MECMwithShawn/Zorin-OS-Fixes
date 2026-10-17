@@ -39,7 +39,7 @@ def configure():
         'core':{'active_plugins':['core','composite','opengl','compiztoolbox','decor','place',
                  'move','resize','grid','wall','staticswitcher','wobbly'],
                 'show_desktop_key':'<Super>d','toggle_window_maximized_key':'<Super>Up'},
-        'decor':{'command':'gtk-window-decorator --replace'},
+        'decor':{'command':'gtk-window-decorator --replace --metacity-theme Zorin11-Dark'},
         'wobbly':{'friction':4.0,'spring_k':8.0,'map_effect':0,'focus_effect':0,
                   'move_window_match':'type=Normal | type=Dialog','snap_inverted':False},
         'grid':{'put_left_key':'<Super>Left','put_right_key':'<Super>Right',
@@ -49,10 +49,12 @@ def configure():
         for option,value in options.items():context.Plugins[name].Screen[option].Value=value
     context.Write()
     for schema,key,value in [
-        ('org.compiz.gwd','use-metacity-theme','false'),
+        ('org.compiz.gwd','use-metacity-theme','true'),
+        ('org.gnome.metacity.theme','type',"'metacity'"),
+        ('org.gnome.metacity.theme','name',"'Zorin11-Dark'"),
         ('org.gnome.desktop.interface','gtk-theme',"'ZorinBlue-Dark'"),
         ('org.gnome.desktop.wm.preferences','button-layout',"':minimize,maximize,close'"),
-        ('org.gnome.desktop.wm.preferences','titlebar-font',"'Segoe UI 10'"),
+        ('org.gnome.desktop.wm.preferences','titlebar-font',"'Segoe UI 10'" if (CONFIG/'reference-fonts/segoeui.ttf').exists() else "'Selawik 10'"),
     ]:
         subprocess.run(['gsettings','set',schema,key,value],check=True)
 
@@ -152,6 +154,13 @@ def gui():
 def main():
     args=sys.argv[1:]
     if args==['--configure']:configure()
+    elif args==['--refresh']:
+        # Updating the frame theme does not replace the running window manager
+        # or disturb application windows and the user's enabled effects choice.
+        if 'compiz' in wm_name():
+            env=environment()
+            subprocess.run(['/usr/bin/python3',str(HERE),'--configure'],env=env,check=True)
+            spawn(['gtk-window-decorator','--replace','--metacity-theme','Zorin11-Dark'],env=env)
     elif args and args[0]=='--watchdog':watchdog(args[1])
     elif args==['--disable']:disable()
     elif args==['--login']:

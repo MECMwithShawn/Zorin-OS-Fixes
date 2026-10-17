@@ -1,0 +1,12 @@
+Zorin11-Dark: original caption artwork and theme definitions for this project.
+No Microsoft Windows binaries or extracted artwork are included here.
+
+Rebuild using /usr/bin/python3 build-window-theme.py from the companion folder.
+The builder uses GTK's SVG loader to produce Xfwm PNG strips. Installation uses
+the committed assets and does not need the builder or Node.
+
+Metacity format documentation:
+https://wiki.gnome.org/Attic/GnomeArt/Tutorials/MetacityThemes
+
+GTK3 caption overrides are in window_style.py. The theme covers server-side
+Xfwm and Compiz frames; applications with independent chrome may draw differently.
