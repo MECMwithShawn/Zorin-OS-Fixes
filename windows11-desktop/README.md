@@ -29,6 +29,8 @@ Run `python3 setup.py install` again after pulling updates. It retains the origi
 | Desktop Groups | Movable, resizable shortcut groups and live folder portals; original files stay in place |
 | Status tray | Microsoft Fluent Wi-Fi/Ethernet/offline and speaker/mute icons, crisp at their native size; chevron reveals hidden tray apps |
 | Quick Settings | Network status, Wi-Fi control, volume/mute, sound settings, Bluetooth settings, Do Not Disturb |
+| Settings | Windows 11 style sidebar, searchable categories, real system information and working controls; advanced pages open the corresponding Linux tools |
+| Backgrounds | Optional Windows Spotlight or Bing daily images, UHD preference, local photo selection, 60-image history and original-background restore |
 | Battery | The laptop's existing power/battery panel plugin stays visible when a battery is detected |
 | PowerShell | Microsoft PowerShell 7.6.7, installed per user with a Start entry |
 | Terminal | WezTerm with PowerShell and Bash profiles, tabs, split panes, Cascadia Mono, dark Campbell colors, Windows-style title buttons |
@@ -65,7 +67,7 @@ This imports six sizes (16–256 px), including the computer, drive, USB drive, 
 | Win+S | Search |
 | Win+E | File Explorer |
 | Win+A | Quick Settings |
-| Win+I | Xfce Settings |
+| Win+I | Windows-style Settings |
 | Win+T / Ctrl+Alt+T | Terminal |
 | Win+Shift+F | Bring Desktop Groups forward / send them back |
 | Ctrl+Shift+T in Terminal | New tab |
@@ -82,6 +84,18 @@ python3 "$HOME/.local/share/zorin11-hub/effects.py" --disable
 ```
 
 For a TTY, set `DISPLAY` to your actual X11 display before that command (commonly `:0`).
+
+## Settings and Windows Spotlight
+
+Open **Win+I → Personalization → Background**. Choose **Windows Spotlight** or **Bing image of the day**, then **Get new wallpaper**. Turn on **Change the picture daily** to refresh once per local calendar day while signed in. On login, the companion checks for an update; an offline failure leaves the existing picture in place and retries no more than hourly. Rotation does not require Settings to stay open. New installations keep the current background until you choose a source.
+
+Bing requests UHD with a 1080p fallback. Spotlight uses the original landscape image returned by Microsoft's Windows 11 feed (up to 4K); images can differ between devices and days. These are unofficial feed integrations and service availability can change. No Microsoft account is used. The downloader requests metadata and image assets only, never the feed's analytics or action links. Images, credits, and history stay in your local account; they are not bundled or uploaded to this repository.
+
+**Browse photos** accepts JPEG/PNG images. Recent images can be selected again. **Restore original background** disables rotation and restores the backed-up Xfce background properties, preserving properties you changed manually after the companion applied its picture. Xfce Screensaver reads the desktop background; the separate LightDM login screen is not changed. The full package restore also restores managed wallpaper settings and stops rotation, while retaining the image cache.
+
+Settings includes working volume/output/mute, Wi-Fi and Bluetooth power, Do Not Disturb, screen blanking timeouts, keyboard accessibility, and desktop-group controls. Display arrangement, network configuration, software updates, drivers, themes, and other advanced configuration open the installed Linux settings tools. Hardware, storage, account and OS information come from this device. Settings does not label Zorin as Windows or invent security/update status.
+
+The broader Windows 11 replication inventory and remaining work are tracked in [PARITY.md](PARITY.md).
 
 ## Restore the previous desktop
 
@@ -103,6 +117,7 @@ Caption changes appear immediately for native window frames. Reopen an existing 
 
 - Application: `~/.local/share/zorin11-hub/`
 - Pins/groups: `~/.config/zorin11-hub/layout.json`
+- Background state/history: `~/.config/zorin11-hub/wallpapers.json` and `wallpapers/`
 - Runtime log: `~/.config/zorin11-hub/desktop.log`
 - Optional effects log: `~/.config/zorin11-hub/effects.log`
 - Terminal preferences: `~/.config/wezterm/wezterm.lua`
@@ -119,7 +134,7 @@ The companion uses Python/GTK3/WebKit2GTK 4.1 and a local React interface. All U
 ```bash
 python3 -m unittest discover -s tests -v
 cd companion
-python3 -m unittest -v test_model.py test_explorer.py
+python3 -m unittest -v test_model.py test_explorer.py test_settings.py
 # For frontend changes, use the committed pnpm lockfile:
 corepack pnpm install --frozen-lockfile
 node build.mjs
@@ -128,3 +143,5 @@ node build.mjs
 Live tests require an X11 session and briefly open disposable windows. `test_live.py` uses a separate application ID and temporary files. `test_native.py` should be run with a temporary `ZORIN11_CONFIG_DIR`. Browser UI tests additionally need Playwright and a Chromium executable; see their environment variables.
 
 Original artwork/code and the Fluent icon license are included with their notices. Windows reference exports, SSH credentials, account photos, screenshots of personal applications, and machine recovery manifests must never be committed.
+
+Spotlight feed protocol reference: [ORelio/Spotlight-Downloader](https://github.com/ORelio/Spotlight-Downloader/blob/master/SpotlightAPI.md). The Python integration here is original code using the documented v4 image feed.

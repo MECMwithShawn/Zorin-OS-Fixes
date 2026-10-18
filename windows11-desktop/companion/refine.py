@@ -121,7 +121,7 @@ Font=Segoe UI 10
         setting(channel,f'/plugins/plugin-{tray}/hidden-items',dbus.Array([dbus.String(x) for x in dict.fromkeys(known+['blueman','nm-applet'])],signature='v'))
         legacy=list(installer.XF.GetProperty(channel,f'/plugins/plugin-{tray}/known-legacy-items')) if installer.XF.PropertyExists(channel,f'/plugins/plugin-{tray}/known-legacy-items') else []
         setting(channel,f'/plugins/plugin-{tray}/hidden-legacy-items',dbus.Array([dbus.String(x) for x in dict.fromkeys(legacy+['network'])],signature='v'))
-        keys={'<Super>s':launcher+' --search', '<Super>e':launcher+' --explorer','<Super>a':launcher+' --quick-settings',
+        keys={'<Super>i':launcher+' --settings','<Super>s':launcher+' --search', '<Super>e':launcher+' --explorer','<Super>a':launcher+' --quick-settings',
               'XF86AudioRaiseVolume':'pactl set-sink-volume @DEFAULT_SINK@ +5%',
               'XF86AudioLowerVolume':'pactl set-sink-volume @DEFAULT_SINK@ -5%',
               'XF86AudioMute':'pactl set-sink-mute @DEFAULT_SINK@ toggle'}
@@ -136,6 +136,8 @@ Font=Segoe UI 10
         computer=installer.desktop_file('This PC','--explorer ::computer','computer')
         computer=computer.replace('Categories=Utility;','Categories=System;FileTools;FileManager;')
         file(home/'.local/share/applications/zorin11-computer.desktop',computer)
+        settings=installer.desktop_file('Settings','--settings','preferences-system').replace('Categories=Utility;','Categories=Settings;System;')
+        file(home/'.local/share/applications/zorin11-settings.desktop',settings+'StartupWMClass=Zorin11-settings\n')
         effects=f'''[Desktop Entry]
 Type=Application
 Name=Window Effects
@@ -157,6 +159,12 @@ Categories=Settings;DesktopSettings;
             for group in state['groups']:
                 for item in group['items']:
                     if item.get('kind')=='app' and item.get('id')=='thunar.desktop':item['id']='zorin11-explorer.desktop'
+            for field in ('pins','recent'):
+                state[field]=list(dict.fromkeys('zorin11-settings.desktop' if i=='xfce-settings-manager.desktop' else i for i in state[field]))
+            for group in state['groups']:
+                for item in group['items']:
+                    if item.get('kind')=='app' and item.get('id')=='xfce-settings-manager.desktop':item['id']='zorin11-settings.desktop'
+            manifest['settings_migration']=True
             # Store original IDs for reversible migration without overwriting later pin order.
             manifest['explorer_migration']=True
             updated_state=state
@@ -165,6 +173,8 @@ Categories=Settings;DesktopSettings;
             content=dock.read_text()
             content=re.sub(r'(?<=;)thunar(?=;|$)','zorin11-explorer',content,flags=re.M)
             content=content.replace('pinned=thunar;','pinned=zorin11-explorer;')
+            content=re.sub(r'(?<=;)xfce-settings-manager(?=;|$)','zorin11-settings',content,flags=re.M)
+            content=content.replace('pinned=xfce-settings-manager;','pinned=zorin11-settings;')
             file(dock,content)
         helpers=home/'.config/xfce4/helpers.rc'
         content=helpers.read_text() if helpers.exists() else ''

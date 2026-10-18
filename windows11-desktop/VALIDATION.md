@@ -19,3 +19,14 @@ Validated on Zorin OS 18.1 Lite, Xfce 4.20, X11, Ubuntu noble, x86-64.
 - The live recovery record matched all 208 managed files and 53 Xfconf settings. The confirmed wobble setting remained enabled. Six portability tests and five file-operation tests also passed.
 
 The session test uses the installed operating system and packages with a clean test home; it is not a test of a freshly installed Zorin ISO. A real laptop check is still needed for its GPU, display scaling, battery, and suspend/resume behavior. Compiz stays optional because graphics-driver behavior can differ between machines.
+
+## Settings and daily backgrounds — 2026-10-17
+
+- Native GTK/WebKit Settings window: all 12 category routes, direct Background launch, single-instance reuse, maximize/restore, 800×540 minimum size and wallpaper/avatar resources passed with no JavaScript errors.
+- A System sounds toggle was applied through the WebKit bridge, read back from live Xfconf, then restored to its exact previous value/type.
+- Backend tests reject invalid types, commands and stale sound-device IDs. Wallpaper tests cover URL allowlisting, feed parsing without tracking requests, offline retry throttling, current-image preservation, interrupted-apply recovery, and compare-safe restore after manual changes.
+- Bing UHD also downloaded successfully at 3840×2160 into a disposable cache without changing the selected background.
+- Installed app verification passed: active monitor wallpaper properties match the saved Spotlight image; Start pin and Win+I open Settings; Background resources load without JavaScript errors; login startup retains daily rotation.
+- Windows 11 Spotlight v4 returned a real 3840×2160 landscape image and it was applied on the desktop. Daily mode was explicitly enabled by the user.
+- Fresh install, repeat upgrade and restore passed in a separate Xephyr/private D-Bus session. Every managed file/setting restored exactly; original recovery records survived upgrade.
+- Lock-screen sharing was verified against Xfce Screensaver's use of Xfce desktop backdrop properties. The user's session was not locked for a screenshot. LightDM login appearance was not modified.

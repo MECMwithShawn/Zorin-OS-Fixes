@@ -10,7 +10,7 @@ import uuid
 def initial_state(app_ids, home):
     preferred = ['brave-browser.desktop', 'firefox.desktop', 'org.mozilla.firefox.desktop',
         'zorin11-explorer.desktop', 'zorin11-computer.desktop', 'org.gnome.Software.desktop',
-        'xfce-settings-manager.desktop', 'libreoffice-writer.desktop',
+        'zorin11-settings.desktop' if 'zorin11-settings.desktop' in app_ids else 'xfce-settings-manager.desktop', 'libreoffice-writer.desktop',
         'libreoffice-calc.desktop', 'org.gnome.TextEditor.desktop',
         'org.gnome.Calculator.desktop', 'org.gnome.Evince.desktop',
         'xfce4-screenshooter.desktop', 'org.gnome.Rhythmbox3.desktop',

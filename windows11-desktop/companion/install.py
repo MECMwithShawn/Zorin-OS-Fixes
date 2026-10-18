@@ -223,6 +223,9 @@ def uninstall():
     if dbus.SessionBus().name_has_owner('local.zorin11.DesktopHub'):
         subprocess.run(['/usr/bin/python3',str(DEST/'app.py'),'--quit'],timeout=15)
         wait_owner('local.zorin11.DesktopHub', False)
+    # Stop daily updates before restoring managed wallpaper properties.
+    import wallpaper
+    wallpaper.restore()
     manifest=json.loads(MANIFEST.read_text())
     skipped=[]
     # Stop the panel before restoring plugin settings: launchers flush their
@@ -268,7 +271,7 @@ def uninstall():
         command=next((line[5:] for line in autostart.read_text().splitlines() if line.startswith('Exec=')),'nm-applet')
         argv=shlex.split(command)
         if argv and Path(argv[0]).name=='nm-applet':network_applet_backend(argv)
-    if manifest.get('explorer_migration') or manifest.get('terminal_migration'):
+    if any(manifest.get(k) for k in ('explorer_migration','terminal_migration','settings_migration')):
         state_path=CONFIG/'layout.json'
         if state_path.exists():
             state=json.loads(state_path.read_text())
@@ -276,9 +279,12 @@ def uninstall():
                 state[field]=['thunar.desktop' if x=='zorin11-explorer.desktop' else x for x in state[field]]
                 if manifest.get('terminal_migration'):
                     state[field]=['xfce4-terminal.desktop' if x=='zorin11-terminal.desktop' else x for x in state[field]]
+                if manifest.get('settings_migration'):
+                    state[field]=['xfce-settings-manager.desktop' if x=='zorin11-settings.desktop' else x for x in state[field]]
             for group in state['groups']:
                 for item in group['items']:
                     if item.get('id')=='zorin11-explorer.desktop':item['id']='thunar.desktop'
+                    if manifest.get('settings_migration') and item.get('id')=='zorin11-settings.desktop':item['id']='xfce-settings-manager.desktop'
             write_json(state_path,state)
         subprocess.run(['update-desktop-database',str(HOME/'.local/share/applications')],check=False)
         subprocess.run(['gtk-update-icon-cache','-f','-t',str(HOME/'.local/share/icons/CodexWindows11')],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)

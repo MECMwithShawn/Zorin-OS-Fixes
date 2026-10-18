@@ -18,12 +18,14 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, WebKit2
 from model import Store
 from platform_ui import panel_button, desktop_status
 import explorer
+import settings_backend
+import wallpaper
 
 BASE = Path(__file__).resolve().parent
 CONFIG = Path(os.environ.get('ZORIN11_CONFIG_DIR', str(Path.home()/'.config/zorin11-hub')))
 APP_ID = os.environ.get('ZORIN11_APP_ID', 'local.zorin11.DesktopHub')
 LABELS = {'thunar.desktop': 'Thunar', 'zorin11-explorer.desktop': 'File Explorer', 'brave-browser.desktop': 'Brave',
-          'xfce-settings-manager.desktop': 'Settings', 'org.gnome.Evince.desktop': 'PDF Viewer',
+          'xfce-settings-manager.desktop': 'Advanced Settings', 'zorin11-settings.desktop': 'Settings', 'org.gnome.Evince.desktop': 'PDF Viewer',
           'libreoffice-writer.desktop': 'Writer', 'libreoffice-calc.desktop': 'Calc',
           'org.gnome.Software.desktop': 'Software', 'xfce4-terminal.desktop': 'Xfce Terminal',
           'xfce4-screenshooter.desktop': 'Screenshot', 'org.xfce.ristretto.desktop': 'Photos'}
@@ -43,10 +45,13 @@ class Surface(Gtk.ApplicationWindow):
         self.backdrop = None
         self.maximized = False
         self.drag_timer = 0
-        self.set_title({'start':'Zorin 11 Start','quick':'Quick settings','explorer':'File Explorer','group':'Desktop group'}[self.mode])
+        self.set_title({'start':'Zorin 11 Start','quick':'Quick settings','explorer':'File Explorer','settings':'Settings','group':'Desktop group'}[self.mode])
         self.set_decorated(False)
-        self.set_skip_taskbar_hint(self.mode != 'explorer')
-        self.set_skip_pager_hint(self.mode != 'explorer')
+        self.set_skip_taskbar_hint(self.mode not in ('explorer','settings'))
+        self.set_skip_pager_hint(self.mode not in ('explorer','settings'))
+        if self.mode == 'settings':
+            self.set_wmclass('zorin11-settings','Zorin11-settings')
+            self.set_icon_name('preferences-system')
         if self.mode == 'explorer':
             self.set_wmclass('zorin11-explorer', 'Zorin11-explorer')
             self.set_icon_from_file(str(BASE/'explorer.svg'))
@@ -61,11 +66,12 @@ class Surface(Gtk.ApplicationWindow):
         self.connect('key-press-event', self.on_key)
         self.connect('configure-event', self.on_configure)
         self.connect('window-state-event', self.on_window_state)
-        self.connect('notify::is-active', lambda *args: self.update() if self.mode=='explorer' else None)
-        if self.mode == 'explorer':
+        self.connect('notify::is-active', lambda *args: self.update() if self.mode in ('explorer','settings') else None)
+        if self.mode in ('explorer','settings'):
             self.set_type_hint(Gdk.WindowTypeHint.NORMAL)
             self.set_default_size(1120, 760)
             self.set_size_request(740, 440)
+            if self.mode=='settings':self.set_size_request(800,540)
         elif group_id is None:
             self.set_type_hint(Gdk.WindowTypeHint.UTILITY)
             self.set_keep_above(True)
@@ -130,6 +136,13 @@ class Surface(Gtk.ApplicationWindow):
             elif self.mode == 'explorer':
                 data = dict(self.file_state or {'path':self.location,'title':'Home','entries':[], 'places':explorer.place_paths()}, mode='explorer')
                 data.update(maximized=self.maximized,focused=self.is_active())
+            elif self.mode == 'settings':
+                data = dict(self.hub.settings_data,mode='settings',maximized=self.maximized,
+                            focused=self.is_active(),busy=self.hub.settings_busy)
+                profile=self.hub.payload()
+                data.update(user=profile['user'],avatar=profile['avatar'],
+                            apps=sorted([self.hub.app_info(i) for i in self.hub.apps],key=lambda a:a['name'].casefold()),
+                            groupsVisible=self.hub.store.state['groups_visible'])
             else:
                 data = self.hub.payload(self.group_id)
             if self.backdrop:
@@ -158,6 +171,10 @@ class Surface(Gtk.ApplicationWindow):
         return False
 
     def on_delete(self, *args):
+        if self.mode == 'settings':
+            self.hub.surfaces.pop('settings',None)
+            self.destroy()
+            return True
         if self.mode == 'explorer':
             self.request_id += 1
             if getattr(self,'monitor_refresh',0):
@@ -187,7 +204,7 @@ class Surface(Gtk.ApplicationWindow):
 
     def on_window_state(self, window, event):
         self.maximized=bool(event.new_window_state & Gdk.WindowState.MAXIMIZED)
-        if self.mode=='explorer':self.update()
+        if self.mode in ('explorer','settings'):self.update()
         return False
 
     def save_geometry(self):
@@ -242,6 +259,10 @@ class Hub(Gtk.Application):
         self.refresh_timer = 0
         self.workers = ThreadPoolExecutor(max_workers=3)
         self.status = {}
+        self.settings_data = {'loading':True}
+        self.settings_busy = False
+        self.settings_pending = False
+        self.settings_generation = 0
         try:
             self.presentation = json.loads((CONFIG/'presentation.json').read_text())
         except (OSError, ValueError):
@@ -271,6 +292,10 @@ class Hub(Gtk.Application):
         self.surfaces['quick'] = self.quick
         self.refresh_status()
         GLib.timeout_add_seconds(4, self.refresh_status)
+        GLib.timeout_add_seconds(5, self.refresh_settings)
+        if APP_ID=='local.zorin11.DesktopHub':
+            GLib.timeout_add_seconds(60,self.wallpaper_tick)
+            GLib.timeout_add_seconds(8,lambda:(self.wallpaper_tick(),False)[1])
         self.app_monitor = Gio.AppInfoMonitor.get()
         self.app_monitor.connect('changed', lambda *args: self.on_apps_changed())
         Gtk.IconTheme.get_default().connect('changed', lambda *args: self.on_apps_changed())
@@ -310,6 +335,9 @@ class Hub(Gtk.Application):
             self.show_start('groups')
         elif '--quick-settings' in args:
             self.show_quick()
+        elif '--settings' in args:
+            offset=args.index('--settings')+1
+            self.open_settings(args[offset] if offset<len(args) else 'home')
         elif '--explorer' in args:
             offset = args.index('--explorer')+1
             self.open_explorer(args[offset] if offset<len(args) else '::home')
@@ -338,6 +366,9 @@ class Hub(Gtk.Application):
             elif uri.netloc == 'backdrop':
                 content = self.backdrops.get(uri.path.lstrip('/'), b'')
                 mime = 'image/png'
+            elif uri.netloc == 'wallpaper':
+                content = wallpaper.thumbnail(uri.path.lstrip('/'))
+                mime = 'image/jpeg'
             elif uri.netloc == 'icon':
                 key = unquote(uri.path.lstrip('/'))
                 content = self.icon_bytes(key)
@@ -589,6 +620,8 @@ class Hub(Gtk.Application):
             raise ValueError('This application is no longer installed.')
         if app_id in ('thunar.desktop','zorin11-explorer.desktop'):
             self.open_explorer()
+        elif app_id=='zorin11-settings.desktop':
+            self.open_settings()
         else:
             context = Gdk.Display.get_default().get_app_launch_context()
             context.set_timestamp(Gdk.CURRENT_TIME)
@@ -614,7 +647,10 @@ class Hub(Gtk.Application):
 
     def dispatch(self, surface, message):
         action = message.get('action')
-        if action.startswith('file-') and surface.mode=='explorer':
+        if not isinstance(action,str):raise ValueError('Missing action.')
+        if action.startswith('settings-') and surface.mode=='settings':
+            self.settings_action(surface,message)
+        elif action.startswith('file-') and surface.mode=='explorer':
             self.file_action(surface, message)
         elif action.startswith('quick-') and surface.mode=='quick':
             self.quick_action(surface, message)
@@ -639,7 +675,7 @@ class Hub(Gtk.Application):
         elif action == 'close':
             surface.on_delete()
         elif action == 'settings':
-            self.launch('xfce-settings-manager.desktop')
+            self.open_settings()
         elif action == 'lock':
             subprocess.Popen(['xflock4'])
             self.start.hide()
@@ -745,6 +781,8 @@ class Hub(Gtk.Application):
 
     def quick_action(self, surface, message):
         action = message['action']
+        if action=='quick-settings':
+            self.open_settings();return
         commands = {'quick-network':['nm-connection-editor'], 'quick-bluetooth':['blueman-manager'],
                     'quick-audio':['pavucontrol'], 'quick-settings':['xfce4-settings-manager']}
         if action in commands:
@@ -763,6 +801,103 @@ class Hub(Gtk.Application):
             xf = dbus.Interface(dbus.SessionBus().get_object('org.xfce.Xfconf','/org/xfce/Xfconf'),'org.xfce.Xfconf')
             xf.SetProperty('xfce4-notifyd','/do-not-disturb',dbus.Boolean(bool(message['value'])))
             self.refresh_status()
+
+    def open_settings(self,page='home'):
+        self.start.hide();self.quick.hide()
+        surface=self.surfaces.get('settings')
+        if surface is None:
+            surface=Surface(self,mode='settings')
+            self.surfaces['settings']=surface
+            surface.set_position(Gtk.WindowPosition.CENTER)
+        surface.show_all();surface.present()
+        if surface.ready:surface.send({'type':'show','page':page})
+        else:surface.pending_page=page
+        self.refresh_settings()
+
+    def settings_snapshot(self):
+        result=settings_backend.snapshot()
+        result.update(facts=settings_backend.facts(),wallpaper=wallpaper.status(),loading=False)
+        return result
+
+    def update_settings_surface(self):
+        surface=self.surfaces.get('settings')
+        if surface:
+            display=Gdk.Display.get_default()
+            self.settings_data['monitors']=[{'name':display.get_monitor(i).get_model() or 'Display',
+                'width':display.get_monitor(i).get_geometry().width,
+                'height':display.get_monitor(i).get_geometry().height,
+                'scale':display.get_monitor(i).get_scale_factor(),
+                'refresh':round(display.get_monitor(i).get_refresh_rate()/1000,2)} for i in range(display.get_n_monitors())]
+            from effects import wm_name
+            self.settings_data['wobble']='compiz' in wm_name()
+            surface.update()
+
+    def refresh_settings(self):
+        if 'settings' not in self.surfaces or self.settings_busy or self.settings_pending:return True
+        self.settings_pending=True;generation=self.settings_generation
+        def done(data):
+            self.settings_pending=False
+            if generation==self.settings_generation:
+                self.settings_data=data;self.update_settings_surface()
+        def failed(error):
+            self.settings_pending=False
+            if 'settings' in self.surfaces:self.surfaces['settings'].send({'type':'error','message':error})
+        self.background(self.settings_snapshot,done,failed)
+        return True
+
+    def settings_change(self,task):
+        if self.settings_busy:raise ValueError('Please wait for the current change to finish.')
+        self.settings_busy=True;self.settings_generation+=1;self.update_settings_surface()
+        def run():
+            task()
+            return self.settings_snapshot()
+        def done(data):
+            self.settings_busy=False;self.settings_data=data;self.update_settings_surface();self.refresh_status()
+        def failed(error):
+            self.settings_busy=False;self.update_settings_surface()
+            if 'settings' in self.surfaces:self.surfaces['settings'].send({'type':'error','message':error})
+            self.refresh_settings()
+        self.background(run,done,failed)
+
+    def wallpaper_tick(self):
+        if not self.settings_busy and wallpaper.due():self.settings_change(wallpaper.update)
+        return True
+
+    def settings_action(self,surface,message):
+        action=message['action']
+        if action in ('settings-move','settings-resize','settings-minimize','settings-maximize'):
+            self.file_action(surface,{'action':action.replace('settings-','file-')})
+        elif action=='settings-set':
+            name,value=message.get('name'),message.get('value')
+            self.settings_change(lambda:settings_backend.apply(name,value))
+        elif action=='settings-tool':settings_backend.launch(message.get('tool'))
+        elif action=='settings-refresh':self.refresh_settings()
+        elif action=='settings-effects':subprocess.Popen(['/usr/bin/python3',str(BASE/'effects.py')])
+        elif action=='settings-explorer':self.open_explorer('::computer')
+        elif action=='settings-launch':self.launch(message.get('id'))
+        elif action=='settings-groups':
+            self.store.state['groups_visible']=bool(message['value']);self.store.save();self.sync_groups();self.update_settings_surface()
+        elif action=='settings-start':self.show_start()
+        elif action=='settings-wallpaper-config':
+            self.settings_change(lambda:wallpaper.configure(message.get('key'),message.get('value')))
+        elif action=='settings-wallpaper-update':self.settings_change(wallpaper.update)
+        elif action=='settings-wallpaper-use':self.settings_change(lambda:wallpaper.apply(message.get('id','')))
+        elif action=='settings-wallpaper-restore':self.settings_change(wallpaper.restore)
+        elif action=='settings-picture':
+            self.modal=True
+            dialog=Gtk.FileChooserDialog(title='Choose a background picture',transient_for=surface,action=Gtk.FileChooserAction.OPEN)
+            dialog.add_buttons('Cancel',Gtk.ResponseType.CANCEL,'Choose picture',Gtk.ResponseType.OK)
+            image_filter=Gtk.FileFilter();image_filter.set_name('JPEG and PNG images');image_filter.add_mime_type('image/jpeg');image_filter.add_mime_type('image/png');dialog.add_filter(image_filter)
+            path=dialog.get_filename() if dialog.run()==Gtk.ResponseType.OK else None
+            dialog.destroy();self.modal=False
+            if path:
+                def apply_picture():
+                    p=Path(path)
+                    if p.stat().st_size>30*1024*1024:raise ValueError('Choose an image smaller than 30 MB.')
+                    entry=wallpaper.remember(p.read_bytes(),{'source':'local','title':p.name,'credit':''})
+                    wallpaper.configure('source','current');wallpaper.apply(entry['id'])
+                self.settings_change(apply_picture)
+        else:raise ValueError('Unknown Settings action.')
 
     def open_explorer(self, location='::home'):
         self.quick.hide()

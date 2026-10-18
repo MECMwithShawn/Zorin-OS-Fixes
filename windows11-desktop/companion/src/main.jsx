@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import './style.css';
 import {Explorer,QuickSettings} from './explorer.jsx';
 import './explorer.css';
+import {Settings} from './settings.jsx';
 
 window.desktopErrors = [];
 window.addEventListener('error', e => window.desktopErrors.push(e.message));
@@ -74,6 +75,7 @@ function App(){
   {context.group&&!context.group.folder&&<button onClick={()=>{send('remove-item',{group:context.group.id,id:context.item.id});setContext(null);}}>Remove shortcut</button>}
  </div>;
 
+ if(data.mode==='settings')return <Settings data={data} toast={toast} initialPage={page}/>;
  if(data.mode==='explorer')return <Explorer data={data} toast={toast}/>;
  if(data.mode==='quick')return <QuickSettings data={data} toast={toast}/>;
  if(data.mode==='group'){
