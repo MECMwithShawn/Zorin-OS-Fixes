@@ -316,6 +316,9 @@ class Hub(Gtk.Application):
         Gdk.Display.get_default().connect('monitor-added', lambda *args: self.reposition_groups())
         Gdk.Display.get_default().connect('monitor-removed', lambda *args: self.reposition_groups())
         self.sync_groups()
+        from multitasking import Multitasking
+        self.multitasking=Multitasking(self,CONFIG)
+        self.connect('shutdown',lambda *_:self.multitasking.shutdown())
 
     def refresh_apps(self):
         self.apps = {a.get_id(): a for a in Gio.AppInfo.get_all() if a.get_id() and a.should_show()}
@@ -341,6 +344,10 @@ class Hub(Gtk.Application):
         args = command.get_arguments()[1:]
         if '--quit' in args:
             self.quit()
+        elif '--snap-layouts' in args:
+            self.multitasking.show_snap()
+        elif '--task-view' in args:
+            self.multitasking.show_tasks()
         elif '--peek' in args:
             self.peek()
         elif '--search' in args:
@@ -665,7 +672,13 @@ class Hub(Gtk.Application):
     def dispatch(self, surface, message):
         action = message.get('action')
         if not isinstance(action,str):raise ValueError('Missing action.')
-        if action.startswith('settings-') and surface.mode=='settings':
+        if action=='snap-hover' and surface.mode in ('explorer','settings'):
+            self.multitasking.caption_hover(surface,bool(message.get('enter')))
+        elif action=='snap-layouts' and surface.mode in ('explorer','settings'):
+            self.multitasking.show_snap(surface.get_window().get_xid())
+        elif action=='task-view':
+            self.multitasking.show_tasks()
+        elif action.startswith('settings-') and surface.mode=='settings':
             self.settings_action(surface,message)
         elif action.startswith('file-') and surface.mode=='explorer':
             self.file_action(surface, message)

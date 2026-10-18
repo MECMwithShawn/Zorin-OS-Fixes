@@ -79,12 +79,23 @@ def upgrade():
         if notification is None:
             notification=allocate();layout['new'][notification]='genmon';layout['order'].insert(-1,notification)
         manifest['notification_plugin']=notification
+        taskview=manifest.get('taskview_plugin')
+        if taskview is None:
+            taskview=allocate();manifest['taskview_plugin']=taskview
+        layout['order']=[i for i in layout['order'] if i!=taskview]
+        layout['order'].insert(layout['order'].index(search)+1,taskview)
         channel='xfce4-panel'
+        setting(channel,f'/plugins/plugin-{taskview}',dbus.String('launcher'))
+        setting(channel,f'/plugins/plugin-{taskview}/items',dbus.Array([dbus.String('zorin11-taskview.desktop')],signature='v'))
+        setting(channel,f'/plugins/plugin-{taskview}/show-label',dbus.Boolean(False))
+        file(home/f'.config/xfce4/panel/launcher-{taskview}/zorin11-taskview.desktop',installer.desktop_file('Task view','--task-view',str(dest/'taskview.svg'),hidden=True))
+        file(home/'.local/share/applications/zorin11-taskview.desktop',installer.desktop_file('Task view','--task-view',str(dest/'taskview.svg')))
         for plugin,kind in layout['new'].items():setting(channel,f'/plugins/plugin-{plugin}',dbus.String(kind))
         setting(channel,f'/panels/panel-{panel}/plugin-ids',dbus.Array([dbus.Int32(i) for i in layout['order']],signature='v'))
         if not manifest.get('base_appearance'):
             appearance.apply(home,panel,layout,setting,file,gsetting)
             manifest['base_appearance']=True
+        setting(channel,f'/panels/panel-{panel}/icon-size',dbus.UInt32(32))
         setting(channel,f'/plugins/plugin-{notification}',dbus.String('genmon'))
         file(home/f'.config/xfce4/panel/genmon-{notification}.rc',f'''Command=/usr/bin/python3 "{dest/'notification_panel.py'}"
 UseLabel=0
@@ -148,6 +159,9 @@ Font=Segoe UI 10
               'XF86AudioRaiseVolume':'pactl set-sink-volume @DEFAULT_SINK@ +5%',
               'XF86AudioLowerVolume':'pactl set-sink-volume @DEFAULT_SINK@ -5%',
               'XF86AudioMute':'pactl set-sink-mute @DEFAULT_SINK@ toggle'}
+        keys.update({'<Super>z':launcher+' --snap-layouts','<Super>Tab':launcher+' --task-view'})
+        # Xfwm's default Super+Tab binding otherwise competes with Task View.
+        setting('xfce4-keyboard-shortcuts','/xfwm4/custom/<Super>Tab',dbus.String(''))
         for key,value in keys.items():setting('xfce4-keyboard-shortcuts','/commands/custom/'+key,dbus.String(value))
         quickfile=home/f'.config/xfce4/panel/launcher-{quick}/zorin11-quick.desktop'
         file(quickfile,installer.desktop_file('Quick settings','--quick-settings',str(dest/'tray-offline-0.svg'),hidden=True))
@@ -198,6 +212,11 @@ Categories=Settings;DesktopSettings;
             content=content.replace('pinned=thunar;','pinned=zorin11-explorer;')
             content=re.sub(r'(?<=;)xfce-settings-manager(?=;|$)','zorin11-settings',content,flags=re.M)
             content=content.replace('pinned=xfce-settings-manager;','pinned=zorin11-settings;')
+            # Draw inset indicators with CSS: the plugin's old bottom-edge dots
+            # were clipped by the 48px panel and almost invisible in dark mode.
+            for key,value in {'indicatorStyle':'5','inactiveIndicatorStyle':'5','forceIconSize':'true','iconSize':'32','showPreviews':'true'}.items():
+                content=re.sub(r'^'+key+r'=.*\n?','',content,flags=re.M)
+                content=content.replace('[user]','[user]\n'+key+'='+value,1)
             file(dock,content)
         helpers=home/'.config/xfce4/helpers.rc'
         content=helpers.read_text() if helpers.exists() else ''
@@ -268,6 +287,12 @@ X-XFCE-CommandsWithParameter={launcher} --explorer "%s";
         content+=f'''\n/* BEGIN Windows 11 tray */
 #launcher-{search} button {{ border-radius: 18px; min-width: 160px; padding: 0 10px; margin: 6px 4px; background-color: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.086); background-image: url('{dest/'search.svg'}'); background-repeat: no-repeat; background-position: 12px center; background-size: 16px 16px; }}
 #launcher-{search} button:hover {{ background-color: rgba(255,255,255,0.125); }}
+#launcher-{start} button, #launcher-{taskview} button {{ min-width: 40px; padding: 0 3px; }}
+#docklike-plugin button.group {{ min-width: 42px; min-height: 36px; margin: 4px 2px; padding: 0 3px 2px; border: 1px solid transparent; border-radius: 5px; background-color: transparent; background-image: none; }}
+#docklike-plugin button.open_group {{ background-color: rgba(255,255,255,0.035); background-image: linear-gradient(to right,#b5b5b5,#b5b5b5); background-size: 8px 3px; background-repeat: no-repeat; background-position: center bottom; }}
+#docklike-plugin button.active_group {{ background-color: rgba(255,255,255,0.105); border-color: rgba(255,255,255,0.06); background-image: linear-gradient(to right,#60cdff,#60cdff); background-size: 22px 3px; }}
+#docklike-plugin button.group:hover {{ background-color: rgba(255,255,255,0.08); }}
+#docklike-plugin button.active_group:hover {{ background-color: rgba(255,255,255,0.15); }}
 #launcher-{search} label {{ font-size: 14px; padding-left: 24px; padding-right: 84px; color: #dedede; }}
 #genmon-{quick} button {{ margin: 5px 0; border-radius: 4px; padding: 0 6px; }}
 .xfce4-panel.background {{ background-color: rgba(28,32,38,0.96); border-top-color: rgba(255,255,255,0.094); font-family: 'Segoe UI', Selawik; }}

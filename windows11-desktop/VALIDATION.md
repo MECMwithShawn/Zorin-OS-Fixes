@@ -39,3 +39,15 @@ The session test uses the installed operating system and packages with a clean t
 - Native notification toast and both flyouts were rendered and visually inspected. Fresh install, repeat upgrade and restore passed with exact recovery of all managed files/settings, including the clock command and replacement notification-bell plugin.
 - This desktop has no `/sys/class/backlight` device or laptop battery. Brightness conversion and device/session validation use isolated tests; physical laptop backlight and battery testing remain pending.
 - Installed session verified: taskbar clock toggles the new flyout, Win+N opens it, Quick Settings sits at the intended usable-area margin, icons/resources load, and no JavaScript errors were reported. Notification bell rendering was visually checked with the existing network/audio tray.
+
+
+## Snap layouts, window switching and taskbar state — 2026-10-17
+
+- The new native window test uses a fresh Xephyr/X11 display, private D-Bus/config/data directories and disposable app windows for each manager. Xfwm and Compiz passed all six layouts, frame-aware placement, geometry/maximized restoration, real XComposite preview capture, Snap Assist/group creation, Task View filtering/activation, minimized-window restore and closed-window rejection. Compiz's nested software renderer still logs decorator texture warnings; final appearance was checked on the live NVIDIA desktop.
+- Compiz's ability to unredirect unobscured screen-sized windows requires previews to wait until the chooser maps. Captures traverse reparenting frames, validate image format/size, run in disposable helper processes, and fall back to an app icon when unavailable.
+- Installed Win+Z and Win+Tab opened the actual native surfaces. Alt+Tab release selected the preceding disposable window. The live desktop retained wobbly windows and daily Spotlight.
+- Live taskbar inspection confirmed the larger Start glyph, gray running markers, blue focused underline/background and absent markers for closed pins. Docklike's clipped old edge indicators were replaced with CSS markers inside each button.
+- Fresh install, repeat upgrade and full restore passed with exact managed-file/Xfconf recovery, including Task View's allocated plugin ID and the new shortcuts. The original backup survives upgrades.
+- 29 backend/model/file tests, six portability tests and Explorer/Quick Settings browser checks passed. A real WebKit maximize-hover event opened the native Snap picker for its own Settings window; Start remained exactly centered with a 12 px taskbar gap.
+- A regression check retains a Task View card while its application closes, then forces garbage collection before stopping the WM. The controller keeps XIDs instead of raw WnckWindow wrappers to avoid a libwnck 43 closed-window finalization crash.
+- Native geometry remains subject to application/WM constraints. The live Compiz session can impose a 10 px edge inset on some GTK windows even when the requested inset is smaller. Physical multi-monitor/laptop testing and full third-party caption-hover support remain pending.

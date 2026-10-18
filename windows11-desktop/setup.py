@@ -55,16 +55,17 @@ def check():
         raise SystemExit('This package is validated for Zorin 18 Lite (Ubuntu 24.04/noble).')
     if platform.machine() != 'x86_64':
         raise SystemExit('The pinned PowerShell/WezTerm binaries require an x86-64 Intel/AMD laptop.')
-    missing = [name for name in ('xfconf-query','xfce4-panel','git','gsettings','nmcli','nm-applet',
+    missing = [name for name in ('xfconf-query','xfce4-panel','git','gsettings','nmcli','nm-applet','xprop',
                'pactl','pavucontrol','update-desktop-database','gtk-update-icon-cache','fc-cache','exo-open') if not shutil.which(name)]
     try:
         import dbus
         import gi
-        for name, version in [('Gtk','3.0'),('WebKit2','4.1'),('Atspi','2.0')]:
+        from PIL import Image
+        for name, version in [('Gtk','3.0'),('WebKit2','4.1'),('Atspi','2.0'),('Wnck','3.0')]:
             gi.require_version(name,version)
         from gi.repository import Gtk, WebKit2, Atspi
     except (ImportError, ValueError):
-        missing.append('Python GI / GTK3 / WebKit2 4.1 / AT-SPI / dbus')
+        missing.append('Python GI / GTK3 / WebKit2 4.1 / AT-SPI / Wnck / Pillow / dbus')
     if missing:
         raise SystemExit('Missing: '+', '.join(missing)+'\nRun ./install-system-deps.sh, then rerun setup.')
     if not Path('/usr/share/themes/ZorinBlue-Dark').is_dir():

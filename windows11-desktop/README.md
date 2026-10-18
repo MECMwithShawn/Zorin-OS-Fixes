@@ -23,6 +23,9 @@ Run `python3 setup.py install` again after pulling updates. It retains the origi
 | Component | Behavior |
 |---|---|
 | Desktop | Dark Zorin theme, 48 px bottom taskbar, centered Start/app area, Windows-style spacing and controls |
+| Taskbar state | 32 px icons; gray markers for running apps; blue underline and a subtle background for the focused app; Task View button |
+| Snap layouts | Win+Z, six layouts, target outlines, minimum-size checks, Snap Assist, restore size, and adjustable ultrawide Focus columns |
+| Task View | Win+Tab, searchable open windows, real in-memory previews, minimized-window activation, and session Snap Groups |
 | Window captions | Original flat dark Xfwm/Compiz frames, thin borders, 46 px caption controls, red Close hover, and matching GTK3 title buttons |
 | Start | Pinned apps, drag ordering, search, All apps, categories, recent launches, power/session actions |
 | File Explorer / This PC | Tabs, sidebar, address navigation, details view, mounted drives and capacity bars, create/rename/copy/cut/paste/trash |
@@ -71,6 +74,9 @@ This imports six sizes (16–256 px), including the computer, drive, USB drive, 
 | Win+N / taskbar clock or bell | Notifications and calendar |
 | Win+I | Windows-style Settings |
 | Win+T / Ctrl+Alt+T | Terminal |
+| Win+Z | Snap layouts for the active application |
+| Win+Tab | Task View: search and switch open windows |
+| Alt+Tab / Alt+Shift+Tab | Native forward/reverse window switching |
 | Win+Shift+F | Bring Desktop Groups forward / send them back |
 | Ctrl+Shift+T in Terminal | New tab |
 | Ctrl+Shift+Space in Terminal | Select PowerShell or Bash profile |
@@ -96,6 +102,18 @@ Notifications come from Xfce Notifyd's existing local log, grouped by applicatio
 **Win+A** opens Quick Settings. Use the button beside volume to choose a sound output; current streams using the previous default output move with it, while explicitly separate app routes remain unchanged. The Accessibility tile exposes Sticky/Slow/Bounce/Mouse Keys. The pencil button chooses which of six tiles appear, and saves the selection. Bluetooth's main button toggles power; its arrow opens device management. Wi-Fi uses the same split control.
 
 Brightness appears only for real kernel backlight devices (usually a laptop's built-in screen), controlled through the active user's logind session. External-monitor DDC/CI brightness is not implemented. Battery details appear only when a battery is detected. Native hardware controls report errors instead of claiming a failed change succeeded.
+
+## Snap layouts and window switching
+
+Press **Win+Z** while an application is focused, or hover over the maximize button in the companion's Explorer/Settings. Choose a zone in one of six layouts. The target uses the current window's monitor work area, keeping the taskbar clear. App minimum sizes disable zones that cannot fit. Press 1–6 to focus a layout, use Tab/arrow keys to navigate, and Enter to select. Escape dismisses the chooser.
+
+**Snap Assist** suggests another open window for each remaining space. Skip/Escape keeps the placements already made. **Restore size** in Win+Z returns the selected window to its saved pre-snap geometry/maximized state, subject to the window manager's constraints. Under **Customize**, adjust the center width of **Focus columns** from 40–70%, or turn off Snap Assist. This is useful for an editor/browser in the middle of an ultrawide monitor and reference windows on either side.
+
+Click the **Task View** button beside Search, or press **Win+Tab**. Type to filter titles/app names; Enter activates the first match. Down moves focus into the cards. Window previews are snapshots of the application's composited contents, read only while the view is open; nothing is saved to disk. Minimized/unavailable previews use the app icon. The view includes windows across existing workspaces and activates their workspace as needed. Completed Snap Assist arrangements appear as **Snap groups** so their windows can be brought back together. Groups and restore positions last for the current companion process and are not saved across login/restart.
+
+Alt+Tab stays with the native window manager. The optional Compiz profile uses a dark switcher with previews, minimized windows, forward/reverse cycling, and a shorter popup delay. No global Alt-key hook is installed. Wobble and existing edge/Win+arrow snapping remain available.
+
+Remaining differences: third-party custom maximize buttons use Win+Z; Snap Groups are not yet shown in Alt+Tab or Docklike hover previews; desktop creation/renaming and Windows Task View desktop thumbnails remain future work. Some applications impose size increments, minimum sizes or edge constraints that can adjust the requested snap rectangle.
 
 ## Settings and Windows Spotlight
 

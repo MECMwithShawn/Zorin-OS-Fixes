@@ -1,0 +1,17 @@
+.z11-multitask { background: #242424; color: #f3f3f3; border: 1px solid #515151; border-radius: 12px; font-family: 'Segoe UI', Selawik, sans-serif; font-size: 14px; }
+.z11-multitask label { color: #f3f3f3; }
+.z11-multitask .z11-heading { font-size: 19px; font-weight: 600; }
+.z11-multitask .z11-muted { color: #bcbcbc; font-size: 13px; }
+.z11-multitask .z11-small { color: #bcbcbc; font-size: 11px; }
+.z11-multitask button { background: #323232; background-image: none; color: #f3f3f3; border: 1px solid #4b4b4b; border-radius: 5px; padding: 7px 12px; box-shadow: none; text-shadow: none; }
+.z11-multitask button:hover { background: #414141; }
+.z11-multitask button:focus { border-color: #60cdff; outline: 1px solid #60cdff; outline-offset: -1px; }
+.z11-multitask button:disabled { opacity: .45; }
+.z11-multitask button.z11-zone { min-width: 0; min-height: 0; padding: 0; background: #414141; border-color: #747474; border-radius: 3px; }
+.z11-multitask button.z11-zone:hover, .z11-multitask button.z11-zone:focus { background: #60cdff; border-color: #9ce0ff; }
+.z11-multitask button.z11-window-card { padding: 12px; border-radius: 9px; background: #303030; border-color: #454545; }
+.z11-multitask button.z11-window-card:hover { background: #393939; border-color: #919191; }
+.z11-multitask button.z11-window-card:focus { border: 2px solid #60cdff; padding: 11px; }
+.z11-multitask flowboxchild { padding: 0; }
+.z11-multitask entry { background: #1c1c1c; color: #f3f3f3; border: 1px solid #5b5b5b; border-bottom: 2px solid #60cdff; border-radius: 6px; padding: 10px 12px; min-height: 20px; }
+.z11-multitask .z11-primary { background: #60cdff; color: #13212b; border-color: #60cdff; }

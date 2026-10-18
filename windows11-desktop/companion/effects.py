@@ -44,6 +44,10 @@ def configure():
                   'move_window_match':'type=Normal | type=Dialog','snap_inverted':False},
         'grid':{'put_left_key':'<Super>Left','put_right_key':'<Super>Right',
                 'put_maximize_key':'Disabled','put_restore_key':'<Super>Down'},
+        'staticswitcher':{'next_key':'<Alt>Tab','prev_key':'<Shift><Alt>Tab',
+                         'minimized':True,'icon_only':False,'mipmap':True,
+                         'popup_delay':0.12,'mouse_select':True,'bring_to_front':False,
+                         'use_background_color':True,'background_color':[9252,9252,9252,64250]},
     }
     for name,options in values.items():
         for option,value in options.items():context.Plugins[name].Screen[option].Value=value

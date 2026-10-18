@@ -5,11 +5,11 @@ Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11,
 | Area | Delivered | Remaining differences / next work |
 |---|---|---|
 | 1. Desktop | Dark appearance, personal Windows icons, This PC, shortcut groups, optional Spotlight/Bing rotation with history | Desktop context menus and selection visuals remain Xfce; Spotlight refresh is per login session |
-| 2. Taskbar | Centered Start/app area, pins/running indicators through Docklike, search, tray overflow, compact Fluent network/audio, clock/date, laptop battery retained | Windows thumbnail styling, badges/progress, Task View and per-monitor taskbars need further work |
+| 2. Taskbar | Centered Start/app area, 32 px icons, distinct active/running/closed states through Docklike, Task View button, search, tray overflow, compact Fluent network/audio, clock/date, laptop battery retained | Windows taskbar thumbnail styling, badges/progress and per-monitor taskbars need further work |
 | 3. Start | Anchored rounded panel, pinned grid/reordering, All apps/categories, search, recent launches, account and power actions | Recommended documents, app folders, expanded jump lists |
 | 4. Search | Local application search, category navigation, Settings search | Unified file/settings search, previews and full keyboard navigation parity |
 | 5. Window frames | Dark Xfwm/Compiz frames, thin borders, large caption targets, red Close hover, companion captions | Third-party custom title bars and corner/shadow parity vary |
-| 6. Snap Layouts | Existing Xfwm/Compiz edge and keyboard snapping | Maximize-hover layout chooser, Snap Groups and custom zones |
+| 6. Snap Layouts | Win+Z six-layout picker, Explorer/Settings maximize hover, target outline, minimum-size checks, Snap Assist, session Snap Groups, restore size, adjustable Focus columns; existing edge/arrow snapping retained | Third-party maximize-hover integration, drag-to-top snap bar, persistent/custom free-form zones; groups in Alt+Tab/taskbar |
 | 7. File Explorer | This PC drive capacity, personal Windows drive/folder icons, tabs, breadcrumbs/address, sidebar, views, details pane, common file operations | Content preview pane, richer context menus, network/Trash handled by native tools |
 | 8. Settings | Windows-style Home/sidebar/cards/search and 12 categories; working controls and real system information | Advanced pages still open Linux tools; individual pages can be progressively integrated |
 | 9. Quick Settings | Wi-Fi/Bluetooth toggles and management, volume/mute, output selection with active-stream routing, DND, keyboard accessibility, six editable tiles, hardware backlight and battery readout | Battery-saver/airplane-mode controls, richer connected-device UI, external-monitor DDC/CI brightness; laptop hardware validation |
@@ -22,7 +22,7 @@ Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11,
 | 16. Lock screen | Spotlight/background shared through Xfce Screensaver; lock preferences accessible | Windows clock/login/avatar layout and transitions; LightDM login screen unchanged |
 | 17. Power menu | Existing lock/session/power actions through supported Linux tools | Windows-style confirmation screens; hibernate remains hardware/system dependent |
 | 18. Animations | Hover transitions, optional Compiz wobble with recovery preview | Opening/minimizing/snapping/workspace/notification motion parity |
-| 19. Virtual desktops | Native Xfce/Compiz workspaces retained | Windows Task View thumbnails, names and transitions |
+| 19. Virtual desktops | Searchable Win+Tab Task View with real window previews and cross-workspace activation; native workspaces retained | Desktop thumbnails, creation/renaming and transitions in Task View |
 | 20. Multimonitor | Settings reports live monitors and opens native arrangement/scaling; wallpaper applies to connected monitors | Per-monitor taskbars, independent wallpaper selection and fractional-scale consistency |
 | 21. Widgets | Desktop shortcut groups and folder portals | Calendar/weather/resource widgets; news feed intentionally not added by default |
 | 22. System utilities | PowerShell, WezTerm profiles/tabs/splits, screenshot entry, native administration tools | Windows-style Task Manager, Device Manager, Disk Management, Services, Event Viewer and clipboard UI |
@@ -32,7 +32,7 @@ Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11,
 
 ## Next implementation priorities
 
-1. Snap layout chooser and improved task switching, preserving reliable window-manager behavior.
+1. Extend Task View with desktop management and add Snap Groups to taskbar switching; broaden native maximize-hover support.
 2. Additional Settings pages and native dialog styling; close remaining icon and spacing differences against the user's Windows reference.
 3. Battery-saver and connected-device controls, plus richer notification actions where supported.
 4. Validate on the laptop, especially real backlight control, battery, touchpad, scaling, suspend and multiple displays.
