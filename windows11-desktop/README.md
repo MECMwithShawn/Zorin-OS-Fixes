@@ -25,7 +25,7 @@ Run `python3 setup.py install` again after pulling updates. It retains the origi
 | Desktop | Dark Zorin theme, 48 px bottom taskbar, centered Start/app area, Windows-style spacing and controls |
 | Taskbar state | 32 px icons; gray markers for running apps; blue underline and a subtle background for the focused app; Task View button |
 | Snap layouts | Win+Z, six layouts, target outlines, minimum-size checks, Snap Assist, restore size, and adjustable ultrawide Focus columns |
-| Task View | Win+Tab, searchable open windows, real in-memory previews, minimized-window activation, and session Snap Groups |
+| Task View | Win+Tab, desktop previews, create/rename/close, drag windows between desktops, search across desktops, and session Snap Groups |
 | Window captions | Original flat dark Xfwm/Compiz frames, thin borders, 46 px caption controls, red Close hover, and matching GTK3 title buttons |
 | Start | Pinned apps, drag ordering, search, All apps, categories, recent launches, power/session actions |
 | File Explorer / This PC | Tabs, sidebar, address navigation, details view, mounted drives and capacity bars, create/rename/copy/cut/paste/trash |
@@ -75,7 +75,10 @@ This imports six sizes (16–256 px), including the computer, drive, USB drive, 
 | Win+I | Windows-style Settings |
 | Win+T / Ctrl+Alt+T | Terminal |
 | Win+Z | Snap layouts for the active application |
-| Win+Tab | Task View: search and switch open windows |
+| Win+Tab | Task View: windows and virtual desktops |
+| Win+Ctrl+D | Create and enter a new desktop |
+| Win+Ctrl+Left / Right | Switch to the previous / next desktop |
+| Win+Ctrl+F4 | Close the current desktop, keeping its apps open |
 | Alt+Tab / Alt+Shift+Tab | Native forward/reverse window switching |
 | Win+Shift+F | Bring Desktop Groups forward / send them back |
 | Ctrl+Shift+T in Terminal | New tab |
@@ -109,11 +112,19 @@ Press **Win+Z** while an application is focused, or hover over the maximize butt
 
 **Snap Assist** suggests another open window for each remaining space. Skip/Escape keeps the placements already made. **Restore size** in Win+Z returns the selected window to its saved pre-snap geometry/maximized state, subject to the window manager's constraints. Under **Customize**, adjust the center width of **Focus columns** from 40–70%, or turn off Snap Assist. This is useful for an editor/browser in the middle of an ultrawide monitor and reference windows on either side.
 
-Click the **Task View** button beside Search, or press **Win+Tab**. Type to filter titles/app names; Enter activates the first match. Down moves focus into the cards. Window previews are snapshots of the application's composited contents, read only while the view is open; nothing is saved to disk. Minimized/unavailable previews use the app icon. The view includes windows across existing workspaces and activates their workspace as needed. Completed Snap Assist arrangements appear as **Snap groups** so their windows can be brought back together. Groups and restore positions last for the current companion process and are not saved across login/restart.
+Click the **Task View** button beside Search, or press **Win+Tab**. The bottom strip shows named desktop previews and a blue border under the current desktop. Hover over a preview to inspect its windows; click it to switch. **New desktop** creates a desktop in place; **Win+Ctrl+D** creates one and immediately enters it. Click a desktop name to rename it, then press Enter. Escape cancels the edit. Names and desktop counts persist locally.
+
+Drag a window card onto a desktop preview to move it there, or right-click the card and choose **Move to**. Shift+F10 opens the same menu from the keyboard. Dropping onto **New desktop** creates a desktop for that window. Moving preserves maximized/minimized state. The desktop's **×** button and **Win+Ctrl+F4** move its windows to the desktop on its left (or the next desktop when closing the first), then remove it. The last desktop cannot be removed; applications are never closed by this action.
+
+The window area normally shows the desktop being previewed. Type in Search to find titles/app names across all desktops; Enter activates the first match on its desktop, and Down moves focus into the cards. Window previews are snapshots of composited app contents, captured while Task View is open. Up to 36 previews are retained in memory; none are written to disk. Hidden/minimized windows use their last available preview or app icon. Desktop thumbnails combine the current wallpaper with window positions and those previews.
+
+Completed Snap Assist arrangements appear as **Snap groups** so their windows can be brought back together. Groups and restore positions last for the current companion process and are not saved across login/restart. Snap Assist now suggests windows on the current desktop only.
+
+Desktop management uses native Xfwm workspaces, or horizontal viewports when the optional Compiz effects profile is active. No window-manager restart is needed. Existing two-dimensional Compiz layouts can be browsed and switched, but creation/removal requires a single row. Up to 32 desktops are supported. Desktops span the connected monitors; per-desktop wallpaper, reordering, and Windows' exact transition animations remain future work. The current shared Spotlight/Bing background and its rotation remain active.
 
 Alt+Tab stays with the native window manager. The optional Compiz profile uses a dark switcher with previews, minimized windows, forward/reverse cycling, and a shorter popup delay. No global Alt-key hook is installed. Wobble and existing edge/Win+arrow snapping remain available.
 
-Remaining differences: third-party custom maximize buttons use Win+Z; Snap Groups are not yet shown in Alt+Tab or Docklike hover previews; desktop creation/renaming and Windows Task View desktop thumbnails remain future work. Some applications impose size increments, minimum sizes or edge constraints that can adjust the requested snap rectangle.
+Remaining differences: third-party custom maximize buttons use Win+Z; Snap Groups are not yet shown in Alt+Tab or Docklike hover previews. Some applications impose size increments, minimum sizes or edge constraints that can adjust the requested snap rectangle.
 
 ## Settings and Windows Spotlight
 

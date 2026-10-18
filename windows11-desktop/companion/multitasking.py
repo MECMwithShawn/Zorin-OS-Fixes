@@ -18,7 +18,8 @@ def label(text,cls=None):
 
 
 def button(text,callback,cls=None):
-    widget=Gtk.Button(label=text);widget.connect('clicked',lambda *_:callback())
+    widget=Gtk.Button(label=text) if text is not None else Gtk.Button()
+    widget.connect('clicked',lambda *_:callback())
     if cls:widget.get_style_context().add_class(cls)
     return widget
 
@@ -27,15 +28,20 @@ class Multitasking:
     def __init__(self,hub,config):
         self.hub=hub;self.config=config;self.windows=Windows()
         self.window=None;self.overlay=None;self.generation=0;self.groups=[]
-        self.origin=None;self.restore_focus=True;self.hover_timer=0
+        self.origin=None;self.restore_focus=True;self.hover_timer=0;self.preview_cache={}
+        self.preview_handler=self.windows.screen.connect('window-closed',lambda _,w:self.preview_cache.pop(w.get_xid(),None))
         try:self.preferences=json.loads((config/'multitasking.json').read_text())
         except (OSError,ValueError):self.preferences={}
+        from desktops import Desktops
+        self.desktops=Desktops(self)
         self.css=Gtk.CssProvider();self.css.load_from_path(str(BASE/'multitasking.css'))
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(),self.css,650)
 
     def shutdown(self):
+        self.desktops.stopped=True
         if self.hover_timer:GLib.source_remove(self.hover_timer);self.hover_timer=0
         self.close(False)
+        self.windows.screen.disconnect(self.preview_handler)
         self.windows.close()
 
     def save(self):
@@ -67,7 +73,9 @@ class Multitasking:
         generation=self.generation
         def blur(*_):
             def finish():
-                if generation==self.generation and self.window and not self.window.is_active():self.close(False)
+                view=getattr(self,'task_view',None)
+                held=view and view.alive() and view.hold_focus()
+                if generation==self.generation and self.window and not self.window.is_active() and not held:self.close(False)
                 return False
             GLib.timeout_add(200,finish)
         win.connect('focus-out-event',blur)
@@ -186,7 +194,7 @@ class Multitasking:
     def assist(self,placements,remaining,area):
         self.remember_group(placements)
         choices=[w for w in self.windows.windows() if w.get_xid() not in {i for i,_ in placements}
-                 and self.windows.can_snap(w) and w.is_on_workspace(self.windows.screen.get_active_workspace())]
+                 and self.windows.can_snap(w) and self.desktops.on(w,self.desktops.current())]
         if remaining:
             choices=[w for w in choices if all(a<=b for a,b in zip(self.windows.minimum(w),remaining[0][2:]))]
         if not remaining or not choices or not self.preferences.get('assist',True):return
@@ -204,7 +212,7 @@ class Multitasking:
         # Keep the chooser above its input-transparent target outline.
         win.get_window().raise_()
 
-    def cards(self,box,windows,choose,width,search=None):
+    def cards(self,box,windows,choose,width,search=None,view=None):
         scroll=Gtk.ScrolledWindow();scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.AUTOMATIC)
         scroll.set_min_content_height(220);box.pack_start(scroll,True,True,0)
         flow=Gtk.FlowBox();flow.set_selection_mode(Gtk.SelectionMode.NONE)
@@ -212,7 +220,8 @@ class Multitasking:
         flow.set_row_spacing(12);flow.set_column_spacing(12);flow.set_homogeneous(True);flow.set_valign(Gtk.Align.START)
         scroll.add(flow);self.flow=flow
         generation=self.generation
-        if search:
+        if view:flow.set_filter_func(view.accepts)
+        elif search:
             flow.set_filter_func(lambda child:search.get_text().casefold() in child.search_text)
             search.connect('search-changed',lambda *_:flow.invalidate_filter())
         for index,w in enumerate(windows):
@@ -225,59 +234,58 @@ class Multitasking:
             text=label(title);text.set_ellipsize(Pango.EllipsizeMode.END);text.set_max_width_chars(22)
             heading.pack_start(text,True,True,0);content.pack_start(heading,False,False,0)
             image=Gtk.Image.new_from_pixbuf(w.get_icon());image.set_size_request(210,136)
+            cached=self.preview_cache.get(w.get_xid())
+            if cached:
+                ratio=min(230/cached.get_width(),136/cached.get_height())
+                image.set_from_pixbuf(cached.scale_simple(max(1,int(cached.get_width()*ratio)),max(1,int(cached.get_height()*ratio)),GdkPixbuf.InterpType.BILINEAR))
             content.pack_start(image,True,True,0)
             status='Minimized' if w.is_minimized() else w.get_class_group_name() or 'Window'
+            if view:
+                desktop=self.desktops.desktop_for(w)
+                desktop_name=next((d['name'] for d in view.items if d['id']==desktop),'All desktops')
+                status=desktop_name+' · '+status
             content.pack_start(label(status,'z11-small'),False,False,0)
             child=Gtk.FlowBoxChild();child.search_text=(title+' '+status).casefold();child.xid=w.get_xid()
+            if view:view.configure_card(card,child,w)
             child.add(card);flow.add(child)
             if not w.is_minimized() and index<36:
                 def capture(xid=w.get_xid()):
                     return subprocess.run(['/usr/bin/python3',str(BASE/'window_preview.py'),str(xid)],capture_output=True,timeout=3,check=False).stdout
-                def done(data,img=image):
+                def done(data,img=image,xid=w.get_xid()):
                     if generation!=self.generation or not data:return
                     loader=GdkPixbuf.PixbufLoader.new_with_type('png');loader.write(data);loader.close()
                     pix=loader.get_pixbuf();ratio=min(230/pix.get_width(),136/pix.get_height())
+                    self.preview_cache[xid]=pix
+                    while len(self.preview_cache)>36:self.preview_cache.pop(next(iter(self.preview_cache)))
                     img.set_from_pixbuf(pix.scale_simple(max(1,int(pix.get_width()*ratio)),max(1,int(pix.get_height()*ratio)),GdkPixbuf.InterpType.BILINEAR))
+                    if view:view.preview_ready(xid,pix)
                 # Let the chooser map before capture. Compiz may temporarily
                 # unredirect an unobscured full-screen-sized application.
                 def begin(task=capture,callback=done):
                     if generation==self.generation:self.hub.background(task,callback,lambda _:None)
                     return False
                 GLib.timeout_add(250,begin)
-        if not windows:box.pack_start(label('No open windows on this desktop.','z11-muted'),False,False,0)
+        if not windows and not view:box.pack_start(label('No open windows on this desktop.','z11-muted'),False,False,0)
         return flow
 
     def show_tasks(self):
         if self.window and self.window.get_title()=='Task view':self.close();return
-        target=self.windows.active();self.origin=target.get_xid() if target else None
-        area=self.area(target);width=min(1320,area[2]-48);height=min(850,area[3]-48)
-        win,box=self.shell('Task view',width,height,area)
-        header=Gtk.Box(spacing=20);header.pack_start(label('Task view','z11-heading'),True,True,0)
-        header.pack_end(button('Close',lambda:self.close()),False,False,0)
-        header.pack_end(label('Win + Tab','z11-muted'),False,False,0);box.pack_start(header,False,False,0)
-        search=Gtk.SearchEntry();search.set_placeholder_text('Find an open window');box.pack_start(search,False,False,0)
-        groups=[[(x,r) for x,r in g if self.windows.get(x)] for g in self.groups]
-        groups=[g for g in groups if len(g)>1]
-        if groups:
-            row=Gtk.Box(spacing=8);row.pack_start(label('Snap groups','z11-muted'),False,False,0)
-            for i,g in enumerate(groups[:4]):row.pack_start(button(f'Group {i+1} · {len(g)} windows',lambda group=g:self.activate_group(group)),False,False,0)
-            box.pack_start(row,False,False,0)
-        windows=self.windows.windows()
-        self.cards(box,windows,self.choose,width,search)
-        footer=Gtk.Box(spacing=12)
-        footer.pack_start(label(f'{len(windows)} open windows · Alt + Tab switches directly','z11-muted'),True,True,0)
-        footer.pack_end(button('Desktop settings',lambda:(self.close(False),self.hub.open_settings('multitasking'))),False,False,0)
-        box.pack_end(footer,False,False,0)
-        win.show_all();win.present();search.grab_focus()
-        def search_key(_,event):
-            if event.keyval in (Gdk.KEY_Return,Gdk.KEY_Down):
-                children=[c for c in self.flow.get_children() if c.get_child_visible()]
-                if children:
-                    if event.keyval==Gdk.KEY_Return:children[0].get_child().clicked()
-                    else:children[0].get_child().grab_focus()
-                return True
-            return False
-        search.connect('key-press-event',search_key)
+        from taskview import TaskView
+        self.task_view=TaskView(self)
+
+    def desktop_command(self,action):
+        if self.desktops.busy:return
+        self.close(False)
+        def done(error,index):
+            if error:
+                self.show_tasks();self.task_view.notice(error)
+            elif index is not None:self.desktops.switch(index)
+        if action=='new':self.desktops.create(done)
+        elif action=='close':
+            if len(self.desktops.items())>1:self.desktops.remove(self.desktops.current(),done)
+        elif action in ('left','right'):
+            index=self.desktops.current()+(-1 if action=='left' else 1)
+            if 0<=index<len(self.desktops.items()):self.desktops.switch(index)
 
     def choose(self,w):
         self.close(False)

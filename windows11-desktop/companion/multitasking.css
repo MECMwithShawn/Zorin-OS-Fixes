@@ -15,3 +15,20 @@
 .z11-multitask flowboxchild { padding: 0; }
 .z11-multitask entry { background: #1c1c1c; color: #f3f3f3; border: 1px solid #5b5b5b; border-bottom: 2px solid #60cdff; border-radius: 6px; padding: 10px 12px; min-height: 20px; }
 .z11-multitask .z11-primary { background: #60cdff; color: #13212b; border-color: #60cdff; }
+.z11-taskview { background: #202123; }
+.z11-taskview button.z11-desktop-card { padding: 5px; border: 2px solid #56585c; border-radius: 8px; background: #292b30; }
+.z11-taskview button.z11-desktop-card:hover, .z11-taskview button.z11-desktop-previewed { border-color: #bdc5ce; }
+.z11-taskview button.z11-desktop-current { border-color: #60cdff; box-shadow: 0 3px #60cdff; }
+.z11-taskview entry.z11-desktop-name { background: transparent; background-image: none; border: 1px solid transparent; box-shadow: none; padding: 4px 6px; min-height: 20px; font-size: 13px; }
+.z11-taskview entry.z11-desktop-name:hover { background: rgba(255,255,255,0.047); }
+.z11-taskview entry.z11-desktop-name:focus { background: #191a1d; border-color: #60cdff; }
+.z11-taskview button.z11-desktop-close { background: transparent; border: 0; min-width: 22px; min-height: 22px; padding: 0; font-size: 21px; }
+.z11-taskview button.z11-desktop-close:hover { background: #c42b1c; }
+.z11-taskview button.z11-new-desktop { border-radius: 8px; background: rgba(255,255,255,0.031); border-color: rgba(255,255,255,0.145); margin-top: 32px; margin-bottom: 24px; }
+.z11-taskview button.z11-new-desktop:hover { background: rgba(255,255,255,0.071); border-color: #92969e; }
+.z11-taskview .z11-desktop-plus { font-size: 32px; font-weight: 300; }
+.z11-taskview separator { background: rgba(255,255,255,0.094); min-height: 1px; }
+.z11-taskview button:drop(active) { border-color: #60cdff; background: #254356; }
+.z11-desktop-menu { background: #292a2d; color: #f3f3f3; border: 1px solid #56585c; border-radius: 8px; padding: 6px; font: 14px 'Segoe UI', Selawik, sans-serif; }
+.z11-desktop-menu menuitem { padding: 8px 18px; border-radius: 4px; }
+.z11-desktop-menu menuitem:hover { background: #414348; }

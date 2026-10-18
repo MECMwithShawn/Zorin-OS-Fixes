@@ -348,6 +348,9 @@ class Hub(Gtk.Application):
             self.multitasking.show_snap()
         elif '--task-view' in args:
             self.multitasking.show_tasks()
+        elif '--desktop' in args:
+            offset=args.index('--desktop')+1
+            if offset<len(args):self.multitasking.desktop_command(args[offset])
         elif '--peek' in args:
             self.peek()
         elif '--search' in args:

@@ -160,6 +160,10 @@ Font=Segoe UI 10
               'XF86AudioLowerVolume':'pactl set-sink-volume @DEFAULT_SINK@ -5%',
               'XF86AudioMute':'pactl set-sink-mute @DEFAULT_SINK@ toggle'}
         keys.update({'<Super>z':launcher+' --snap-layouts','<Super>Tab':launcher+' --task-view'})
+        for key,action in [('d','new'),('F4','close'),('Left','left'),('Right','right')]:
+            binding='<Primary><Super>'+key
+            keys[binding]=launcher+' --desktop '+action
+            setting('xfce4-keyboard-shortcuts','/xfwm4/custom/'+binding,dbus.String(''))
         # Xfwm's default Super+Tab binding otherwise competes with Task View.
         setting('xfce4-keyboard-shortcuts','/xfwm4/custom/<Super>Tab',dbus.String(''))
         for key,value in keys.items():setting('xfce4-keyboard-shortcuts','/commands/custom/'+key,dbus.String(value))
