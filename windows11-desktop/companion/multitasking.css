@@ -18,7 +18,7 @@
 .z11-taskview { background: #202123; }
 .z11-taskview button.z11-desktop-card { padding: 5px; border: 2px solid #56585c; border-radius: 8px; background: #292b30; }
 .z11-taskview button.z11-desktop-card:hover, .z11-taskview button.z11-desktop-previewed { border-color: #bdc5ce; }
-.z11-taskview button.z11-desktop-current { border-color: #60cdff; box-shadow: 0 3px #60cdff; }
+.z11-taskview button.z11-desktop-card.z11-desktop-current { border-color: #60cdff; box-shadow: 0 3px #60cdff; }
 .z11-taskview entry.z11-desktop-name { background: transparent; background-image: none; border: 1px solid transparent; box-shadow: none; padding: 4px 6px; min-height: 20px; font-size: 13px; }
 .z11-taskview entry.z11-desktop-name:hover { background: rgba(255,255,255,0.047); }
 .z11-taskview entry.z11-desktop-name:focus { background: #191a1d; border-color: #60cdff; }

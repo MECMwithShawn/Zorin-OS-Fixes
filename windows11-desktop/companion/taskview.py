@@ -3,39 +3,41 @@ from gi.repository import Gtk, Gdk, GdkPixbuf, GLib, Pango
 from multitasking import label, button
 
 DRAG_TYPE='application/x-zorin11-window'
+DESKTOP_DRAG_TYPE='application/x-zorin11-desktop'
 
 
 class TaskView:
     def __init__(self,m):
         self.m=m;self.d=m.desktops;self.selected=self.d.current();self.pixbufs=m.preview_cache.copy()
-        self.menu=None;self.dragging=False;self.editing=False;self.hover=0;self.error=''
-        self.wallpaper=None;self.revision=None;self.thumbs=[]
+        self.menu=None;self.dragging=False;self.editing=False;self.modal=False;self.choosing=False;self.transition=False;self.hover=0;self.error=''
+        self.wallpapers={};self.revision=None;self.thumbs=[]
         target=m.windows.active();m.origin=target.get_xid() if target else None
         area=m.area(target);self.width=min(1480,area[2]-48);height=min(920,area[3]-48)
         self.win,self.box=m.shell('Task view',self.width,height,area)
         self.win.stick();self.win.get_style_context().add_class('z11-taskview')
         self.render()
         self.win.show_all();self.filter();self.win.present();self.search.grab_focus()
-        # Local wallpaper only. Spotlight scheduling and per-monitor backgrounds
-        # remain owned by the wallpaper service, not the desktop manager.
-        def wallpaper():
-            import wallpaper as source
-            path=source.current_path()
-            return str(path) if path else None
-        def loaded(path):
-            if not self.alive() or not path:return
-            try:self.wallpaper=GdkPixbuf.Pixbuf.new_from_file_at_scale(path,480,270,True)
-            except GLib.Error:return
-            for t in self.thumbs:t.queue_draw()
-        m.hub.background(wallpaper,loaded,lambda _:None)
         GLib.timeout_add(450,self.refresh)
 
     def alive(self):return self.m.window is self.win
 
-    def hold_focus(self):return self.menu is not None or self.dragging or self.d.busy
+    def hold_focus(self):return self.menu is not None or self.dragging or self.d.busy or self.modal or self.choosing or self.transition
+
+    def resume(self):
+        # Workspace activation can restore focus to a normal app after its
+        # EWMH acknowledgement. Keep Task View through that transition and use
+        # a fresh server timestamp when requesting focus back.
+        if not self.alive():return
+        self.transition=True;self.win.present_with_time(self.m.windows.timestamp())
+        def settled():
+            if self.alive():self.win.present_with_time(self.m.windows.timestamp())
+            self.transition=False;return False
+        GLib.timeout_add(250,settled)
 
     def fingerprint(self):
-        return (tuple((d['id'],d['name'],d['current']) for d in self.d.items()),
+        import wallpaper
+        return (tuple((d['uid'],d['name'],d['current']) for d in self.d.items()),
+                wallpaper.STATE.stat().st_mtime_ns if wallpaper.STATE.exists() else 0,
                 tuple((w.get_xid(),w.get_name(),self.d.desktop_for(w),w.is_minimized()) for w in self.m.windows.windows()))
 
     def refresh(self):
@@ -48,6 +50,8 @@ class TaskView:
     def render(self):
         query=self.search.get_text() if hasattr(self,'search') else ''
         focus_search=hasattr(self,'search') and self.search.has_focus()
+        focus_desktop=next((self.items[i]['uid'] for i,b in enumerate(getattr(self,'desktop_buttons',[])) if b.has_focus()),None)
+        focus_window=next((c.xid for c in self.m.flow.get_children() if c.get_child().has_focus()),None) if hasattr(self.m,'flow') else None
         for widget in self.box.get_children():widget.destroy()
         self.items=self.d.items();self.selected=min(self.selected,len(self.items)-1)
         self.thumbs=[];self.desktop_buttons=[];self.revision=self.fingerprint()
@@ -74,7 +78,7 @@ class TaskView:
         self.empty=label('No open windows here. Open an app or drag a window onto this desktop.','z11-muted')
         self.box.pack_start(self.empty,False,False,0)
         foot=Gtk.Box(spacing=12)
-        self.message=label(self.error or 'Drag a window to a desktop · Right-click a window for Move to','z11-muted')
+        self.message=label(self.error or 'Drag desktops to reorder · Right-click a desktop for its background · Drag windows between desktops','z11-muted')
         self.message.set_ellipsize(Pango.EllipsizeMode.END);foot.pack_start(self.message,True,True,0)
         foot.pack_end(button('Desktop settings',lambda:(self.m.close(False),self.m.hub.open_settings('multitasking'))),False,False,0)
         self.box.pack_start(foot,False,False,0)
@@ -93,8 +97,15 @@ class TaskView:
         new.set_sensitive(len(self.items)<32 and not self.d.busy);self.drop_target(new,None)
         row.pack_start(new,False,False,0);self.new_button=new
         self.box.show_all();self.filter();self.search.connect('search-changed',lambda *_:self.filter())
+        self.load_wallpapers()
         self.search.connect('key-press-event',self.search_key)
         if focus_search:self.search.grab_focus();self.search.set_position(-1)
+        elif focus_desktop:
+            for i,item in enumerate(self.items):
+                if item['uid']==focus_desktop:self.desktop_buttons[i].grab_focus();break
+        elif focus_window:
+            for child in self.m.flow.get_children():
+                if child.xid==focus_window and child.get_child_visible():child.get_child().grab_focus();break
 
     def filter(self):
         self.m.flow.invalidate_filter()
@@ -148,10 +159,16 @@ class TaskView:
         close.set_tooltip_text('Close desktop; keep its apps open');close.get_accessible().set_name('Close '+item['name'])
         header.pack_end(close,False,False,0);box.pack_start(header,False,False,0)
         b=button(None,lambda:self.switch(index),'z11-desktop-card');b.set_size_request(216,126)
-        b.get_accessible().set_name('Switch to '+item['name']);b.set_tooltip_text('Preview on hover · Click to switch · Drop a window to move it here')
+        b.get_accessible().set_name('Switch to '+item['name']);b.set_tooltip_text('Click to switch · Drag to reorder · Right-click for background and desktop actions')
         if item['current']:b.get_style_context().add_class('z11-desktop-current')
         drawing=Gtk.DrawingArea();drawing.set_size_request(200,112);drawing.connect('draw',lambda widget,cr:self.draw_desktop(widget,cr,index))
         b.add(drawing);self.thumbs.append(drawing);self.desktop_buttons.append(b);self.drop_target(b,index)
+        b.drag_source_set(Gdk.ModifierType.BUTTON1_MASK,[Gtk.TargetEntry.new(DESKTOP_DRAG_TYPE,Gtk.TargetFlags.SAME_APP,1)],Gdk.DragAction.MOVE)
+        b.connect('drag-data-get',lambda _,context,selection,info,stamp:selection.set(selection.get_target(),8,item['uid'].encode('ascii')))
+        b.connect('drag-begin',lambda *_:setattr(self,'dragging',True))
+        b.connect('drag-end',lambda *_:(setattr(self,'dragging',False),self.win.present() if self.alive() else None))
+        b.connect('button-press-event',lambda _,event:self.desktop_menu(b,index,event) if event.button==3 else False)
+        b.connect('popup-menu',lambda *_:self.desktop_menu(b,index,None))
         def preview(*_):
             if self.hover:GLib.source_remove(self.hover)
             def select():
@@ -172,8 +189,9 @@ class TaskView:
     def draw_desktop(self,widget,cr,index):
         width,height=widget.get_allocated_width(),widget.get_allocated_height()
         cr.set_source_rgb(.08,.15,.23);cr.paint()
-        if self.wallpaper:
-            pix=self.wallpaper;scale=max(width/pix.get_width(),height/pix.get_height())
+        picture=self.wallpapers.get(self.items[index]['uid'])
+        if picture:
+            pix=picture;scale=max(width/pix.get_width(),height/pix.get_height())
             cr.save();cr.translate((width-pix.get_width()*scale)/2,(height-pix.get_height()*scale)/2);cr.scale(scale,scale)
             Gdk.cairo_set_source_pixbuf(cr,pix,0,0);cr.paint();cr.restore()
         sw,sh,nx,_=self.d.dimensions();sx,sy=width/sw,height/sh
@@ -236,13 +254,20 @@ class TaskView:
         return True
 
     def drop_target(self,widget,index):
-        widget.drag_dest_set(Gtk.DestDefaults.ALL,[Gtk.TargetEntry.new(DRAG_TYPE,Gtk.TargetFlags.SAME_APP,0)],Gdk.DragAction.MOVE)
+        targets=[Gtk.TargetEntry.new(DRAG_TYPE,Gtk.TargetFlags.SAME_APP,0)]
+        if index is not None:targets.append(Gtk.TargetEntry.new(DESKTOP_DRAG_TYPE,Gtk.TargetFlags.SAME_APP,1))
+        widget.drag_dest_set(Gtk.DestDefaults.ALL,targets,Gdk.DragAction.MOVE)
         def received(_,context,x,y,selection,info,stamp):
             accepted=False
             try:
-                xid=int(bytes(selection.get_data()).decode('ascii'))
-                if self.m.windows.get(xid) and not self.d.busy:
-                    self.create(xid) if index is None else self.move(xid,index);accepted=True
+                data=bytes(selection.get_data()).decode('ascii')
+                if info==1 and index is not None:
+                    source=next((d['id'] for d in self.d.items() if d['uid']==data),None)
+                    if source is not None and not self.d.busy:self.reorder(source,index);accepted=True
+                else:
+                    xid=int(data)
+                    if self.m.windows.get(xid) and not self.d.busy:
+                        self.create(xid) if index is None else self.move(xid,index);accepted=True
             except (ValueError,TypeError):pass
             Gtk.drag_finish(context,accepted,False,stamp)
         widget.connect('drag-data-received',received)
@@ -278,3 +303,76 @@ class TaskView:
             if self.alive():self.selected=target;self.render();self.win.present()
         self.d.remove(index,done)
         if self.alive():self.message.set_text('Moving apps and closing desktop…')
+
+    def reorder(self,source,target):
+        if self.d.busy or self.choosing or not 0<=target<len(self.items):return
+        self.message.set_text('Moving desktop…');self.transition=True
+        def done(error,index):
+            if error:self.transition=False;self.notice(error);return
+            if self.alive():
+                self.selected=index;self.render();self.resume();self.desktop_buttons[index].grab_focus()
+        self.d.reorder(source,target,done)
+
+    def desktop_menu(self,widget,index,event):
+        if self.d.busy or self.choosing:return True
+        menu=Gtk.Menu();self.menu=menu;menu.get_style_context().add_class('z11-desktop-menu')
+        for title,callback,enabled in [
+                ('Move left',lambda:self.reorder(index,index-1),index>0),
+                ('Move right',lambda:self.reorder(index,index+1),index<len(self.items)-1),
+                ('Choose background…',lambda:self.choose_background(index),True),
+                ('Use shared background / Spotlight',lambda:self.set_background(self.items[index]['uid'],None),True),
+                ('Close desktop',lambda:self.remove(index),len(self.items)>1)]:
+            item=Gtk.MenuItem(label=title);item.set_sensitive(enabled);item.connect('activate',lambda _,fn=callback:fn());menu.append(item)
+        def dismissed(*_):
+            self.menu=None
+            if self.alive() and not self.modal:self.win.present()
+        menu.connect('deactivate',dismissed);menu.show_all()
+        if event:menu.popup_at_pointer(event)
+        else:menu.popup_at_widget(widget,Gdk.Gravity.SOUTH_WEST,Gdk.Gravity.NORTH_WEST,None)
+        return True
+
+    def choose_background(self,index):
+        self.modal=True;uid=self.items[index]['uid']
+        dialog=Gtk.FileChooserDialog(title='Choose background for '+self.items[index]['name'],transient_for=self.win,action=Gtk.FileChooserAction.OPEN)
+        dialog.set_destroy_with_parent(True)
+        dialog.set_modal(True);dialog.set_keep_above(True);dialog.add_buttons('Cancel',Gtk.ResponseType.CANCEL,'Choose picture',Gtk.ResponseType.OK)
+        images=Gtk.FileFilter();images.set_name('JPEG and PNG pictures');images.add_mime_type('image/jpeg');images.add_mime_type('image/png');dialog.add_filter(images)
+        # A response callback keeps the GTK loop available while the native
+        # file picker is open. No borrowed workspace object is retained.
+        def response(_,result):
+            path=dialog.get_filename() if result==Gtk.ResponseType.OK else None
+            dialog.destroy();self.modal=False
+            if self.alive():self.win.present()
+            if path:self.set_background(uid,path=path)
+        dialog.connect('response',response);dialog.show_all();self.picture_dialog=dialog
+
+    def set_background(self,uid,ident=None,path=None):
+        if self.choosing or self.d.busy:return
+        self.choosing=True;self.message.set_text('Applying desktop background…')
+        def done(error):
+            self.choosing=False
+            if error:self.notice(error)
+            elif self.alive():self.error='';self.render();self.win.present()
+        if path:self.m.backgrounds.import_picture(uid,path,done)
+        else:self.m.backgrounds.choose(uid,ident,done)
+
+    def load_wallpapers(self):
+        identities=[d['uid'] for d in self.items]
+        def task():
+            import wallpaper
+            from desktop_backgrounds import picture_path
+            with wallpaper.LOCK:
+                state=wallpaper.load();base=state.get('appliedPath') or next(iter(state.get('desktopShared',{}).values()),None)
+                if not base:base=wallpaper.current_path()
+                paths={uid:str(picture_path(state,uid) or base or '') for uid in identities}
+            result={}
+            for uid,path in paths.items():
+                if not path:continue
+                try:result[uid]=GdkPixbuf.Pixbuf.new_from_file_at_scale(path,480,270,True)
+                except GLib.Error:pass
+            return result
+        def done(pictures):
+            if self.alive():
+                self.wallpapers=pictures
+                for drawing in self.thumbs:drawing.queue_draw()
+        self.m.hub.background(task,done,lambda _:None)

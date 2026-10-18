@@ -25,7 +25,7 @@ Run `python3 setup.py install` again after pulling updates. It retains the origi
 | Desktop | Dark Zorin theme, 48 px bottom taskbar, centered Start/app area, Windows-style spacing and controls |
 | Taskbar state | 32 px icons; gray markers for running apps; blue underline and a subtle background for the focused app; Task View button |
 | Snap layouts | Win+Z, six layouts, target outlines, minimum-size checks, Snap Assist, restore size, and adjustable ultrawide Focus columns |
-| Task View | Win+Tab, desktop previews, create/rename/close, drag windows between desktops, search across desktops, and session Snap Groups |
+| Task View | Win+Tab, desktop previews, create/rename/reorder/close, individual wallpapers, drag windows between desktops, search across desktops, and session Snap Groups |
 | Window captions | Original flat dark Xfwm/Compiz frames, thin borders, 46 px caption controls, red Close hover, and matching GTK3 title buttons |
 | Start | Pinned apps, drag ordering, search, All apps, categories, recent launches, power/session actions |
 | File Explorer / This PC | Tabs, sidebar, address navigation, details view, mounted drives and capacity bars, create/rename/copy/cut/paste/trash |
@@ -116,11 +116,15 @@ Click the **Task View** button beside Search, or press **Win+Tab**. The bottom s
 
 Drag a window card onto a desktop preview to move it there, or right-click the card and choose **Move to**. Shift+F10 opens the same menu from the keyboard. Dropping onto **New desktop** creates a desktop for that window. Moving preserves maximized/minimized state. The desktop's **×** button and **Win+Ctrl+F4** move its windows to the desktop on its left (or the next desktop when closing the first), then remove it. The last desktop cannot be removed; applications are never closed by this action.
 
-The window area normally shows the desktop being previewed. Type in Search to find titles/app names across all desktops; Enter activates the first match on its desktop, and Down moves focus into the cards. Window previews are snapshots of composited app contents, captured while Task View is open. Up to 36 previews are retained in memory; none are written to disk. Hidden/minimized windows use their last available preview or app icon. Desktop thumbnails combine the current wallpaper with window positions and those previews.
+Drag a **desktop preview** onto another preview to reorder the strip. Its name, apps and chosen background move together, and the active desktop remains active in its new position. Right-click a preview for **Move left** / **Move right**, or focus it and press **Shift+F10** to use the same menu from the keyboard.
+
+Choose **Choose background…** from that desktop menu to select a JPEG/PNG picture for just that desktop. The image is copied into your local wallpaper cache, so moving the original file does not break the background. The previews and actual Xfce desktop use the chosen pictures; assignments and order survive companion restarts. **Use shared background / Spotlight** removes only that desktop's override. Your shared Spotlight/Bing rotation keeps running, and new daily images leave custom desktop pictures in place. Closing a desktop removes its picture assignment without transferring it to a neighbor. All monitors on a desktop use the same chosen picture.
+
+The window area normally shows the desktop being previewed. Type in Search to find titles/app names across all desktops; Enter activates the first match on its desktop, and Down moves focus into the cards. Window previews are snapshots of composited app contents, captured while Task View is open. Up to 36 previews are retained in memory; none are written to disk. Hidden/minimized windows use their last available preview or app icon. Desktop thumbnails combine each desktop's wallpaper with window positions and those previews.
 
 Completed Snap Assist arrangements appear as **Snap groups** so their windows can be brought back together. Groups and restore positions last for the current companion process and are not saved across login/restart. Snap Assist now suggests windows on the current desktop only.
 
-Desktop management uses native Xfwm workspaces, or horizontal viewports when the optional Compiz effects profile is active. No window-manager restart is needed. Existing two-dimensional Compiz layouts can be browsed and switched, but creation/removal requires a single row. Up to 32 desktops are supported. Desktops span the connected monitors; per-desktop wallpaper, reordering, and Windows' exact transition animations remain future work. The current shared Spotlight/Bing background and its rotation remain active.
+Desktop management uses native Xfwm workspaces, or horizontal viewports when the optional Compiz effects profile is active. No window-manager restart is needed. Existing two-dimensional Compiz layouts can be browsed and switched, but creation/removal/reordering requires a single row. Up to 32 desktops are supported. Desktops span the connected monitors. Background changes follow the native workspace/viewport switch; Windows' exact transition animations and wallpaper crossfades remain future work.
 
 Alt+Tab stays with the native window manager. The optional Compiz profile uses a dark switcher with previews, minimized windows, forward/reverse cycling, and a shorter popup delay. No global Alt-key hook is installed. Wobble and existing edge/Win+arrow snapping remain available.
 
@@ -158,6 +162,7 @@ Caption changes appear immediately for native window frames. Reopen an existing 
 
 - Application: `~/.local/share/zorin11-hub/`
 - Pins/groups: `~/.config/zorin11-hub/layout.json`
+- Desktop names, order and stable identities: `~/.config/zorin11-hub/multitasking.json`
 - Background state/history: `~/.config/zorin11-hub/wallpapers.json` and `wallpapers/`
 - Runtime log: `~/.config/zorin11-hub/desktop.log`
 - Optional effects log: `~/.config/zorin11-hub/effects.log`
@@ -175,13 +180,15 @@ The companion uses Python/GTK3/WebKit2GTK 4.1 and a local React interface. All U
 ```bash
 python3 -m unittest discover -s tests -v
 cd companion
-python3 -m unittest -v test_model.py test_explorer.py test_settings.py test_flyouts.py
+python3 -m unittest -v test_model.py test_explorer.py test_settings.py test_flyouts.py test_desktop_backgrounds.py
 # For frontend changes, use the committed pnpm lockfile:
 corepack pnpm install --frozen-lockfile
 node build.mjs
 ```
 
 Live tests require an X11 session and briefly open disposable windows. `test_live.py` uses a separate application ID and temporary files. `test_native.py` should be run with a temporary `ZORIN11_CONFIG_DIR`. `test_flyouts_live.py` uses Xephyr and a private D-Bus session, config and cache to verify notification ingestion/read/delete without modifying the live user history. Browser UI tests additionally need Playwright and a Chromium executable; see their environment variables.
+
+Run `test_multitasking_live.py`, `test_desktops_live.py` and `test_desktop_personalization_live.py` **sequentially** with Python. Each starts private Xephyr/D-Bus sessions for Xfwm and Compiz. The personalization test checks real Xfdesktop pixels, desktop dragging, keyboard menus, the picture picker, Spotlight coexistence and restart persistence using disposable windows and local image fixtures. Never run these nested-display tests at the same time as live-session keyboard/pointer automation.
 
 Original artwork/code and the Fluent icon license are included with their notices. Windows reference exports, SSH credentials, account photos, screenshots of personal applications, and machine recovery manifests must never be committed.
 

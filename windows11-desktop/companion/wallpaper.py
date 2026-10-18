@@ -12,6 +12,8 @@ import re
 import shutil
 import subprocess
 import time
+import threading
+from functools import wraps
 import urllib.request
 from urllib.parse import urlparse
 import dbus
@@ -23,6 +25,14 @@ from settings_backend import properties, set_property
 CONFIG=Path(os.environ.get('ZORIN11_CONFIG_DIR',str(Path.home()/'.config/zorin11-hub')))
 ROOT=CONFIG/'wallpapers'
 STATE=CONFIG/'wallpapers.json'
+LOCK=threading.RLock()
+
+
+def locked(function):
+    @wraps(function)
+    def call(*args,**kwargs):
+        with LOCK:return function(*args,**kwargs)
+    return call
 FEEDS={
  'bing':'https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=en-US',
  'spotlight':'https://fd.api.iris.microsoft.com/v4/api/selection?placement=88000820&bcnt=4&country=US&locale=en-US&fmt=json',
@@ -40,6 +50,7 @@ def save(state):
     temp=STATE.with_suffix('.tmp');temp.write_text(json.dumps(state,indent=2)+'\n');temp.replace(STATE)
 
 
+@locked
 def configure(key,value):
     if key=='source':
         if value not in ('current','bing','spotlight'):raise ValueError('Choose a supported wallpaper source.')
@@ -87,6 +98,7 @@ def candidates(source,prefer_uhd=True):
     return result
 
 
+@locked
 def remember(data,metadata):
     if not data.startswith((b'\xff\xd8\xff',b'\x89PNG\r\n\x1a\n')):raise ValueError('The service did not return a JPEG or PNG image.')
     loader=GdkPixbuf.PixbufLoader();loader.write(data);loader.close();pixbuf=loader.get_pixbuf()
@@ -100,8 +112,9 @@ def remember(data,metadata):
     # Bounded local history; do not remove a currently selected background.
     removed=state['history'][60:];state['history']=state['history'][:60]
     save(state)
+    protected=set(state.get('desktopPictures',{}).values())|{state.get('current')}
     for old in removed:
-        if old['id']!=state.get('current'): (ROOT/(old['id']+'.image')).unlink(missing_ok=True)
+        if old['id'] not in protected: (ROOT/(old['id']+'.image')).unlink(missing_ok=True)
     return entry
 
 
@@ -127,7 +140,8 @@ def current_path():
 def image_path(ident):
     if ident=='current':return current_path()
     if not re.fullmatch('[a-f0-9]{24}',ident):raise ValueError('Unknown wallpaper.')
-    if not any(i['id']==ident for i in load()['history']):raise ValueError('This picture is no longer in history.')
+    state=load()
+    if not any(i['id']==ident for i in state['history']) and ident not in state.get('desktopPictures',{}).values():raise ValueError('This picture is no longer in history.')
     return ROOT/(ident+'.image')
 
 
@@ -138,6 +152,7 @@ def thumbnail(ident):
     return bytes(picture.save_to_bufferv('jpeg',['quality'],['85'])[1])
 
 
+@locked
 def apply(ident):
     path=image_path(ident)
     if not path or not path.is_file():raise ValueError('This wallpaper is unavailable.')
@@ -155,17 +170,29 @@ def apply(ident):
             keys.add(f'/backdrop/screen0/monitor{monitor}/workspace{workspace}/last-image')
     state=load();backup=state.setdefault('original',{})
     for key in sorted(keys):
-        if key not in backup:backup[key]=str(props[key]) if key in props else None
+        if key not in backup:
+            desktop_before=state.get('desktopWrites',{}).get(key)
+            if desktop_before:backup[key]=desktop_before['before']['value'] if desktop_before['before'] else None
+            else:backup[key]=str(props[key]) if key in props else None
     # Keep both paths recoverable if the desktop service fails partway through.
     state['appliedPaths']=list({str(path),state.get('appliedPath','')} - {''})
     save(state)  # Persist recovery before changing the desktop.
-    for key in sorted(keys):set_property('xfce4-desktop',key,dbus.String(str(path)))
+    import desktop_backgrounds
+    if desktop_backgrounds.CONTEXT and (state.get('desktopPictures') or state.get('desktopWrites')):
+        desktop_backgrounds.sync(shared=str(path));state=load()
+    else:
+        for key in sorted(keys):set_property('xfce4-desktop',key,dbus.String(str(path)))
     state.pop('appliedPaths',None)
     state['current']=ident;state['appliedPath']=str(path);state['lastDay']=datetime.date.today().isoformat();state['error']='';save(state)
 
 
+@locked
 def restore():
-    state=load()
+    state=load();desktop_restored=set()
+    if state.get('desktopWrites'):
+        from desktop_backgrounds import restore_records
+        desktop_restored=restore_records(state,properties('xfce4-desktop'))
+    state.pop('desktopPictures',None);state.pop('desktopShared',None);state.pop('desktopError',None)
     if not state.get('original'):
         state.update(source='current',daily=False);save(state);return
     props=properties('xfce4-desktop');bus=dbus.SessionBus(private=True)
@@ -173,7 +200,7 @@ def restore():
     try:
         xf=dbus.Interface(bus.get_object('org.xfce.Xfconf','/org/xfce/Xfconf'),'org.xfce.Xfconf')
         for key,value in state.get('original',{}).items():
-            if str(props.get(key,'')) not in managed:continue
+            if key not in desktop_restored and str(props.get(key,'')) not in managed:continue
             if value is None:xf.ResetProperty('xfce4-desktop',key,False)
             else:xf.SetProperty('xfce4-desktop',key,dbus.String(value))
     finally:bus.close()
@@ -186,15 +213,19 @@ def due():
 
 
 def update():
-    state=load();state['lastAttempt']=time.time();save(state)
+    with LOCK:
+        state=load();state['lastAttempt']=time.time();save(state)
     try:
         entry=download();apply(entry['id']);return entry
     except Exception as error:
-        state=load();state['error']=str(error);save(state);raise
+        with LOCK:
+            state=load();state['error']=str(error);save(state)
+        raise
 
 
 def status():
     state=load();state.pop('original',None);state.pop('appliedPath',None);state.pop('appliedPaths',None)
+    for key in ('desktopWrites','desktopShared','desktopPictures'):state.pop(key,None)
     state['hasPreview']=current_path() is not None
     state['lockFollowsDesktop']=bool(shutil.which('xfce4-screensaver'))
     return state

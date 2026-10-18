@@ -34,10 +34,13 @@ class Multitasking:
         except (OSError,ValueError):self.preferences={}
         from desktops import Desktops
         self.desktops=Desktops(self)
+        from desktop_backgrounds import Backgrounds
+        self.backgrounds=Backgrounds(self)
         self.css=Gtk.CssProvider();self.css.load_from_path(str(BASE/'multitasking.css'))
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(),self.css,650)
 
     def shutdown(self):
+        self.backgrounds.close()
         self.desktops.stopped=True
         if self.hover_timer:GLib.source_remove(self.hover_timer);self.hover_timer=0
         self.close(False)
