@@ -71,15 +71,27 @@ def upgrade():
             used.add(result)
             return result
         types={i:str(properties.get(f'/plugins/plugin-{i}','')) for i in ids}
+        if manifest.get('notification_plugin') in ids:
+            types[manifest['notification_plugin']]='notification-plugin'
         battery=any(p.read_text().strip()=='Battery' for p in Path('/sys/class/power_supply').glob('*/type'))
         layout=plan(ids,types,start,quick,search,allocate,battery)
         clock,tray,dock,notification=(layout[k] for k in ('clock','tray','dock','notification'))
+        if notification is None:
+            notification=allocate();layout['new'][notification]='genmon';layout['order'].insert(-1,notification)
+        manifest['notification_plugin']=notification
         channel='xfce4-panel'
         for plugin,kind in layout['new'].items():setting(channel,f'/plugins/plugin-{plugin}',dbus.String(kind))
         setting(channel,f'/panels/panel-{panel}/plugin-ids',dbus.Array([dbus.Int32(i) for i in layout['order']],signature='v'))
         if not manifest.get('base_appearance'):
             appearance.apply(home,panel,layout,setting,file,gsetting)
             manifest['base_appearance']=True
+        setting(channel,f'/plugins/plugin-{notification}',dbus.String('genmon'))
+        file(home/f'.config/xfce4/panel/genmon-{notification}.rc',f'''Command=/usr/bin/python3 "{dest/'notification_panel.py'}"
+UseLabel=0
+Text=Notification center
+UpdatePeriod=2000
+Font=Segoe UI 10
+''')
         setting(channel,f'/plugins/plugin-{quick}',dbus.String('genmon'))
         file(home/f'.config/xfce4/panel/genmon-{quick}.rc',f'''Command=/usr/bin/python3 "{dest/'tray_panel.py'}"
 UseLabel=0
@@ -95,6 +107,17 @@ Font=Segoe UI 10
         file(home/f'.config/xfce4/panel/launcher-{search}/zorin11-search.desktop',installer.desktop_file('Search','--search',str(dest/'search.svg'),hidden=True))
 
         setting(channel,f'/plugins/plugin-{clock}/digital-time-format',dbus.String('%-I:%M %p\n%-m/%-d/%Y'))
+        setting(channel,f'/plugins/plugin-{clock}/command',dbus.String(launcher+' --notifications'))
+        file(home/'.local/share/themes/Zorin11-Notifications/xfce-notify-4.0/gtk.css',(source/'notification-theme.css').read_bytes())
+        if not manifest.get('notification_integration'):
+            setting('xfce4-notifyd','/theme',dbus.String('Zorin11-Notifications'))
+            setting('xfce4-notifyd','/notify-location',dbus.String('bottom-right'))
+            setting('xfce4-notifyd','/notification-log',dbus.Boolean(True))
+            setting('xfce4-notifyd','/log-level',dbus.String('always'))
+            setting('xfce4-notifyd','/log-max-size-enabled',dbus.Boolean(True))
+            if not installer.XF.PropertyExists('xfce4-notifyd','/log-max-size'):
+                setting('xfce4-notifyd','/log-max-size',dbus.UInt32(1000))
+            manifest['notification_integration']=True
         setting(channel,f'/plugins/plugin-{clock}/digital-layout',dbus.UInt32(3))
         setting(channel,f'/plugins/plugin-{clock}/digital-time-font',dbus.String('Selawik 9'))
         # Optional personal reference fonts stay local and are never bundled.
@@ -121,7 +144,7 @@ Font=Segoe UI 10
         setting(channel,f'/plugins/plugin-{tray}/hidden-items',dbus.Array([dbus.String(x) for x in dict.fromkeys(known+['blueman','nm-applet'])],signature='v'))
         legacy=list(installer.XF.GetProperty(channel,f'/plugins/plugin-{tray}/known-legacy-items')) if installer.XF.PropertyExists(channel,f'/plugins/plugin-{tray}/known-legacy-items') else []
         setting(channel,f'/plugins/plugin-{tray}/hidden-legacy-items',dbus.Array([dbus.String(x) for x in dict.fromkeys(legacy+['network'])],signature='v'))
-        keys={'<Super>i':launcher+' --settings','<Super>s':launcher+' --search', '<Super>e':launcher+' --explorer','<Super>a':launcher+' --quick-settings',
+        keys={'<Super>n':launcher+' --notifications','<Super>i':launcher+' --settings','<Super>s':launcher+' --search', '<Super>e':launcher+' --explorer','<Super>a':launcher+' --quick-settings',
               'XF86AudioRaiseVolume':'pactl set-sink-volume @DEFAULT_SINK@ +5%',
               'XF86AudioLowerVolume':'pactl set-sink-volume @DEFAULT_SINK@ -5%',
               'XF86AudioMute':'pactl set-sink-mute @DEFAULT_SINK@ toggle'}
@@ -249,8 +272,8 @@ X-XFCE-CommandsWithParameter={launcher} --explorer "%s";
 #genmon-{quick} button {{ margin: 5px 0; border-radius: 4px; padding: 0 6px; }}
 .xfce4-panel.background {{ background-color: rgba(28,32,38,0.96); border-top-color: rgba(255,255,255,0.094); font-family: 'Segoe UI', Selawik; }}
 #clock-button {{ font-family: 'Segoe UI', Selawik; font-size: 12px; padding: 0 9px; }}
-#notification-plugin-{notification} image {{ -gtk-icon-transform: scale(0.67); }}
-#notification-plugin-{notification} button {{ padding: 0; margin: 5px 0; }}
+#clock-button label, #clock-button:checked label {{ color: #f3f3f3; }}
+#genmon-{notification} button {{ padding: 0 5px; margin: 5px 0; border-radius: 4px; }}
 #systray-{tray} button {{ padding: 0 3px; margin: 5px 0; }}
 #systray-{tray} > box > button {{ -gtk-icon-transform: none; color: transparent; background-image: url('{dest/'fluent/chevron-up.svg'}'); background-size: 20px 20px; background-position: center; background-repeat: no-repeat; min-width: 24px; }}
 #systray-{tray} > box > button:checked {{ background-image: url('{dest/'fluent/chevron-down.svg'}'); }}

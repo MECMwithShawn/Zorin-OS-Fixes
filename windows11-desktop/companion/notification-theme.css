@@ -1,0 +1,25 @@
+/* Original Windows-inspired toast styling for Xfce Notifyd. */
+#XfceNotifyWindow {
+ background-image: none;
+ background-color: #292929;
+ color: #f3f3f3;
+ border: 1px solid rgba(255,255,255,.18);
+ border-radius: 8px;
+ padding: 14px;
+ font-family: "Segoe UI", Selawik, sans-serif;
+ font-size: 13px;
+}
+#XfceNotifyWindow label { color: #eeeeee; }
+#XfceNotifyWindow label#summary { font-size: 14px; font-weight: 600; }
+#XfceNotifyWindow button {
+ background-image: none;
+ background-color: rgba(255,255,255,.07);
+ border: 1px solid rgba(255,255,255,.12);
+ border-radius: 4px;
+ padding: 5px 12px;
+ box-shadow: none;
+ text-shadow: none;
+ color: #f3f3f3;
+}
+#XfceNotifyWindow button:hover { background-color: rgba(255,255,255,.12); }
+#XfceNotifyWindow progressbar progress { background-color: #60cdff; border-radius: 3px; }

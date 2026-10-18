@@ -30,3 +30,12 @@ The session test uses the installed operating system and packages with a clean t
 - Windows 11 Spotlight v4 returned a real 3840×2160 landscape image and it was applied on the desktop. Daily mode was explicitly enabled by the user.
 - Fresh install, repeat upgrade and restore passed in a separate Xephyr/private D-Bus session. Every managed file/setting restored exactly; original recovery records survived upgrade.
 - Lock-screen sharing was verified against Xfce Screensaver's use of Xfce desktop backdrop properties. The user's session was not locked for a screenshot. LightDM login appearance was not modified.
+
+## Notification/calendar flyout and expanded Quick Settings — 2026-10-17
+
+- 29 backend/model/file tests passed, including notification text sanitization, selected-ID deletion, unavailable-service handling, bounded display history, backlight validation and stream routing that preserves other outputs.
+- Browser tests passed for mute/volume/brightness messages, output selection, accessibility toggles, tile persistence requests, clear-history confirmation, calendar month navigation and keyboard focus. Existing Explorer UI tests also passed.
+- Native WebKit + real Xfce Notifyd round trip passed inside a separate Xephyr display/private D-Bus/config/cache session: ingest a synthetic notification, mark it read, delete it, render the calendar, open audio outputs and save a tile edit. The live user's history and hardware settings were not changed by this test.
+- Native notification toast and both flyouts were rendered and visually inspected. Fresh install, repeat upgrade and restore passed with exact recovery of all managed files/settings, including the clock command and replacement notification-bell plugin.
+- This desktop has no `/sys/class/backlight` device or laptop battery. Brightness conversion and device/session validation use isolated tests; physical laptop backlight and battery testing remain pending.
+- Installed session verified: taskbar clock toggles the new flyout, Win+N opens it, Quick Settings sits at the intended usable-area margin, icons/resources load, and no JavaScript errors were reported. Notification bell rendering was visually checked with the existing network/audio tray.

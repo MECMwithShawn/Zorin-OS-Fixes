@@ -27,6 +27,7 @@ TOOLS = {
 }
 BOOL_SETTINGS = {
     'dnd': ('xfce4-notifyd','/do-not-disturb'),
+    'notificationHistory': ('xfce4-notifyd','/notification-log'),
     'stickyKeys': ('accessibility','/StickyKeys'),
     'slowKeys': ('accessibility','/SlowKeys'),
     'bounceKeys': ('accessibility','/BounceKeys'),
@@ -137,7 +138,14 @@ def apply(name,value):
         run(['pactl','set-sink-mute','@DEFAULT_SINK@','1' if value else '0'])
     elif name=='output':
         if value not in [s['id'] for s in sound_outputs()]:raise ValueError('That sound device is no longer available.')
+        previous=run(['pactl','get-default-sink'])
+        sinks=json.loads(run(['pactl','--format=json','list','sinks']))
+        previous_index=next((s['index'] for s in sinks if s['name']==previous),None)
+        streams=json.loads(run(['pactl','--format=json','list','sink-inputs']))
         run(['pactl','set-default-sink',value])
+        for stream in streams:
+            if previous_index is not None and stream['sink']==previous_index:
+                run(['pactl','move-sink-input',str(stream['index']),value])
     elif name=='wifi':
         if type(value) is not bool:raise ValueError('This control needs an on/off value.')
         run(['nmcli','radio','wifi','on' if value else 'off'])

@@ -40,7 +40,7 @@ with tempfile.TemporaryDirectory(prefix='zorin11-live-') as directory:
                 assert (root/'source.txt').read_text()=='original data'
                 hub.show_quick();stage=6
             elif stage==6:
-                assert tuple(hub.quick.get_size())==(368,340),hub.quick.get_size()
+                assert hub.quick.get_size().width==368 and hub.quick.get_size().height in (430,490),hub.quick.get_size()
                 hub.quick.hide();hub.show_start();mapped_at=time.monotonic();stage=7
             elif stage==7:
                 if time.monotonic()-mapped_at<.8:return True

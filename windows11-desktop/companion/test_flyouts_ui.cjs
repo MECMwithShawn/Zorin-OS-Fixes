@@ -1,0 +1,38 @@
+const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright');
+const assert=require('assert/strict'),path=require('path');
+(async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_EXECUTABLE});
+ try{
+  const page=await browser.newPage({viewport:{width:368,height:490}}),errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  await page.addInitScript(()=>{
+   window.messages=[];
+   window.fixture={mode:'quick',wifi:true,wifiAvailable:true,bluetooth:true,bluetoothAvailable:true,network:'Test Wi-Fi',networkType:'wifi',volume:35,muted:false,sink:'Speakers',output:'speaker',outputs:[{id:'speaker',name:'Speakers'},{id:'headset',name:'Headphones'}],backlights:[{id:'intel_backlight',value:60}],batteries:[{percent:76,status:'Discharging'}],quickTiles:['wifi','bluetooth','dnd','accessibility','screenshot','display']};
+   window.webkit={messageHandlers:{desktop:{postMessage(raw){const m=JSON.parse(raw);window.messages.push(m);if(m.action==='ready')setTimeout(()=>window.receive({type:'state',data:window.fixture}),0);}}}};
+  });
+  await page.goto('file://'+path.join(__dirname,'dist/index.html'));await page.waitForSelector('.flyout-tiles');
+  await page.getByRole('button',{name:'Mute',exact:true}).click();assert(await page.evaluate(()=>window.messages.some(m=>m.action==='quick-set'&&m.name==='muted'&&m.value)));
+  const slider=page.getByRole('slider',{name:'Volume',exact:true});await slider.fill('55');await slider.dispatchEvent('keyup',{key:'ArrowRight'});
+  assert.equal(await page.evaluate(()=>window.messages.find(m=>m.action==='quick-set'&&m.name==='volume').value),55);
+  const light=page.getByRole('slider',{name:'Brightness',exact:true});await light.fill('45');await light.dispatchEvent('keyup',{key:'ArrowRight'});
+  assert(await page.evaluate(()=>window.messages.some(m=>m.action==='quick-brightness'&&m.id==='intel_backlight'&&m.value===45)));
+  await page.getByRole('button',{name:'Select sound output'}).click();await page.getByRole('radio',{name:'Headphones'}).click();
+  assert(await page.evaluate(()=>window.messages.some(m=>m.action==='quick-set'&&m.name==='output'&&m.value==='headset')));
+  await page.getByRole('button',{name:'Back to Quick Settings'}).click();await page.getByRole('button',{name:'Accessibility',exact:true}).click();
+  await page.getByRole('switch',{name:'Sticky Keys'}).click();assert(await page.evaluate(()=>window.messages.some(m=>m.name==='stickyKeys'&&m.value)));
+  await page.getByRole('button',{name:'Back to Quick Settings'}).click();await page.getByRole('button',{name:'Edit quick settings'}).click();
+  await page.getByRole('checkbox',{name:'Show Screenshot'}).uncheck();await page.getByRole('button',{name:'Done',exact:true}).click();
+  assert(!(await page.evaluate(()=>window.messages.find(m=>m.action==='quick-tiles').tiles)).includes('screenshot'));
+  await page.setViewportSize({width:400,height:800});await page.evaluate(()=>window.receive({type:'state',data:{mode:'notifications',available:true,logging:true,entries:[{id:'test',time:Date.now(),app:'Test app',appId:'app',title:'Saved notification',body:'<script>untrusted</script>',read:false}]}}));
+  await page.getByRole('heading',{name:'Saved notification'}).waitFor();assert(await page.getByText('<script>untrusted</script>',{exact:true}).count());
+  assert.equal(await page.locator('.calendar-grid button').count(),42);
+  const before=await page.locator('.calendar-today').innerText();await page.getByRole('button',{name:'Next month',exact:true}).click();assert.notEqual(await page.locator('.calendar-today').innerText(),before);
+  await page.getByRole('button',{name:'Previous month',exact:true}).click();assert.equal(await page.locator('.calendar-today').innerText(),before);
+  await page.locator('.calendar-grid [aria-current=date]').focus();await page.keyboard.press('ArrowRight');await page.waitForFunction(()=>document.querySelector('.calendar-grid button:focus')?.getAttribute('aria-pressed')==='true');assert.equal(await page.locator('.calendar-grid button:focus').getAttribute('aria-pressed'),'true');
+  await page.getByRole('button',{name:'Mark as read'}).click();assert(await page.evaluate(()=>window.messages.some(m=>m.action==='notification-read'&&m.ids[0]==='test')));
+  await page.getByRole('button',{name:'Clear all',exact:true}).click();assert(!(await page.evaluate(()=>window.messages.some(m=>m.action==='notification-clear'))));
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.getByRole('button',{name:'Dismiss Saved notification',exact:true}).click();assert(await page.evaluate(()=>window.messages.some(m=>m.action==='notification-dismiss'&&m.ids[0]==='test')));
+  await page.setViewportSize({width:400,height:540});assert(await page.locator('.calendar-grid').isVisible());assert(await page.locator('.notification-flyout').evaluate(e=>[...e.querySelectorAll(':scope>section')].every(s=>s.scrollWidth<=s.clientWidth)));
+  assert.deepEqual(errors,[]);console.log('Quick controls, output selection, tile editor, notification actions and calendar keyboard navigation passed.');
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exit(1)});

@@ -84,18 +84,3 @@ export function Explorer({data,toast}){
  {toast&&<div className="file-toast" role="alert">{toast}</div>}
  </main>;
 }
-export function QuickSettings({data,toast}){
- const [volume,setVolume]=useState(data.volume??0),timer=useRef(null);
- useEffect(()=>{setVolume(data.volume??0);},[data.volume]);
- return <main className="quick-shell" style={data.backdrop?{'--panel-backdrop':`url("${data.backdrop}")`}:undefined}>
-  <div className="quick-tiles">
-   <div><div className={'quick-split '+(data.wifi?'enabled':'')}><button aria-label="Toggle Wi-Fi" onClick={()=>send('quick-wifi')}><Glyph name="wifi" size={18}/></button><button aria-label="Manage network connections" onClick={()=>send('quick-network')}>›</button></div><button className="quick-label" onClick={()=>send('quick-network')}>{data.networkType==='wifi'?data.network:'Wi-Fi'}</button></div>
-   <div><button className={'quick-tile '+(data.bluetooth?'enabled':'')} aria-label="Bluetooth settings" onClick={()=>send('quick-bluetooth')}><Glyph name="bluetooth" size={18}/><span>›</span></button><span>Bluetooth</span></div>
-   <div><button className={'quick-tile '+(data.dnd?'enabled':'')} aria-label="Do not disturb" onClick={()=>send('quick-dnd',{value:!data.dnd})}><Glyph name="bell" size={18}/></button><span>Do not disturb</span></div>
-  </div>
-  <button className="network-status" onClick={()=>send('quick-network')}><Glyph name={data.networkType} size={18}/><span>{data.network}<small>Network connections</small></span><span>›</span></button>
-  <div className="quick-volume"><button aria-label={data.muted?'Unmute':'Mute'} onClick={()=>send('quick-mute')}><Glyph name={data.muted?'mute':'volume'} size={18}/></button><input aria-label="Volume" type="range" min="0" max="100" value={volume} style={{'--volume':volume+'%'}} disabled={data.volume===null} onChange={e=>{const v=Number(e.target.value);setVolume(v);clearTimeout(timer.current);timer.current=setTimeout(()=>send('quick-volume',{value:v}),80);}}/><button aria-label="Sound output settings" onClick={()=>send('quick-audio')}><Glyph name="sort" size={18}/><span>›</span></button></div>
-  <p className="sound-device">{data.volume===null?'No audio output available':data.sink}</p>
-  <footer><span>Quick settings</span><button aria-label="Open Settings" onClick={()=>send('quick-settings')}><Glyph name="settings" size={16}/></button></footer>{toast&&<div role="alert" className="file-toast">{toast}</div>}
- </main>;
-}

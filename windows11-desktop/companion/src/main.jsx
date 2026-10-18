@@ -1,9 +1,10 @@
 import React, {useState, useEffect, useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 import './style.css';
-import {Explorer,QuickSettings} from './explorer.jsx';
+import {Explorer} from './explorer.jsx';
 import './explorer.css';
 import {Settings} from './settings.jsx';
+import {QuickSettings,NotificationCenter} from './flyouts.jsx';
 
 window.desktopErrors = [];
 window.addEventListener('error', e => window.desktopErrors.push(e.message));
@@ -77,6 +78,7 @@ function App(){
 
  if(data.mode==='settings')return <Settings data={data} toast={toast} initialPage={page}/>;
  if(data.mode==='explorer')return <Explorer data={data} toast={toast}/>;
+ if(data.mode==='notifications')return <NotificationCenter data={data} toast={toast}/>;
  if(data.mode==='quick')return <QuickSettings data={data} toast={toast}/>;
  if(data.mode==='group'){
   const g=data.group;

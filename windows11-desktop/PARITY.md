@@ -12,8 +12,8 @@ Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11,
 | 6. Snap Layouts | Existing Xfwm/Compiz edge and keyboard snapping | Maximize-hover layout chooser, Snap Groups and custom zones |
 | 7. File Explorer | This PC drive capacity, personal Windows drive/folder icons, tabs, breadcrumbs/address, sidebar, views, details pane, common file operations | Content preview pane, richer context menus, network/Trash handled by native tools |
 | 8. Settings | Windows-style Home/sidebar/cards/search and 12 categories; working controls and real system information | Advanced pages still open Linux tools; individual pages can be progressively integrated |
-| 9. Quick Settings | Wi-Fi, volume/mute, DND, network/audio/Bluetooth tools, Settings entry | Brightness, output selection in flyout, tile editor, accessibility and battery-saver tiles |
-| 10. Notifications | DND control; native Xfce notifications/history remain available | Unified Windows-style notification/calendar flyout and toast styling |
+| 9. Quick Settings | Wi-Fi/Bluetooth toggles and management, volume/mute, output selection with active-stream routing, DND, keyboard accessibility, six editable tiles, hardware backlight and battery readout | Battery-saver/airplane-mode controls, richer connected-device UI, external-monitor DDC/CI brightness; laptop hardware validation |
+| 10. Notifications | Unified clock/bell/Win+N flyout, grouped real Xfce history, unread indicator, mark-read/dismiss/clear, DND, keyboard-accessible month calendar, dark rounded bottom-right native toast theme | Calendar-account appointments, richer live notification actions and Windows-specific grouping/animation details |
 | 11. Visual design | Dark rounded companion surfaces, accent colors, shadows, captured-background blur for Start/Quick Settings | Uniform Mica/Acrylic across native applications and light-mode counterpart |
 | 12. Typography | Segoe UI from personal export, Selawik fallback, tuned companion sizes/spacing, Cascadia terminal | Variable-font coverage and typography consistency in third-party apps |
 | 13. Icons | Community Win11 base, Fluent toolbar/tray icons, optional personal Windows system assets at six sizes | Third-party app/tray icon consistency; additional Fluent category artwork |
@@ -32,9 +32,9 @@ Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11,
 
 ## Next implementation priorities
 
-1. Notification/calendar flyout and richer Quick Settings, including laptop brightness and sound output.
-2. Snap layout chooser and improved task switching, preserving reliable window-manager behavior.
-3. Additional Settings pages and native dialog styling; close remaining icon and spacing differences against the user's Windows reference.
-4. Validate on the laptop, especially battery, touchpad, scaling, suspend and multiple displays.
+1. Snap layout chooser and improved task switching, preserving reliable window-manager behavior.
+2. Additional Settings pages and native dialog styling; close remaining icon and spacing differences against the user's Windows reference.
+3. Battery-saver and connected-device controls, plus richer notification actions where supported.
+4. Validate on the laptop, especially real backlight control, battery, touchpad, scaling, suspend and multiple displays.
 
 All changes should remain reproducible through this package and reversible through its recovery manifest. Personal Windows assets and wallpaper caches stay outside Git. No bootloader, Windows partition, GPU driver or dual-boot configuration changes are part of the visual package.

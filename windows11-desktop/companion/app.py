@@ -20,6 +20,8 @@ from platform_ui import panel_button, desktop_status
 import explorer
 import settings_backend
 import wallpaper
+import notifications
+import quick_controls
 
 BASE = Path(__file__).resolve().parent
 CONFIG = Path(os.environ.get('ZORIN11_CONFIG_DIR', str(Path.home()/'.config/zorin11-hub')))
@@ -45,7 +47,7 @@ class Surface(Gtk.ApplicationWindow):
         self.backdrop = None
         self.maximized = False
         self.drag_timer = 0
-        self.set_title({'start':'Zorin 11 Start','quick':'Quick settings','explorer':'File Explorer','settings':'Settings','group':'Desktop group'}[self.mode])
+        self.set_title({'start':'Zorin 11 Start','quick':'Quick settings','notifications':'Notifications and calendar','explorer':'File Explorer','settings':'Settings','group':'Desktop group'}[self.mode])
         self.set_decorated(False)
         self.set_skip_taskbar_hint(self.mode not in ('explorer','settings'))
         self.set_skip_pager_hint(self.mode not in ('explorer','settings'))
@@ -132,7 +134,10 @@ class Surface(Gtk.ApplicationWindow):
     def update(self):
         if self.ready:
             if self.mode == 'quick':
-                data = dict(self.hub.status, mode='quick')
+                data = dict(self.hub.status, mode='quick', busy=self.hub.quick_busy,
+                            quickTiles=self.hub.store.state.get('quick_tiles',list(quick_controls.TILES)))
+            elif self.mode == 'notifications':
+                data = dict(self.hub.notification_data,mode='notifications',busy=self.hub.notification_busy)
             elif self.mode == 'explorer':
                 data = dict(self.file_state or {'path':self.location,'title':'Home','entries':[], 'places':explorer.place_paths()}, mode='explorer')
                 data.update(maximized=self.maximized,focused=self.is_active())
@@ -161,7 +166,7 @@ class Surface(Gtk.ApplicationWindow):
 
     def on_key(self, window, event):
         if event.keyval == Gdk.KEY_Escape:
-            if self.mode in ('start', 'quick'):
+            if self.mode in ('start', 'quick', 'notifications'):
                 self.hide()
             elif self.hub.peeking:
                 self.hub.peek()
@@ -263,6 +268,12 @@ class Hub(Gtk.Application):
         self.settings_busy = False
         self.settings_pending = False
         self.settings_generation = 0
+        self.quick_busy=False
+        self.status_generation=0
+        self.notification_data={'entries':[],'loading':True}
+        self.notification_pending=False
+        self.notification_busy=False
+        self.notification_generation=0
         try:
             self.presentation = json.loads((CONFIG/'presentation.json').read_text())
         except (OSError, ValueError):
@@ -290,9 +301,12 @@ class Hub(Gtk.Application):
         self.surfaces['start'] = self.start
         self.quick = Surface(self, mode='quick')
         self.surfaces['quick'] = self.quick
+        self.notifications=Surface(self,mode='notifications')
+        self.surfaces['notifications']=self.notifications
         self.refresh_status()
         GLib.timeout_add_seconds(4, self.refresh_status)
         GLib.timeout_add_seconds(5, self.refresh_settings)
+        GLib.timeout_add_seconds(4,self.refresh_notifications)
         if APP_ID=='local.zorin11.DesktopHub':
             GLib.timeout_add_seconds(60,self.wallpaper_tick)
             GLib.timeout_add_seconds(8,lambda:(self.wallpaper_tick(),False)[1])
@@ -333,6 +347,8 @@ class Hub(Gtk.Application):
             self.show_start()
         elif '--groups' in args:
             self.show_start('groups')
+        elif '--notifications' in args:
+            self.show_notifications()
         elif '--quick-settings' in args:
             self.show_quick()
         elif '--settings' in args:
@@ -490,6 +506,7 @@ class Hub(Gtk.Application):
             self.show_start()
 
     def show_start(self, page='home'):
+        self.notifications.hide()
         self.quick.hide()
         anchor = panel_button('Start')
         display = Gdk.Display.get_default()
@@ -652,6 +669,8 @@ class Hub(Gtk.Application):
             self.settings_action(surface,message)
         elif action.startswith('file-') and surface.mode=='explorer':
             self.file_action(surface, message)
+        elif action.startswith('notification-') and surface.mode=='notifications':
+            self.notification_action(surface,message)
         elif action.startswith('quick-') and surface.mode=='quick':
             self.quick_action(surface, message)
         elif action == 'ready':
@@ -747,63 +766,125 @@ class Hub(Gtk.Application):
                     GLib.idle_add(lambda e=str(error): (failure(e), False)[1])
         future.add_done_callback(finished)
 
+    def tray_snapshot(self):
+        value=quick_controls.snapshot() if self.quick.get_visible() else desktop_status()
+        value['unread']=notifications.has_unread()
+        return value
+
     def refresh_status(self):
-        if not self.status_pending:
-            self.status_pending = True
+        if not self.status_pending and not self.quick_busy:
+            self.status_pending=True;generation=self.status_generation
             def done(value):
-                self.status_pending = False
-                self.status = value
-                self.quick.update()
-                if APP_ID == 'local.zorin11.DesktopHub':
-                    from tray_icon import update_icon
-                    update_icon(BASE, CONFIG, value)
-            self.background(desktop_status, done, lambda e: setattr(self,'status_pending',False))
+                self.status_pending=False
+                if generation==self.status_generation:self.accept_status(value)
+            self.background(self.tray_snapshot,
+                            done,lambda e:setattr(self,'status_pending',False))
         return True
 
+    def accept_status(self,value):
+        self.status=value;self.quick.update()
+        if APP_ID=='local.zorin11.DesktopHub':
+            from tray_icon import update_icon
+            update_icon(BASE,CONFIG,value)
+            notifications.write_badge(CONFIG,value)
+
+    def show_flyout(self,surface,width,height,anchor_name='Quick settings'):
+        anchor=panel_button(anchor_name)
+        area=self.work_area(anchor[0],anchor[1]) if anchor else self.monitor_geometry()
+        height=min(height,area.height-24)
+        surface.set_size_request(width,height);surface.resize(width,height)
+        x,y=area.x+area.width-width-12,area.y+area.height-height-12
+        self.capture_backdrop(surface,x,y,width,height)
+        surface.move(x,y);surface.show_all();surface.present()
+        GLib.timeout_add(60,lambda:(surface.move(x,y),False)[1])
+        surface.update()
+
     def show_quick(self):
-        self.start.hide()
-        if self.quick.get_visible():
-            self.quick.hide()
-            return
-        anchor = panel_button('Quick settings')
-        display = Gdk.Display.get_default()
-        area = self.work_area(anchor[0],anchor[1]) if anchor else self.monitor_geometry()
-        width,height = 368,min(340,area.height-24)
-        self.quick.set_size_request(width,height)
-        self.quick.resize(width,height)
-        self.capture_backdrop(self.quick, area.x+area.width-width-12, area.y+area.height-height-12, width, height)
-        self.quick.move(area.x+area.width-width-12,area.y+area.height-height-12)
-        self.quick.show_all()
-        self.quick.present()
-        GLib.timeout_add(60, lambda: (self.quick.move(area.x+area.width-width-12,area.y+area.height-height-12), False)[1])
-        self.quick.update()
+        self.start.hide();self.notifications.hide()
+        if self.quick.get_visible():self.quick.hide();return
+        self.show_flyout(self.quick,368,490 if quick_controls.backlights() else 430)
+        if self.quick.ready:self.quick.send({'type':'show','page':'home'})
         self.refresh_status()
 
-    def quick_action(self, surface, message):
-        action = message['action']
-        if action=='quick-settings':
-            self.open_settings();return
-        commands = {'quick-network':['nm-connection-editor'], 'quick-bluetooth':['blueman-manager'],
-                    'quick-audio':['pavucontrol'], 'quick-settings':['xfce4-settings-manager']}
-        if action in commands:
-            subprocess.Popen(commands[action])
-            surface.hide()
-        elif action == 'quick-volume':
-            value = max(0,min(100,int(message['value'])))
-            self.background(lambda: subprocess.run(['pactl','set-sink-volume','@DEFAULT_SINK@',f'{value}%'],check=True,timeout=3),lambda _: self.refresh_status())
-        elif action == 'quick-mute':
-            self.background(lambda: subprocess.run(['pactl','set-sink-mute','@DEFAULT_SINK@','toggle'],check=True,timeout=3),lambda _: self.refresh_status())
-        elif action == 'quick-wifi':
-            value = 'off' if self.status.get('wifi') else 'on'
-            self.background(lambda: subprocess.run(['nmcli','radio','wifi',value],check=True,timeout=4),lambda _: self.refresh_status(),lambda e: surface.send({'type':'error','message':e}))
-        elif action == 'quick-dnd':
-            import dbus
-            xf = dbus.Interface(dbus.SessionBus().get_object('org.xfce.Xfconf','/org/xfce/Xfconf'),'org.xfce.Xfconf')
-            xf.SetProperty('xfce4-notifyd','/do-not-disturb',dbus.Boolean(bool(message['value'])))
-            self.refresh_status()
+    def quick_change(self,task):
+        if self.quick_busy:raise ValueError('Please wait for the current change to finish.')
+        self.quick_busy=True;self.status_generation+=1;self.quick.update()
+        def run():
+            task();value=quick_controls.snapshot();value['unread']=notifications.has_unread();return value
+        def done(value):
+            self.quick_busy=False;self.accept_status(value);self.refresh_settings();self.refresh_notifications()
+        def failed(error):
+            self.quick_busy=False;self.quick.update();self.refresh_status()
+            self.quick.send({'type':'error','message':error})
+        self.background(run,done,failed)
+
+    def quick_action(self,surface,message):
+        action=message['action']
+        if action=='quick-settings':self.open_settings(message.get('page','home'))
+        elif action in ('quick-network','quick-bluetooth','quick-audio','quick-screenshot','quick-display'):
+            tool={'quick-network':'network','quick-bluetooth':'bluetooth','quick-audio':'sound',
+                  'quick-screenshot':'screenshot','quick-display':'display'}[action]
+            surface.hide();settings_backend.launch(tool)
+        elif action=='quick-set':
+            name,value=message.get('name'),message.get('value')
+            if name not in ('volume','muted','wifi','bluetooth','dnd','output','stickyKeys','slowKeys','bounceKeys','mouseKeys'):
+                raise ValueError('Unknown Quick Settings control.')
+            self.quick_change(lambda:settings_backend.apply(name,value))
+        elif action=='quick-brightness':
+            self.quick_change(lambda:quick_controls.brightness(message.get('id'),message.get('value')))
+        elif action=='quick-tiles':
+            self.store.state['quick_tiles']=quick_controls.validate_tiles(message.get('tiles'))
+            self.store.save();surface.update()
+        else:raise ValueError('Unknown Quick Settings action.')
+
+    def refresh_notifications(self):
+        if not self.notifications.get_visible() or self.notification_pending or self.notification_busy:return True
+        self.notification_pending=True;generation=self.notification_generation
+        def done(value):
+            self.notification_pending=False
+            if generation==self.notification_generation:self.accept_notifications(value)
+        self.background(notifications.snapshot,done,lambda e:setattr(self,'notification_pending',False))
+        return True
+
+    def accept_notifications(self,value):
+        for entry in value['entries']:
+            ident=entry['appId']
+            if ident not in self.apps and ident+'.desktop' in self.apps:ident+='.desktop'
+            entry['launchable']=ident in self.apps
+            if entry['launchable']:
+                entry['appId']=ident;entry['icon']=self.app_info(ident)['icon']
+        self.notification_data=value;self.notifications.update()
+
+    def show_notifications(self):
+        self.start.hide();self.quick.hide()
+        if self.notifications.get_visible():self.notifications.hide();return
+        self.show_flyout(self.notifications,400,800,'Notification center')
+        if self.notifications.ready:self.notifications.send({'type':'show','page':'home'})
+        self.refresh_notifications()
+
+    def notification_action(self,surface,message):
+        action=message['action']
+        if action=='notification-settings':self.open_settings('notifications');return
+        if action=='notification-app':
+            app=message.get('id')
+            if app not in self.apps and app+'.desktop' in self.apps:app+='.desktop'
+            self.launch(app);surface.hide();return
+        if action not in ('notification-dismiss','notification-clear','notification-read','notification-dnd'):
+            raise ValueError('Unknown notification action.')
+        if self.notification_busy:raise ValueError('Please wait for the current change to finish.')
+        self.notification_busy=True;self.notification_generation+=1;surface.update()
+        def run():
+            if action=='notification-dnd':settings_backend.apply('dnd',message.get('value'))
+            else:notifications.change(action.removeprefix('notification-'),message.get('ids'))
+            return notifications.snapshot()
+        def done(value):
+            self.notification_busy=False;self.accept_notifications(value);self.refresh_status();self.refresh_settings()
+        def failed(error):
+            self.notification_busy=False;surface.update();surface.send({'type':'error','message':error})
+        self.background(run,done,failed)
 
     def open_settings(self,page='home'):
-        self.start.hide();self.quick.hide()
+        self.start.hide();self.quick.hide();self.notifications.hide()
         surface=self.surfaces.get('settings')
         if surface is None:
             surface=Surface(self,mode='settings')
@@ -900,6 +981,7 @@ class Hub(Gtk.Application):
         else:raise ValueError('Unknown Settings action.')
 
     def open_explorer(self, location='::home'):
+        self.notifications.hide()
         self.quick.hide()
         if location.startswith('computer:'):
             location='::computer'
