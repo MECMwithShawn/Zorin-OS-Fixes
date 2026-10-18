@@ -64,7 +64,7 @@ def sync(shared=None):
         state['desktopPictures']=pictures
         if not pictures and not state.get('desktopWrites'):
             if before.get('desktopPictures')!=pictures and 'desktopPictures' in before:wallpaper.save(state)
-            return
+            return context['uid']
         props=properties('xfce4-desktop')
         keys={str(k) for k in props if str(k).endswith(('/last-image','/image-path'))}
         for monitor in context['monitors']:
@@ -110,6 +110,7 @@ def sync(shared=None):
         # after all desktops return to the shared picture.
         state['desktopError']=''
         if pending or state!=before:wallpaper.save(state)
+        return context['uid']
 
 
 def assign(uid,ident):
@@ -126,14 +127,20 @@ def assign(uid,ident):
 class Backgrounds:
     def __init__(self,m):
         self.m=m;self.d=m.desktops;self.stopped=False;self.timer=0;self.running=False;self.dirty=False;self.error=''
+        from desktop_motion import BackdropFade
+        self.fade=BackdropFade(m);self.last_uid=None;self.motion_stamp=None
         self.handlers=[self.d.screen.connect(name,self.request) for name in
                        ('active-workspace-changed','viewports-changed','window-manager-changed')]
         self.display=Gdk.Display.get_default()
         self.display_handlers=[self.display.connect(name,self.request) for name in ('monitor-added','monitor-removed')]
+        from gi.repository import Gtk
+        self.settings=Gtk.Settings.get_default()
+        self.settings_handler=self.settings.connect('notify::gtk-enable-animations',self.request)
         self.request()
 
     def close(self):
         self.stopped=True
+        self.fade.close();self.settings.disconnect(self.settings_handler)
         if self.timer:GLib.source_remove(self.timer);self.timer=0
         for handler in self.handlers:self.d.screen.disconnect(handler)
         for handler in self.display_handlers:self.display.disconnect(handler)
@@ -155,12 +162,31 @@ class Backgrounds:
         monitors=[screen.get_monitor_plug_name(i) for i in range(self.display.get_n_monitors())]
         CONTEXT={'uid':current['uid'],'all_ids':[u for ids in self.m.preferences.get('desktop_ids',{}).values() for u in ids],
                  'monitors':[x for x in monitors if x] or ['0']}
+        stamp=(self.d.compiz,tuple(self.display.get_monitor(i).get_refresh_rate() for i in range(self.display.get_n_monitors())),
+               self.settings.get_property('gtk-enable-animations'))
+        if stamp!=self.motion_stamp:
+            self.motion_stamp=stamp
+            if stamp[0]:
+                from desktop_motion import refresh_profile
+                self.m.hub.background(refresh_profile,lambda _:None,lambda e:setattr(self,'error',str(e)))
         if self.running:return False
         self.running=True;self.dirty=False
-        def finish(error=None):
+        def finish(uid=None,error=None):
             self.running=False;self.error=str(error or '')
+            if uid:self.last_uid=uid
+            if self.stopped:return
+            if error or not self.fade.enabled():self.fade.clear()
+            else:self.fade.finish()
             if self.dirty:self.request()
-        self.m.hub.background(sync,lambda _:finish(),finish)
+        def apply():
+            if not self.stopped:self.m.hub.background(sync,lambda uid:finish(uid),lambda error:finish(error=error))
+        import wallpaper
+        state=wallpaper.load()
+        base=state.get('appliedPath') or next(iter(state.get('desktopShared',{}).values()),None)
+        old=picture_path(state,self.last_uid) or base
+        new=picture_path(state,current['uid']) or base
+        if self.last_uid and self.last_uid!=current['uid'] and old!=new and self.fade.enabled():self.fade.begin(apply)
+        else:apply()
         return False
 
     def choose(self,uid,ident,done):

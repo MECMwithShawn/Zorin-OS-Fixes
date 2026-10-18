@@ -32,7 +32,8 @@ class TaskView:
         def settled():
             if self.alive():self.win.present_with_time(self.m.windows.timestamp())
             self.transition=False;return False
-        GLib.timeout_add(250,settled)
+        from desktop_motion import load
+        GLib.timeout_add(max(250,load()['duration']+200),settled)
 
     def fingerprint(self):
         import wallpaper

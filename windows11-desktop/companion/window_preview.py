@@ -1,11 +1,12 @@
 #!/usr/bin/python3
-"""Bounded, disposable XComposite thumbnail reader; emits PNG only to stdout.
+"""Bounded, disposable XComposite reader: PNG thumbnails or one RGB desktop frame.
 
 Runs separately so closed-window races and X protocol errors cannot crash the
 desktop hub. Images stay in memory and are never added to wallpaper/history.
 """
 import ctypes as C
 import io
+import struct
 import sys
 from PIL import Image
 
@@ -24,7 +25,7 @@ class Visual(C.Structure):
               ('bits_per_rgb',C.c_int),('map_entries',C.c_int)]
 
 
-def capture(xid):
+def capture(xid,desktop=False):
     x=C.CDLL('libX11.so.6');comp=C.CDLL('libXcomposite.so.1')
     def signature(lib,name,restype,args):
         fn=getattr(lib,name);fn.restype=restype;fn.argtypes=args;return fn
@@ -67,14 +68,19 @@ def capture(xid):
     if img.bits_per_pixel!=32 or img.byte_order!=0 or masks!=(0xff0000,0xff00,0xff):return b''
     raw=C.string_at(img.data,img.bytes_per_line*img.height)
     image=Image.frombytes('RGB',(img.width,img.height),raw,'raw','BGRX',img.bytes_per_line)
-    image.thumbnail((480,280),Image.Resampling.LANCZOS)
-    out=io.BytesIO();image.save(out,format='PNG')
+    if desktop:
+        # A single bounded RGB frame avoids PNG encoding/decoding latency in
+        # the desktop crossfade. It is sent through the private process pipe.
+        data=b'Z11D'+struct.pack('!II',image.width,image.height)+image.tobytes()
+    else:
+        image.thumbnail((480,280),Image.Resampling.LANCZOS)
+        out=io.BytesIO();image.save(out,format='PNG');data=out.getvalue()
     signature(x,'XDestroyImage',C.c_int,[C.POINTER(XImage)])(ptr)
     signature(x,'XFreePixmap',C.c_int,[C.c_void_p,C.c_ulong])(display,pix)
     signature(x,'XCloseDisplay',C.c_int,[C.c_void_p])(display)
-    return out.getvalue()
+    return data
 
 
 if __name__=='__main__':
-    try:sys.stdout.buffer.write(capture(int(sys.argv[1])))
+    try:sys.stdout.buffer.write(capture(int(sys.argv[1]),'--desktop' in sys.argv))
     except Exception:pass

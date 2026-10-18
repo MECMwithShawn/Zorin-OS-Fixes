@@ -51,6 +51,8 @@ def configure():
     }
     for name,options in values.items():
         for option,value in options.items():context.Plugins[name].Screen[option].Value=value
+    from desktop_motion import configure_profile
+    configure_profile(context)
     context.Write()
     for schema,key,value in [
         ('org.compiz.gwd','use-metacity-theme','true'),

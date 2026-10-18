@@ -38,7 +38,7 @@ Run `python3 setup.py install` again after pulling updates. It retains the origi
 | Battery | The laptop's existing power/battery panel plugin stays visible when a battery is detected |
 | PowerShell | Microsoft PowerShell 7.6.7, installed per user with a Start entry |
 | Terminal | WezTerm with PowerShell and Bash profiles, tabs, split panes, Cascadia Mono, dark Campbell colors, Windows-style title buttons |
-| Window Effects | Optional Compiz wobbly windows, with a timed preview and an off switch |
+| Window Effects | Optional Compiz wobble, smooth desktop slides, individual-background crossfades, three speeds and reduced-motion controls |
 
 The duplicate Wi-Fi icon is removed by using `nm-applet --no-indicator` with `show-applet=false`. NetworkManager and its password/VPN agent keep running. The tray chevron can still reveal other applications. Right-click the tray and open its properties to choose which applications stay visible; newly discovered tray applications may initially appear until you hide them there.
 
@@ -124,7 +124,15 @@ The window area normally shows the desktop being previewed. Type in Search to fi
 
 Completed Snap Assist arrangements appear as **Snap groups** so their windows can be brought back together. Groups and restore positions last for the current companion process and are not saved across login/restart. Snap Assist now suggests windows on the current desktop only.
 
-Desktop management uses native Xfwm workspaces, or horizontal viewports when the optional Compiz effects profile is active. No window-manager restart is needed. Existing two-dimensional Compiz layouts can be browsed and switched, but creation/removal/reordering requires a single row. Up to 32 desktops are supported. Desktops span the connected monitors. Background changes follow the native workspace/viewport switch; Windows' exact transition animations and wallpaper crossfades remain future work.
+Desktop management uses native Xfwm workspaces, or horizontal viewports when the optional Compiz effects profile is active. No window-manager restart is needed. Existing two-dimensional Compiz layouts can be browsed and switched, but creation/removal/reordering requires a single row. Up to 32 desktops are supported. Desktops span the connected monitors.
+
+### Desktop animations
+
+With **Window Effects** enabled, **Win+Ctrl+Left / Right** and desktop selection in Task View use Compiz's native horizontal slide. The taskbar stays in place; the extra Compiz workspace popup is hidden. Desktops with different pictures also crossfade their backgrounds. Live applications remain managed by the window manager throughout the transition.
+
+Open **Win+I → System → Multitasking** to choose **Quick**, **Balanced** (default), or **Relaxed**, or turn **Desktop animations** off for instant switching. The same off switch is available under **Accessibility**. The system GTK reduced-motion setting is also respected. Standard Xfwm keeps its native instant desktop switching; enabling this preference alone does not replace your window manager.
+
+The effects profile derives redraw pacing from connected monitor modes and retains vertical synchronization. Zorin's Compiz build caps this setting at 200 Hz; a faster monitor keeps its actual display mode. No resolution or GPU driver is changed. Short slide durations keep the window manager's input grab brief. The wallpaper fade uses one bounded snapshot of Xfdesktop's own background and icons, held only in memory; it does not capture normal application windows or save screenshots. If the compositor or capture is unavailable, the background changes normally. The temporary surface accepts no input and is automatically removed. These effects follow Windows conventions, while the exact easing and wallpaper motion differ from Windows 11.
 
 Alt+Tab stays with the native window manager. The optional Compiz profile uses a dark switcher with previews, minimized windows, forward/reverse cycling, and a shorter popup delay. No global Alt-key hook is installed. Wobble and existing edge/Win+arrow snapping remain available.
 
@@ -163,6 +171,7 @@ Caption changes appear immediately for native window frames. Reopen an existing 
 - Application: `~/.local/share/zorin11-hub/`
 - Pins/groups: `~/.config/zorin11-hub/layout.json`
 - Desktop names, order and stable identities: `~/.config/zorin11-hub/multitasking.json`
+- Desktop motion preferences: `~/.config/zorin11-hub/desktop-motion.json`
 - Background state/history: `~/.config/zorin11-hub/wallpapers.json` and `wallpapers/`
 - Runtime log: `~/.config/zorin11-hub/desktop.log`
 - Optional effects log: `~/.config/zorin11-hub/effects.log`
@@ -180,7 +189,7 @@ The companion uses Python/GTK3/WebKit2GTK 4.1 and a local React interface. All U
 ```bash
 python3 -m unittest discover -s tests -v
 cd companion
-python3 -m unittest -v test_model.py test_explorer.py test_settings.py test_flyouts.py test_desktop_backgrounds.py
+python3 -m unittest -v test_model.py test_explorer.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py
 # For frontend changes, use the committed pnpm lockfile:
 corepack pnpm install --frozen-lockfile
 node build.mjs
@@ -188,7 +197,7 @@ node build.mjs
 
 Live tests require an X11 session and briefly open disposable windows. `test_live.py` uses a separate application ID and temporary files. `test_native.py` should be run with a temporary `ZORIN11_CONFIG_DIR`. `test_flyouts_live.py` uses Xephyr and a private D-Bus session, config and cache to verify notification ingestion/read/delete without modifying the live user history. Browser UI tests additionally need Playwright and a Chromium executable; see their environment variables.
 
-Run `test_multitasking_live.py`, `test_desktops_live.py` and `test_desktop_personalization_live.py` **sequentially** with Python. Each starts private Xephyr/D-Bus sessions for Xfwm and Compiz. The personalization test checks real Xfdesktop pixels, desktop dragging, keyboard menus, the picture picker, Spotlight coexistence and restart persistence using disposable windows and local image fixtures. Never run these nested-display tests at the same time as live-session keyboard/pointer automation.
+Run `test_multitasking_live.py`, `test_desktops_live.py`, `test_desktop_personalization_live.py` and `test_desktop_motion_live.py` **sequentially** with Python. Each starts private Xephyr/D-Bus sessions for Xfwm and Compiz. The personalization test checks real Xfdesktop pixels, desktop dragging, keyboard menus, the picture picker, Spotlight coexistence and restart persistence using disposable windows and local image fixtures. The motion test samples intermediate app positions and background colors, rapid reversals, reduced motion and transition cleanup. Never run these nested-display tests at the same time as live-session keyboard/pointer automation.
 
 Original artwork/code and the Fluent icon license are included with their notices. Windows reference exports, SSH credentials, account photos, screenshots of personal applications, and machine recovery manifests must never be committed.
 

@@ -21,8 +21,8 @@ Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11,
 | 15. Dialogs | Functional file-operation dialogs and native file/authentication dialogs | Windows-style common-dialog layouts, copy/conflict progress experience |
 | 16. Lock screen | Spotlight/background shared through Xfce Screensaver; lock preferences accessible | Windows clock/login/avatar layout and transitions; LightDM login screen unchanged |
 | 17. Power menu | Existing lock/session/power actions through supported Linux tools | Windows-style confirmation screens; hibernate remains hardware/system dependent |
-| 18. Animations | Hover transitions, optional Compiz wobble with recovery preview | Opening/minimizing/snapping/workspace/notification motion parity |
-| 19. Virtual desktops | Bottom desktop preview strip; create/name/switch/close; drag to reorder or Move left/right menu; individual pictures with shared Spotlight fallback; drag windows or Move to menu; cross-desktop search; Win+Ctrl+D/Left/Right/F4; safe app migration; Xfwm and Compiz support | Exact Windows transition animations/wallpaper crossfades; unavailable thumbnails use cached previews/icons; desktop pictures span all monitors |
+| 18. Animations | Hover transitions, optional Compiz wobble with recovery preview; native desktop slides, wallpaper crossfades, three speeds, motion-off controls and monitor-aware pacing | Exact Windows easing/background motion; opening/minimizing/snapping/notification parity; Xfwm uses instant workspace switching |
+| 19. Virtual desktops | Bottom desktop preview strip; create/name/switch/close; drag to reorder or Move left/right menu; individual pictures with shared Spotlight fallback; Compiz slides/background crossfades; drag windows or Move to menu; cross-desktop search; Win+Ctrl+D/Left/Right/F4; safe app migration; Xfwm and Compiz support | Exact Windows easing/background motion; unavailable thumbnails use cached previews/icons; desktop pictures span all monitors |
 | 20. Multimonitor | Settings reports live monitors and opens native arrangement/scaling; wallpaper applies to connected monitors | Per-monitor taskbars, independent wallpaper selection and fractional-scale consistency |
 | 21. Widgets | Desktop shortcut groups and folder portals | Calendar/weather/resource widgets; news feed intentionally not added by default |
 | 22. System utilities | PowerShell, WezTerm profiles/tabs/splits, screenshot entry, native administration tools | Windows-style Task Manager, Device Manager, Disk Management, Services, Event Viewer and clipboard UI |
@@ -32,7 +32,7 @@ Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11,
 
 ## Next implementation priorities
 
-1. Add Snap Groups in taskbar switching; broaden native maximize-hover support and refine desktop transition animations.
+1. Add Snap Groups in taskbar switching and broaden native maximize-hover support.
 2. Additional Settings pages and native dialog styling; close remaining icon and spacing differences against the user's Windows reference.
 3. Battery-saver and connected-device controls, plus richer notification actions where supported.
 4. Validate on the laptop, especially real backlight control, battery, touchpad, scaling, suspend and multiple displays.

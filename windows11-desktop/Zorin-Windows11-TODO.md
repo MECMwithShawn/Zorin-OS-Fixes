@@ -18,6 +18,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Investigate top-edge snap bar and persistent layout presets without breaking native tiling.
 - [x] Task View: workspace thumbnails plus create, rename and remove desktop actions. Verified 2026-10-18.
 - [x] Task View: reorder desktops and choose separate desktop wallpapers. Drag or Move left/right; local JPEG/PNG per desktop; shared Spotlight fallback. Verified 2026-10-18 on Xfwm and Compiz.
+- [x] Desktop switching: native Compiz slides, individual-picture crossfades, three speeds and reduced-motion controls. Standard Xfwm retains instant switching. Verified 2026-10-18.
 - [x] Task View: display Snap Groups and per-workspace previews. Includes drag/Move to, cross-desktop search and Win+Ctrl desktop shortcuts; verified on Xfwm and Compiz.
 - [ ] Explorer: safe preview pane with allowlisted content types and file-size limits.
 - [ ] Explorer: richer context menus, file properties, transfer/conflict dialogs and reliable operation errors.

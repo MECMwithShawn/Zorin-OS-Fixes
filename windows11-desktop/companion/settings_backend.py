@@ -92,6 +92,8 @@ def facts():
 
 def snapshot():
     result=desktop_status()
+    from desktop_motion import load
+    motion=load();result.update(desktopAnimations=motion['enabled'],desktopAnimationDuration=motion['duration'])
     result['outputs']=sound_outputs()
     try:result['output']=run(['pactl','get-default-sink'])
     except (OSError,subprocess.SubprocessError):result['output']=None
@@ -123,7 +125,10 @@ def snapshot():
 
 
 def apply(name,value):
-    if name in BOOL_SETTINGS:
+    if name in ('desktopAnimations','desktopAnimationDuration'):
+        from desktop_motion import configure
+        configure(name,value)
+    elif name in BOOL_SETTINGS:
         if type(value) is not bool:raise ValueError('This control needs an on/off value.')
         set_property(*BOOL_SETTINGS[name],dbus.Boolean(value))
     elif name in ('screenTimeout','batteryTimeout'):
