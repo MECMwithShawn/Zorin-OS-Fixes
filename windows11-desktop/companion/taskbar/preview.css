@@ -1,0 +1,24 @@
+/* Windows 11 style taskbar window previews. Scoped to our native flyout. */
+#z11-taskbar-preview { background: transparent; border: 0; border-radius: 8px; }
+#z11-taskbar-preview scrolledwindow { background: transparent; border: 0; }
+#z11-taskbar-preview .menu {
+  background: #242424; color: #f5f5f5; border: 1px solid #454545;
+  border-radius: 8px; padding: 6px; margin: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.35);
+  font-family: 'Segoe UI', Selawik, sans-serif; font-size: 12px;
+}
+#z11-taskbar-preview .menu_item {
+  background: transparent; border: 1px solid transparent;
+  border-radius: 5px; padding: 3px; margin: 1px;
+}
+#z11-taskbar-preview .active_menu_item { background: #2c2c2c; border-color: #505050; }
+#z11-taskbar-preview .hover_menu_item { background: #383838; border-color: #646464; }
+#z11-taskbar-preview .z11-preview-image { background: #191919; border-radius: 4px; }
+#z11-taskbar-preview .z11-preview-close {
+  min-width: 30px; min-height: 28px; padding: 0; margin: 0;
+  color: #eeeeee; background: transparent; border: 0; border-radius: 4px; box-shadow: none;
+}
+#z11-taskbar-preview .z11-preview-close:hover { background: #c42b1c; color: white; }
+#z11-taskbar-preview .z11-preview-close:active { background: #a52317; }
+#z11-taskbar-preview scrollbar { background: #242424; }
+#z11-taskbar-preview scrollbar slider { min-height: 4px; background: #777777; border-radius: 2px; }

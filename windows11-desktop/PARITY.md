@@ -5,7 +5,7 @@ Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11,
 | Area | Delivered | Remaining differences / next work |
 |---|---|---|
 | 1. Desktop | Dark appearance, personal Windows icons, This PC, shortcut groups, optional Spotlight/Bing rotation with history | Desktop context menus and selection visuals remain Xfce; Spotlight refresh is per login session |
-| 2. Taskbar | Centered Start/app area, 32 px icons, distinct active/running/closed states through Docklike, Task View button, search, tray overflow, compact Fluent network/audio, clock/date, laptop battery retained | Windows taskbar thumbnail styling, badges/progress and per-monitor taskbars need further work |
+| 2. Taskbar | Centered Start/app area, 32 px icons, distinct active/running/closed states through Docklike, live grouped hover thumbnails with close buttons, bounded overflow and minimized/icon fallbacks; Task View button, search, tray overflow, compact Fluent network/audio, clock/date, laptop battery retained | Snap Groups in taskbar previews, desktop peek, badges/progress and per-monitor taskbars need further work |
 | 3. Start | Anchored rounded panel, pinned grid/reordering, All apps/categories, search, recent launches, account and power actions | Recommended documents, app folders, expanded jump lists |
 | 4. Search | Local application search, category navigation, Settings search | Unified file/settings search, previews and full keyboard navigation parity |
 | 5. Window frames | Dark Xfwm/Compiz frames, thin borders, large caption targets, red Close hover, companion captions | Third-party custom title bars and corner/shadow parity vary |

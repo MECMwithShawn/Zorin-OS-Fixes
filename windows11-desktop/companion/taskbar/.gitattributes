@@ -1,0 +1,2 @@
+# Unified-diff context prefixes precede upstream tabs/blank lines by design.
+docklike.patch -whitespace

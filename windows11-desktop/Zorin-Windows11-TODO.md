@@ -5,7 +5,7 @@ Target: Zorin OS 18.1 Lite, Xfce 4.20, X11. Extend the existing Python/GTK3/WebK
 Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md) before modifying tested behavior.
 
 ## P0 — Highest-impact desktop improvements
-- [ ] Taskbar: live thumbnail hover previews, close controls and fallbacks for windows without previews.
+- [x] Taskbar: live grouped hover thumbnails, per-window Close, minimized/icon fallbacks and scrollable overflow. Includes launcher-less app grouping; verified on Xfwm, Compiz and the installed desktop on 2026-10-18.
 - [ ] Taskbar: per-app badges and progress indicators when real application state is available.
 - [ ] Taskbar: expose Snap Groups in previews and switching, handling closed/minimized windows correctly.
 - [ ] Start: app folders with drag/drop creation and persistent ordering.

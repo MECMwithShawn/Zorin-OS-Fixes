@@ -1,0 +1,328 @@
+diff --git a/src/AppInfos.cpp b/src/AppInfos.cpp
+index 2ac8ee9..a2b70ec 100644
+--- a/src/AppInfos.cpp
++++ b/src/AppInfos.cpp
+@@ -347,7 +347,18 @@ namespace AppInfos
+ 
+ 		g_debug("No match");
+ 
+-		return std::make_shared<AppInfo>("", "", "", id);
++		// Keep windows without a .desktop launcher in one taskbar group too.
++		// Weak entries let the normal group lifetime own this metadata; a real
++		// launcher discovered later still takes precedence above.
++		static std::map<std::string, std::weak_ptr<AppInfo>> unknownApps;
++		for (auto it = unknownApps.begin(); it != unknownApps.end(); )
++			if (it->second.expired()) it = unknownApps.erase(it); else ++it;
++		ai = unknownApps[id].lock();
++		if (!ai) {
++			ai = std::make_shared<AppInfo>("", "", "", id);
++			unknownApps[id] = ai;
++		}
++		return ai;
+ 	}
+ 
+ 	bool selectLauncher(const gchar* classId)
+diff --git a/src/Group.cpp b/src/Group.cpp
+index e8160d9..ecb716f 100644
+--- a/src/Group.cpp
++++ b/src/Group.cpp
+@@ -59,7 +59,7 @@ Group::Group(std::shared_ptr<AppInfo> appInfo, bool pinned) : mGroupMenu(this)
+ 		return true;
+ 	});
+ 
+-	mMenuShowTimeout.setup(90, [this]() {
++	mMenuShowTimeout.setup(350, [this]() {
+ 		onMouseEnter();
+ 		return false;
+ 	});
+@@ -180,7 +180,7 @@ Group::Group(std::shared_ptr<AppInfo> appInfo, bool pinned) : mGroupMenu(this)
+ 
+ 			if (Settings::showPreviews)
+ 				me->mWindows.forEach([](GroupWindow* w) -> void {
+-					w->mGroupMenuItem->mPreviewTimeout.stop();
++					if (!w->mGroup->mGroupMenu.mVisible) w->mGroupMenuItem->mPreviewTimeout.stop();
+ 				});
+ 
+ 			return false;
+@@ -787,6 +787,7 @@ void Group::setMouseLeaveTimeout()
+ 
+ void Group::updateStyle()
+ {
++	atk_object_set_name(gtk_widget_get_accessible(mButton), mAppInfo->mName.c_str());
+ 	if (mPinned || mWindowsCount > 0)
+ 		gtk_widget_show_all(mButton);
+ 	else
+diff --git a/src/GroupMenu.cpp b/src/GroupMenu.cpp
+index 82a4261..297c3cb 100644
+--- a/src/GroupMenu.cpp
++++ b/src/GroupMenu.cpp
+@@ -30,6 +30,11 @@ create_window()
+ {
+ 	GtkWidget* window = gtk_window_new(GtkWindowType::GTK_WINDOW_POPUP);
+ 	gtk_widget_add_events(window, GDK_SCROLL_MASK);
++    gtk_widget_set_name(window, "z11-taskbar-preview");
++    gtk_window_set_title(GTK_WINDOW(window), "Window previews");
++    gtk_window_set_accept_focus(GTK_WINDOW(window), false);
++    GdkVisual* visual = gdk_screen_get_rgba_visual(gtk_widget_get_screen(window));
++    if (visual) gtk_widget_set_visual(window, visual);
+ 	gtk_window_set_default_size(GTK_WINDOW(window), 1, 1);
+ #ifdef ENABLE_WAYLAND
+ 	if (gtk_layer_is_supported())
+@@ -53,7 +58,12 @@ GroupMenu::GroupMenu(Group* dockButton)
+ 	mBox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+ 
+ 	Help::Gtk::cssClassAdd(mBox, "menu");
+-	gtk_container_add(GTK_CONTAINER(mWindow), mBox);
++	mScroll = gtk_scrolled_window_new(nullptr, nullptr);
++    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(mScroll), GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER);
++    gtk_scrolled_window_set_propagate_natural_width(GTK_SCROLLED_WINDOW(mScroll), true);
++    gtk_container_add(GTK_CONTAINER(mScroll), mBox);
++    gtk_container_add(GTK_CONTAINER(mWindow), mScroll);
++    gtk_widget_show(mScroll);
+ 	gtk_widget_show(mBox);
+ 
+ 	mPopupIdle.setup([this]() {
+@@ -94,12 +104,12 @@ GroupMenu::GroupMenu(Group* dockButton)
+ 
+ 	g_signal_connect(G_OBJECT(Plugin::mXfPlugin), "notify::scale-factor",
+ 		G_CALLBACK(+[](GtkWidget* widget, GParamSpec* pspec, GroupMenu* me) {
+-			g_object_ref(me->mBox);
+-			gtk_container_remove(GTK_CONTAINER(me->mWindow), me->mBox);
++			g_object_ref(me->mScroll);
++			gtk_container_remove(GTK_CONTAINER(me->mWindow), me->mScroll);
+ 			gtk_widget_destroy(me->mWindow);
+ 			me->mWindow = create_window();
+-			gtk_container_add(GTK_CONTAINER(me->mWindow), me->mBox);
+-			g_object_unref(me->mBox);
++			gtk_container_add(GTK_CONTAINER(me->mWindow), me->mScroll);
++			g_object_unref(me->mScroll);
+ 		}),
+ 		this);
+ }
+@@ -124,7 +134,7 @@ void GroupMenu::remove(GroupMenuItem* menuItem)
+ 	gtk_window_resize(GTK_WINDOW(mWindow), 1, 1);
+ 
+ 	if (mGroup->mWindowsCount < (Settings::noWindowsListIfSingle ? 2 : 1))
+-		gtk_widget_hide(mWindow);
++		hide();
+ 
+ 	if (mVisible)
+ 		mPopupIdle.start();
+@@ -138,6 +148,12 @@ void GroupMenu::popup()
+ 		mVisible = true;
+ 
+ 		updateOrientation();
++        GdkRectangle area;
++        auto* display = gtk_widget_get_display(mGroup->mButton);
++        auto* monitor = gdk_display_get_monitor_at_window(display, gtk_widget_get_window(mGroup->mButton));
++        gdk_monitor_get_workarea(monitor, &area);
++        gtk_scrolled_window_set_min_content_width(GTK_SCROLLED_WINDOW(mScroll), -1);
++        gtk_scrolled_window_set_max_content_width(GTK_SCROLLED_WINDOW(mScroll), std::max(280, area.width - 32));
+ 
+ 		// Update the previews before showing the window
+ 		if (Settings::showPreviews)
+@@ -148,9 +164,21 @@ void GroupMenu::popup()
+ 			gtk_window_resize(GTK_WINDOW(mWindow), 1, 1);
+ 		}
+ 
++        GtkRequisition minimum, natural;
++        gtk_widget_get_preferred_size(mBox, &minimum, &natural);
++        gtk_scrolled_window_set_min_content_width(GTK_SCROLLED_WINDOW(mScroll), std::min(natural.width, std::max(280, area.width - 32)));
++        gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(mScroll), natural.height);
++
+ 		xfce_panel_plugin_position_widget(Plugin::mXfPlugin, mWindow, mGroup->mButton, &wx, &wy);
+ 		updatePosition(wx, wy);
+ 		gtk_widget_show(mWindow);
++        // Capture only after mapping, which also redirects full-screen apps.
++        mGroup->mWindows.forEach([](GroupWindow* w) {
++            if (Settings::showPreviews) {
++                w->mGroupMenuItem->updatePreview();
++                w->mGroupMenuItem->mPreviewTimeout.start();
++            }
++        });
+ 	}
+ }
+ 
+@@ -210,13 +238,17 @@ void GroupMenu::updatePosition(gint wx, gint wy)
+ 	else
+ #endif
+ 	{
+-		gtk_window_move(GTK_WINDOW(mWindow), wx, wy);
++		wx = std::max(geometry.x, std::min(wx, geometry.x + geometry.width - window_width));
++        wy = std::max(geometry.y, std::min(wy, geometry.y + geometry.height - window_height));
++        gtk_window_move(GTK_WINDOW(mWindow), wx, wy);
+ 	}
+ }
+ 
+ void GroupMenu::hide()
+ {
+ 	mVisible = false;
++    mMouseHover = false;
++    mGroup->mWindows.forEach([](GroupWindow* w) { w->mGroupMenuItem->mPreviewTimeout.stop(); });
+ 	gtk_widget_hide(mWindow);
+ }
+ 
+diff --git a/src/GroupMenu.hpp b/src/GroupMenu.hpp
+index f798049..be5a6e3 100644
+--- a/src/GroupMenu.hpp
++++ b/src/GroupMenu.hpp
+@@ -49,6 +49,7 @@ public:
+ 
+ 	GtkWidget* mWindow;
+ 	GtkWidget* mBox;
++	GtkWidget* mScroll;
+ 
+ 	bool mVisible;
+ 	bool mMouseHover;
+diff --git a/src/GroupMenuItem.cpp b/src/GroupMenuItem.cpp
+index 2913517..ca1b1bb 100644
+--- a/src/GroupMenuItem.cpp
++++ b/src/GroupMenuItem.cpp
+@@ -22,6 +22,7 @@
+ #endif
+ 
+ #include "GroupMenuItem.hpp"
++#include "LivePreview.hpp"
+ 
+ static GtkTargetEntry entries[1] = {{(gchar*)"any", 0, 0}};
+ 
+@@ -54,16 +55,20 @@ GroupMenuItem::GroupMenuItem(GroupWindow* groupWindow)
+ 	mLabel = GTK_LABEL(gtk_label_new(""));
+ 	gtk_label_set_xalign(mLabel, 0);
+ 	gtk_label_set_ellipsize(mLabel, PANGO_ELLIPSIZE_END);
+-	gtk_label_set_width_chars(mLabel, 26);
++	gtk_label_set_width_chars(mLabel, 20);
++	gtk_label_set_max_width_chars(mLabel, 20);
+ 	gtk_widget_show(GTK_WIDGET(mLabel));
+ 	gtk_grid_attach(mGrid, GTK_WIDGET(mLabel), 1, 0, 1, 1);
+ 
+-	mCloseButton = GTK_BUTTON(gtk_button_new_from_icon_name("window-close", GTK_ICON_SIZE_MENU));
++	mCloseButton = GTK_BUTTON(gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_MENU));
+ 	gtk_button_set_relief(mCloseButton, GTK_RELIEF_NONE);
+ 	gtk_widget_show(GTK_WIDGET(mCloseButton));
+ 	gtk_grid_attach(mGrid, GTK_WIDGET(mCloseButton), 2, 0, 1, 1);
+ 
+ 	mPreview = GTK_IMAGE(gtk_image_new());
++	gtk_widget_set_size_request(GTK_WIDGET(mPreview), 256, 144);
++	Help::Gtk::cssClassAdd(GTK_WIDGET(mCloseButton), "z11-preview-close");
++	Help::Gtk::cssClassAdd(GTK_WIDGET(mPreview), "z11-preview-image");
+ 	gtk_widget_set_margin_top(GTK_WIDGET(mPreview), 6);
+ 	gtk_widget_set_margin_bottom(GTK_WIDGET(mPreview), 6);
+ 	gtk_grid_attach(mGrid, GTK_WIDGET(mPreview), 0, 1, 3, 1);
+@@ -72,21 +77,27 @@ GroupMenuItem::GroupMenuItem(GroupWindow* groupWindow)
+ 	if (Xfw::getActiveWindow() == mGroupWindow->mXfwWindow)
+ 		Help::Gtk::cssClassAdd(GTK_WIDGET(mItem), "active_menu_item");
+ 
+-	int sleepMS = 1000;
++	int sleepMS = 200;
+ 	if (Settings::previewSleep)
+-		sleepMS = Settings::previewSleep;
++		sleepMS = std::max(150, Settings::previewSleep.get());
+ 
+ 	mPreviewTimeout.setup(sleepMS, [this]() {
+ 		updatePreview();
+ 		return true;
+ 	});
++	// Stagger groups of previews so the bounded capture workers serve every
++	// card, instead of the first two claiming every shared timer tick.
++	mPreviewTimeout.mDuration += g_random_int_range(0, 90);
+ 
+ 	//--------------------------------------------------
+ 
+ 	g_signal_connect(G_OBJECT(mItem), "button-press-event",
+ 		G_CALLBACK(+[](GtkWidget* widget, GdkEventButton* event, GroupMenuItem* me) {
+ 			if (event->button == GDK_BUTTON_PRIMARY)
++				{
+ 				me->mGroupWindow->activate((event)->time);
++				me->mGroupWindow->mGroup->mGroupMenu.hide();
++			}
+ 			else if (event->button == GDK_BUTTON_SECONDARY)
+ 			{
+ 				GtkWidget* menu = GTK_WIDGET(g_object_ref_sink(xfw_window_action_menu_new(me->mGroupWindow->mXfwWindow)));
+@@ -126,7 +137,7 @@ GroupMenuItem::GroupMenuItem(GroupWindow* groupWindow)
+ 
+ 	g_signal_connect(G_OBJECT(mCloseButton), "clicked",
+ 		G_CALLBACK(+[](GtkButton* button, GroupMenuItem* me) {
+-			Xfw::close(me->mGroupWindow, 0);
++			Xfw::close(me->mGroupWindow, gtk_get_current_event_time());
+ 		}),
+ 		this);
+ }
+@@ -140,6 +151,11 @@ GroupMenuItem::~GroupMenuItem()
+ void GroupMenuItem::updateLabel()
+ {
+ 	const char* winName = xfw_window_get_name(mGroupWindow->mXfwWindow);
++	std::string closeName = std::string("Close ") + winName;
++	atk_object_set_name(gtk_widget_get_accessible(GTK_WIDGET(mCloseButton)), closeName.c_str());
++	gtk_widget_set_tooltip_text(GTK_WIDGET(mCloseButton), closeName.c_str());
++	atk_object_set_name(gtk_widget_get_accessible(GTK_WIDGET(mItem)), winName);
++	gtk_widget_set_tooltip_text(GTK_WIDGET(mLabel), winName);
+ 
+ 	if (Xfw::getActiveWindow() == mGroupWindow->mXfwWindow)
+ 	{
+@@ -176,52 +192,5 @@ void GroupMenuItem::updateIcon()
+ 
+ void GroupMenuItem::updatePreview()
+ {
+-	if (mGroupWindow->getState(XFW_WINDOW_STATE_MINIMIZED))
+-		return; // minimized windows never need a new thumbnail
+-
+-#ifdef ENABLE_X11
+-	// This needs work to survive porting to GTK4 and/or Wayland.
+-	// GDK doesn't expose an API to get a foreign window on X11 anymore (so X11 code).
+-	// Wayland may never have a public protocol for obtaining a preview of a foreign window,
+-	// which goes against its security principles (so private protocol).
+-	if (GDK_IS_X11_DISPLAY(Plugin::mDisplay))
+-	{
+-		GdkWindow* window;
+-		GdkPixbuf* pixbuf;
+-		GdkPixbuf* thumbnail;
+-
+-		double scale = 0.125;
+-		if (Settings::previewScale)
+-			scale = Settings::previewScale;
+-
+-		window = gdk_x11_window_foreign_new_for_display(Plugin::mDisplay,
+-			xfw_window_x11_get_xid(mGroupWindow->mXfwWindow));
+-
+-		if (window != nullptr)
+-		{
+-			// we're probably not doing anything wrong at our level, but things can go wrong in cairo when
+-			// multiple windows are closed and thumbnails are shown (#71), so let's catch X11 errors for it
+-			GdkDisplay* display = gdk_display_get_default();
+-			gdk_x11_display_error_trap_push(display);
+-			pixbuf = gdk_pixbuf_get_from_window(window, 0, 0, gdk_window_get_width(window), gdk_window_get_height(window));
+-			gdk_x11_display_error_trap_pop_ignored(display);
+-
+-			if (pixbuf != nullptr)
+-			{
+-				gint scale_factor = gtk_widget_get_scale_factor(GTK_WIDGET(mPreview));
+-				scale *= scale_factor;
+-				thumbnail = gdk_pixbuf_scale_simple(pixbuf,
+-					gdk_pixbuf_get_width(pixbuf) * scale, gdk_pixbuf_get_height(pixbuf) * scale, GDK_INTERP_BILINEAR);
+-				cairo_surface_t* surface = gdk_cairo_surface_create_from_pixbuf(thumbnail, scale_factor, nullptr);
+-
+-				gtk_image_set_from_surface(mPreview, surface);
+-
+-				cairo_surface_destroy(surface);
+-				g_object_unref(thumbnail);
+-				g_object_unref(pixbuf);
+-			}
+-			g_object_unref(window);
+-		}
+-	}
+-#endif
++    LivePreview::update(mPreview, mGroupWindow->mXfwWindow);
+ }
+diff --git a/src/meson.build b/src/meson.build
+index 71d7cbf..8b8f527 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -8,6 +8,7 @@ plugin_sources = [
+   'GroupMenu.cpp',
+   'GroupMenu.hpp',
+   'GroupMenuItem.cpp',
++  'LivePreview.cpp',
+   'GroupMenuItem.hpp',
+   'GroupWindow.cpp',
+   'GroupWindow.hpp',

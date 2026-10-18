@@ -14,7 +14,7 @@ python3 setup.py check
 python3 setup.py install
 ```
 
-The dependency command requests sudo for Ubuntu packages. Desktop customization, PowerShell, WezTerm, and fonts install into your account. A prebuilt React frontend is included; Node is not needed for installation. Downloads are pinned in `dependencies.json`; PowerShell, WezTerm, Cascadia, and the PowerShell icon are checked against recorded SHA-256 hashes. The icon theme uses a pinned Git revision. Allow about 1 GB for downloads and extracted tools.
+The dependency command requests sudo for Ubuntu packages, including the taskbar extension's build tools. Desktop customization, PowerShell, WezTerm, and fonts install into your account. A prebuilt React frontend is included; Node is not needed for installation. Downloads are pinned in `dependencies.json`; PowerShell, WezTerm, Cascadia, and the PowerShell icon are checked against recorded SHA-256 hashes. The icon theme uses a pinned Git revision; the native taskbar source has a pinned commit and SHA-256 in `companion/taskbar_build.py`. Allow roughly 1–2 GB for downloads, build dependencies and extracted tools.
 
 Run `python3 setup.py install` again after pulling updates. It retains the original recovery record and your saved Start pins/groups while reapplying the managed appearance. `--skip-terminal` skips tool downloads; already installed local PowerShell/WezTerm are still integrated.
 
@@ -133,6 +133,14 @@ With **Window Effects** enabled, **Win+Ctrl+Left / Right** and desktop selection
 Open **Win+I → System → Multitasking** to choose **Quick**, **Balanced** (default), or **Relaxed**, or turn **Desktop animations** off for instant switching. The same off switch is available under **Accessibility**. The system GTK reduced-motion setting is also respected. Standard Xfwm keeps its native instant desktop switching; enabling this preference alone does not replace your window manager.
 
 The effects profile derives redraw pacing from connected monitor modes and retains vertical synchronization. Zorin's Compiz build caps this setting at 200 Hz; a faster monitor keeps its actual display mode. No resolution or GPU driver is changed. Short slide durations keep the window manager's input grab brief. The wallpaper fade uses one bounded snapshot of Xfdesktop's own background and icons, held only in memory; it does not capture normal application windows or save screenshots. If the compositor or capture is unavailable, the background changes normally. The temporary surface accepts no input and is automatically removed. These effects follow Windows conventions, while the exact easing and wallpaper motion differ from Windows 11.
+
+### Taskbar hover previews
+
+Hover over a running app's taskbar icon for about a third of a second to see its windows in a rounded dark preview panel. Each card has the window title, a live thumbnail and an **×** close button with red hover feedback. Click the thumbnail to activate or restore that window. Multiple windows appear side by side; large groups scroll within the monitor. Moving away dismisses the panel. Closed pinned apps show no window preview.
+
+Previews keep updating while the pointer is over the icon or panel, including for covered windows when the compositor can capture them. Minimized/unavailable windows show the last captured image or their app icon. Closing a card sends a normal window-close request, so an app can still ask to save work. Captures stay in memory, and sampling stops when the panel closes. Exact refresh speed depends on the app, compositor and display size.
+
+The setup builds a pinned, locally patched Docklike plugin once in your user cache. `install-system-deps.sh` includes its build dependencies. The library, descriptor and styling install per user, retain your Docklike pins and indicators, and participate in the existing restore mechanism. The distribution's plugin remains installed. See [native preview implementation and license](companion/taskbar/README.md).
 
 Alt+Tab stays with the native window manager. The optional Compiz profile uses a dark switcher with previews, minimized windows, forward/reverse cycling, and a shorter popup delay. No global Alt-key hook is installed. Wobble and existing edge/Win+arrow snapping remain available.
 

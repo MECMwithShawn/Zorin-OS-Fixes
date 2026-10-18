@@ -9,6 +9,7 @@ import dbus
 from panel_layout import find_panel, plan
 import appearance
 import window_style
+import taskbar_build
 
 
 def upgrade():
@@ -16,6 +17,8 @@ def upgrade():
     source,home,dest,config=installer.SOURCE,installer.HOME,installer.DEST,installer.CONFIG
     if not installer.MANIFEST.exists():
         raise SystemExit('Install the desktop companion first.')
+    # Complete the native build before touching the running panel.
+    taskbar_module=taskbar_build.build()
     manifest=json.loads(installer.MANIFEST.read_text())
     properties=dict(installer.XF.GetAllProperties('xfce4-panel','/'))
     panel=find_panel(properties,manifest.get('panel',0) if 'plugin' in manifest else None)
@@ -210,6 +213,7 @@ Categories=Settings;DesktopSettings;
             manifest['explorer_migration']=True
             updated_state=state
         dock=home/f'.config/xfce4/panel/docklike-{dock}.rc'
+        taskbar_build.integrate(home,taskbar_module,file)
         if dock.exists():
             content=dock.read_text()
             content=re.sub(r'(?<=;)thunar(?=;|$)','zorin11-explorer',content,flags=re.M)
@@ -218,7 +222,7 @@ Categories=Settings;DesktopSettings;
             content=content.replace('pinned=xfce-settings-manager;','pinned=zorin11-settings;')
             # Draw inset indicators with CSS: the plugin's old bottom-edge dots
             # were clipped by the 48px panel and almost invisible in dark mode.
-            for key,value in {'indicatorStyle':'5','inactiveIndicatorStyle':'5','forceIconSize':'true','iconSize':'32','showPreviews':'true'}.items():
+            for key,value in {'indicatorStyle':'5','inactiveIndicatorStyle':'5','forceIconSize':'true','iconSize':'32','showPreviews':'true','noWindowsListIfSingle':'false','previewSleep':'200'}.items():
                 content=re.sub(r'^'+key+r'=.*\n?','',content,flags=re.M)
                 content=content.replace('[user]','[user]\n'+key+'='+value,1)
             file(dock,content)
@@ -287,6 +291,8 @@ X-XFCE-CommandsWithParameter={launcher} --explorer "%s";
         content=appearance.css(content,layout['show'])
         window_style.apply(home,source,setting,file)
         content=window_style.css(content,dest)
+        content=re.sub(r'/\* BEGIN Windows 11 previews \*/.*?/\* END Windows 11 previews \*/\n?','',content,flags=re.S)
+        content+='\n/* BEGIN Windows 11 previews */\n'+(source/'taskbar/preview.css').read_text()+'\n/* END Windows 11 previews */\n'
         content=re.sub(r'/\* BEGIN Windows 11 tray \*/.*?/\* END Windows 11 tray \*/\n?','',content,flags=re.S)
         content+=f'''\n/* BEGIN Windows 11 tray */
 #launcher-{search} button {{ border-radius: 18px; min-width: 160px; padding: 0 10px; margin: 6px 4px; background-color: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.086); background-image: url('{dest/'search.svg'}'); background-repeat: no-repeat; background-position: 12px center; background-size: 16px 16px; }}
@@ -355,7 +361,13 @@ Context=Applications
         if updated_state is not None:installer.write_json(store,updated_state)
         for path,content in new_files.items():
             path.parent.mkdir(parents=True,exist_ok=True)
-            path.write_bytes(content)
+            if path.suffix=='.so':
+                # A just-stopped plugin wrapper may still have the old library
+                # mapped briefly. Replace its inode instead of truncating it.
+                temporary=path.with_name(path.name+'.new')
+                temporary.write_bytes(content)
+                temporary.replace(path)
+            else:path.write_bytes(content)
         subprocess.run(['fc-cache','-f',str(home/'.local/share/fonts')],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         for channel,key,value in new_settings:installer.XF.SetProperty(channel,key,value)
         for schema,key,value in new_gsettings:

@@ -143,6 +143,8 @@ def install():
         raise SystemExit('Already installed. Use --uninstall before reinstalling; your pinned apps are preserved.')
     if not (SOURCE/'dist/main.js').is_file():
         raise SystemExit('Build the frontend first (node build.mjs).')
+    import taskbar_build
+    taskbar_build.build()
     manifest = {'settings': [], 'files': []}
     channel = 'xfce4-panel'
     from panel_layout import find_panel
