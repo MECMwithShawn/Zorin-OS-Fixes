@@ -51,46 +51,67 @@ function App(){
  const [category,setCategory]=useState(null),[appView,setAppView]=useState('Category');
  const [context,setContext]=useState(null),[toast,setToast]=useState(''),[footerMenu,setFooterMenu]=useState(null);
  const [addTo,setAddTo]=useState(null),[newName,setNewName]=useState(''),[rename,setRename]=useState(null);
+ const [startFolder,setStartFolder]=useState(null),[folderPicker,setFolderPicker]=useState(null),[folderName,setFolderName]=useState('');
  const search=useRef(null),drag=useRef(null),root=useRef(null);
  const accountButton=useRef(null),powerButton=useRef(null);
  useEffect(()=>{
   window.receive=message=>{
    window.dispatchEvent(new CustomEvent('desktop-message',{detail:message}));
    if(message.type==='state'){window.desktopState=message.data;setData(message.data);}
-   if(message.type==='show'){setPage(message.page||'home');setQuery('');setContext(null);setAddTo(null);setFooterMenu(null);setCategory(null);setTimeout(()=>search.current?.focus(),40);}
+   if(message.type==='show'){setPage(message.page||'home');setQuery('');setContext(null);setAddTo(null);setFooterMenu(null);setCategory(null);setStartFolder(null);setFolderPicker(null);setTimeout(()=>search.current?.focus(),40);}
+   if(message.type==='escape')window.dispatchEvent(new Event('start-escape'));
    if(message.type==='error'||message.type==='notice'){setToast(message.message);setTimeout(()=>setToast(''),5000);}
   };
   send('ready');
   return ()=>delete window.receive;
  },[]);
  useEffect(()=>{
-  const close=e=>{if(e.key==='Escape'){setContext(null);setFooterMenu(null);setAddTo(null);} };
-  document.addEventListener('keydown',close);return()=>document.removeEventListener('keydown',close);
- },[]);
+  const dismiss=()=>{if(context)setContext(null);else if(folderPicker)setFolderPicker(null);else if(startFolder)setStartFolder(null);else if(addTo)setAddTo(null);else if(footerMenu)setFooterMenu(null);else if(data?.mode==='start')send('close');};
+  const close=e=>{if(e.key==='Escape'){e.preventDefault();dismiss();}};
+  document.addEventListener('keydown',close);window.addEventListener('start-escape',dismiss);
+  return()=>{document.removeEventListener('keydown',close);window.removeEventListener('start-escape',dismiss);};
+ },[context,footerMenu,addTo,startFolder,folderPicker,data?.mode]);
+ useEffect(()=>{if(startFolder||folderPicker)setTimeout(()=>document.querySelector('.start-folder-dialog button,.start-folder-picker button')?.focus(),0);},[startFolder,folderPicker]);
+ useEffect(()=>{if(context)setTimeout(()=>document.querySelector('.start-shell>.context-menu button')?.focus(),0);},[context]);
+ useEffect(()=>{if(startFolder&&data?.startFolders&&!data.startFolders.some(f=>f.id===startFolder))setStartFolder(null);},[data?.startFolders,startFolder]);
  if(!data)return <div className="loading">Opening your desktop…</div>;
  const apps=data.apps||[];const byId=Object.fromEntries(apps.map(a=>[a.id,a]));
+ const folders=data.startFolders||[],folderById=Object.fromEntries(folders.map(f=>[f.id,{...f,kind:'start-folder'}]));
+ const pinnedApps=new Set([...(data.pins||[]),...folders.flatMap(f=>f.apps)]);
+ const currentFolder=folderById[startFolder];
  const categoryFor=app=>{const kinds=app.categories||[];return [['Accessibility','Accessibility'],['Graphics','Creativity'],['Development','Developer Tools'],['AudioVideo','Entertainment'],['Game','Games'],['Office','Productivity'],['Network','Internet'],['Education','Education'],['Settings','System Tools'],['System','System Tools'],['Utility','Utilities']].find(([key])=>kinds.includes(key))?.[1]||'Other';};
  const categories=[...new Set(apps.map(categoryFor))].sort().map(name=>({name,apps:apps.filter(a=>categoryFor(a)===name)}));
  const visibleApps=page==='category'?apps.filter(a=>categoryFor(a)===category):page==='recent'?data.recent.map(id=>byId[id]).filter(Boolean):apps;
  const matches=visibleApps.filter(a=>(a.name+' '+a.description).toLowerCase().includes(query.trim().toLowerCase()));
  const pin=(app,value)=>{send('pin',{id:app.id,value});setContext(null);};
- const open=item=>{send(item.kind==='path'?'open-path':'launch',item.kind==='path'?{path:item.path}:{id:item.id});setContext(null);};
- const menu=(e,item,group)=>{e.preventDefault();e.stopPropagation();setContext({x:Math.min(e.clientX,innerWidth-226),y:Math.min(e.clientY,innerHeight-186),item,group});};
+ const open=item=>{if(item.kind==='start-folder'){setStartFolder(item.id);setFolderName(item.name);}else send(item.kind==='path'?'open-path':'launch',item.kind==='path'?{path:item.path}:{id:item.id});setContext(null);};
+ const menu=(e,item,group,folder)=>{e.preventDefault();e.stopPropagation();const rect=e.currentTarget.getBoundingClientRect();setContext({x:Math.max(6,Math.min(e.clientX||rect.left,innerWidth-242)),y:Math.max(6,Math.min(e.clientY||rect.bottom,innerHeight-260)),item,group,folder});};
  const icon=item=><img className="app-icon" src={item.icon} alt="" draggable="false" onError={e=>{e.currentTarget.src='zorin11://icon/file';}}/>;
- const tile=(app,{pinned=false,group=null}={})=><button key={app.id} className={'app-tile'+(app.missing?' missing':'')} title={app.name+(app.missing?' — unavailable':'')}
-   onClick={()=>open(app)} onContextMenu={e=>menu(e,app,group)}
-   draggable={pinned} onDragStart={e=>{drag.current=app.id;e.dataTransfer.setData('text/plain',app.id);e.dataTransfer.effectAllowed='move';}}
-   onDragOver={e=>{if(pinned){e.preventDefault();e.currentTarget.classList.add('drag-over');}}}
-   onDragLeave={e=>e.currentTarget.classList.remove('drag-over')}
-   onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag-over');if(pinned)send('reorder',{id:drag.current||e.dataTransfer.getData('text/plain'),target:app.id});}}
-   onDragEnd={()=>{drag.current=null;document.querySelectorAll('.drag-over').forEach(e=>e.classList.remove('drag-over'));}}>
-    {icon(app)}<span>{app.name}</span></button>;
+ const dropMode=(e,app,folder)=>{const r=e.currentTarget.getBoundingClientRect(),x=(e.clientX-r.left)/r.width;return !folder&&byId[drag.current]&&app.id!==drag.current&&x>.25&&x<.75?'folder':'reorder';};
+ const tile=(app,{pinned=false,group=null,folder=null}={})=><button key={app.id} className={'app-tile'+(app.missing?' missing':'')} title={app.name+(app.missing?' — unavailable':'')}
+   onClick={()=>open(app)} onContextMenu={e=>menu(e,app,group,folder)} onKeyDown={e=>{if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10'))menu(e,app,group,folder);}}
+   draggable={pinned||!!folder} onDragStart={e=>{drag.current=app.id;e.dataTransfer.setData('text/plain',app.id);e.dataTransfer.effectAllowed='move';}}
+   onDragOver={e=>{if(pinned||folder){e.preventDefault();e.currentTarget.classList.toggle('folder-drop',dropMode(e,app,folder)==='folder');e.currentTarget.classList.add('drag-over');}}}
+   onDragLeave={e=>e.currentTarget.classList.remove('drag-over','folder-drop')}
+   onDrop={e=>{e.preventDefault();e.stopPropagation();e.currentTarget.classList.remove('drag-over','folder-drop');const id=drag.current;if(!id||id===app.id)return;
+    if(folder)send('start-folder-reorder',{folder,id,target:app.id});
+    else if(pinned&&dropMode(e,app,folder)==='folder'){if(app.kind==='start-folder')send('start-folder-add',{id,folder:app.id});else send('start-folder-create',{apps:[app.id,id]});}
+    else if(pinned)send('reorder',{id,target:app.id});}}
+   onDragEnd={()=>{drag.current=null;document.querySelectorAll('.drag-over').forEach(e=>e.classList.remove('drag-over','folder-drop'));}}>
+    {app.kind==='start-folder'?<span className="start-folder-icon">{app.apps.slice(0,4).map(id=>byId[id]&&<React.Fragment key={id}>{icon(byId[id])}</React.Fragment>)}</span>:icon(app)}<span>{app.name}</span></button>;
+ const dialogKeys=e=>{if(e.key==='Tab'){const buttons=[...e.currentTarget.querySelectorAll('button:not(:disabled),input')];if(!buttons.length)return;const first=buttons[0],last=buttons[buttons.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}};
  const toastNode=toast&&<div role="alert" className="toast">{toast}</div>;
  const contextNode=context&&<div className="context-menu" role="menu" style={{left:Math.max(6,context.x),top:Math.max(6,context.y)}} onClick={e=>e.stopPropagation()}>
   <button onClick={()=>open(context.item)}>Open</button>
-  {data.mode==='start'&&context.item.kind!=='path'&&<>
-   <button onClick={()=>pin(context.item,!data.pins.includes(context.item.id))}>{data.pins.includes(context.item.id)?'Unpin from Start':'Pin to Start'}</button>
+  {data.mode==='start'&&context.item.kind==='start-folder'?<>
+   <button onClick={()=>open(context.item)}>Rename folder</button>
+   <button onClick={()=>{send('reorder',{id:context.item.id,target:data.pins[0]});setContext(null);}}>Move to first</button>
+   <button onClick={()=>{send('start-folder-remove',{folder:context.item.id});setContext(null);}}>Move all apps out of folder</button>
+  </>:data.mode==='start'&&context.item.kind!=='path'&&<>
+   <button onClick={()=>pin(context.item,!pinnedApps.has(context.item.id))}>{pinnedApps.has(context.item.id)?'Unpin from Start':'Pin to Start'}</button>
+   {context.folder&&<><button onClick={()=>pin(context.item,true)}>Move to Start</button><button onClick={()=>{send('start-folder-reorder',{folder:context.folder,id:context.item.id,target:folderById[context.folder].apps[0]});setContext(null);}}>Move to first in folder</button></>}
    {data.pins.includes(context.item.id)&&data.pins[0]!==context.item.id&&<button onClick={()=>{send('reorder',{id:context.item.id,target:data.pins[0]});setContext(null);}}>Move to first</button>}
+   <button onClick={()=>{setFolderPicker(context.item.id);setContext(null);}}>Move to Start folder…</button>
    <button onClick={()=>{setAddTo(context.item);setContext(null);}}>Add to desktop group…</button>
   </>}
   {context.group&&!context.group.folder&&<button onClick={()=>{send('remove-item',{group:context.group.id,id:context.item.id});setContext(null);}}>Remove shortcut</button>}
@@ -130,7 +151,7 @@ function App(){
     <div className="section-heading"><h2>{query.trim()?'Search results':page==='category'?category:page==='recent'?'Recent':'All apps'}</h2><button className="small-button" onClick={()=>{setQuery('');setPage('home');}}><Symbol name="back" size={13}/> Back</button></div>
     <div className="app-list" aria-label="All applications">{matches.map(app=><div className="app-row" key={app.id} onContextMenu={e=>menu(e,app)}>
      <button className="app-launch" onClick={()=>open(app)}>{icon(app)}<span>{app.name}</span></button>
-     <button className={'pin-button icon-button'+(data.pins.includes(app.id)?' is-pinned':'')} aria-label={(data.pins.includes(app.id)?'Unpin ':'Pin ')+app.name} title={data.pins.includes(app.id)?'Unpin from Start':'Pin to Start'} onClick={()=>pin(app,!data.pins.includes(app.id))}><Symbol name="pin" size={17}/></button>
+     <button className={'pin-button icon-button'+(pinnedApps.has(app.id)?' is-pinned':'')} aria-label={(pinnedApps.has(app.id)?'Unpin ':'Pin ')+app.name} title={pinnedApps.has(app.id)?'Unpin from Start':'Pin to Start'} onClick={()=>pin(app,!pinnedApps.has(app.id))}><Symbol name="pin" size={17}/></button>
     </div>)}{!matches.length&&<p className="empty">No apps found. Try a different name.</p>}</div>
    </>:page==='groups'?<>
     <div className="section-heading"><h2>Desktop groups</h2><button className="small-button" onClick={()=>setPage('home')}><Symbol name="back" size={13}/> Back</button></div>
@@ -154,7 +175,7 @@ function App(){
     </div>
    </>:<>
     <div className="section-heading"><h2>Pinned</h2><button className="small-button" onClick={()=>setPage('all')}>All apps <Symbol name="arrow" size={13}/></button></div>
-    <div className="pins">{data.pins.map(id=>byId[id]&&tile(byId[id],{pinned:true}))}{!data.pins.length&&<p className="empty">Open All apps and use the pin button to add your favorites.</p>}</div>
+    <div className="pins" aria-label="Pinned apps">{data.pins.map(id=>(byId[id]||folderById[id])&&tile(byId[id]||folderById[id],{pinned:true}))}{!data.pins.length&&<p className="empty">Open All apps and use the pin button to add your favorites.</p>}</div>
     <div className="section-heading recommended-heading"><h2>{data.recent.length?'Recent':'Quick access'}</h2>{data.recent.length>0&&<button className="small-button text-button" onClick={()=>setPage('recent')}>Show all <Symbol name="arrow" size={13}/></button>}</div>
     <div className="recommended">{data.recent.length?data.recent.slice(0,6).map(id=>byId[id]&&<button className="recommended-item" key={id} onClick={()=>open(byId[id])}>{icon(byId[id])}<span>{byId[id].name}<small>Opened from Start</small></span></button>):data.places.map(p=><button className="recommended-item" key={p.id} onClick={()=>open(p)}>{icon(p)}<span>{p.name}<small>Open folder</small></span></button>)}</div>
     <section className="start-all-section" aria-label="All applications by category">
@@ -168,6 +189,19 @@ function App(){
    <div className="footer-actions"><button className="icon-button" title="Desktop groups" aria-label="Desktop groups" onClick={()=>{setPage('groups');setQuery('');}}><Symbol name="grid" size={20}/></button><button className="icon-button" title="Settings" aria-label="Settings" onClick={()=>send('settings')}><Symbol name="settings" size={20}/></button><button ref={powerButton} className="icon-button" title="Power" aria-label="Power options" aria-haspopup="menu" aria-expanded={footerMenu==='power'} onClick={e=>{e.stopPropagation();setContext(null);setFooterMenu(footerMenu==='power'?null:'power');}}><Symbol name="power" size={20}/></button></div>
   </footer>
   {footerMenu&&<SessionMenu kind={footerMenu} trigger={footerMenu==='account'?accountButton:powerButton} onClose={()=>setFooterMenu(null)} onAction={command=>{setFooterMenu(null);if(command==='accounts')send('settings',{page:'accounts'});else send('session-action',{command});}}/>}
+  {currentFolder&&!folderPicker&&<div className="modal-backdrop" onClick={()=>setStartFolder(null)}><section className="picker start-folder-dialog" role="dialog" aria-modal="true" aria-label={currentFolder.name+' folder'} onClick={e=>e.stopPropagation()} onKeyDown={dialogKeys}>
+   <div className="section-heading"><h2>{currentFolder.name}</h2><button className="icon-button" aria-label="Close folder" onClick={()=>setStartFolder(null)}><Symbol name="close"/></button></div>
+   <form className="start-folder-name" onSubmit={e=>{e.preventDefault();send('start-folder-rename',{folder:currentFolder.id,name:folderName});}}><input aria-label="Folder name" maxLength={60} value={folderName} onChange={e=>setFolderName(e.target.value)}/><button className="small-button" type="submit">Save name</button></form>
+   <div className="start-folder-apps">{currentFolder.apps.map(id=>byId[id]&&tile(byId[id],{folder:currentFolder.id}))}</div>
+   {!currentFolder.apps.some(id=>byId[id])&&<p className="empty">The apps in this folder are currently unavailable.</p>}
+   <p className="hint">Drag to reorder. Right-click an app to move it back to Start.</p>
+   <button className="small-button" onClick={()=>{send('start-folder-remove',{folder:currentFolder.id});setStartFolder(null);}}>Move all apps out of folder</button>
+  </section></div>}
+  {folderPicker&&<div className="modal-backdrop" onClick={()=>setFolderPicker(null)}><section className="picker start-folder-picker" role="dialog" aria-modal="true" aria-label="Move to Start folder" onClick={e=>e.stopPropagation()} onKeyDown={dialogKeys}>
+   <div className="section-heading"><h2>Move {byId[folderPicker]?.name} to a folder</h2><button className="icon-button" aria-label="Close folder picker" onClick={()=>setFolderPicker(null)}><Symbol name="close"/></button></div>
+   {folders.filter(f=>!f.apps.includes(folderPicker)).length>0&&<div className="group-choices">{folders.filter(f=>!f.apps.includes(folderPicker)).map(f=><button key={f.id} onClick={()=>{send('start-folder-add',{id:folderPicker,folder:f.id});setFolderPicker(null);setStartFolder(null);}}><Symbol name="folder"/><span>{f.name}</span></button>)}</div>}
+   <h3>Create a new folder with</h3><div className="picker-apps">{apps.filter(a=>a.id!==folderPicker).map(app=><button className="app-launch" key={app.id} onClick={()=>{send('start-folder-create',{apps:[folderPicker,app.id]});setFolderPicker(null);setStartFolder(null);}}>{icon(app)}<span>{app.name}</span></button>)}</div>
+  </section></div>}
   {addTo&&<div className="modal-backdrop" onClick={()=>setAddTo(null)}><section className="picker" onClick={e=>e.stopPropagation()}><div className="section-heading"><h2>{addTo.group?'Add an app':'Add to desktop group'}</h2><button className="icon-button" aria-label="Close picker" onClick={()=>setAddTo(null)}><Symbol name="close"/></button></div>
    {addTo.group?<div className="picker-apps">{apps.map(app=><button className="app-launch" key={app.id} onClick={()=>{send('add-app',{group:addTo.group,id:app.id});setAddTo(null);}}>{icon(app)}<span>{app.name}</span><Symbol name="plus" size={16}/></button>)}</div>:<div className="group-choices">{data.groups.filter(g=>!g.folder).map(g=><button key={g.id} onClick={()=>{send('add-app',{group:g.id,id:addTo.id});setAddTo(null);}}><Symbol name="grid"/><span>{g.title}</span><Symbol name="plus" size={16}/></button>)}{!data.groups.some(g=>!g.folder)&&<p className="empty">Create a shortcut group in Desktop groups first.</p>}</div>}
   </section></div>}

@@ -32,6 +32,7 @@ def initial_state(app_ids, home):
 class Store:
     def __init__(self, path, app_ids, home):
         self.path = Path(path)
+        self.app_ids = set(app_ids)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if self.path.exists():
             self.state = json.loads(self.path.read_text())
@@ -40,6 +41,7 @@ class Store:
         else:
             self.state = initial_state(app_ids, home)
             self.save()
+        self.state.setdefault('start_folders',{})
 
     def save(self):
         content = json.dumps(self.state, ensure_ascii=False, indent=2) + '\n'
@@ -55,12 +57,71 @@ class Store:
                 os.unlink(temp)
 
     def pin(self, app_id, pinned):
+        self._check_apps([app_id])
+        self._detach_start_app(app_id)
         pins = self.state['pins']
         if pinned and app_id not in pins:
             pins.append(app_id)
         if not pinned and app_id in pins:
             pins.remove(app_id)
         self.save()
+
+    def _check_apps(self, apps):
+        if not isinstance(apps,list) or not apps or any(not isinstance(a,str) or a not in self.app_ids for a in apps):
+            raise ValueError('Choose installed applications for this folder.')
+
+    def _detach_start_app(self, app_id):
+        for ident,folder in list(self.state['start_folders'].items()):
+            folder['apps']=[a for a in folder['apps'] if a!=app_id]
+            if not folder['apps']:
+                del self.state['start_folders'][ident]
+                self.state['pins']=[p for p in self.state['pins'] if p!=ident]
+
+    @staticmethod
+    def _folder_name(name):
+        if not isinstance(name,str) or not name.strip() or len(name.strip())>60 or any(ord(c)<32 for c in name):
+            raise ValueError('Enter a folder name of 1–60 characters.')
+        return name.strip()
+
+    def start_folder(self, ident):
+        if ident not in self.state['start_folders']:raise ValueError('This Start folder no longer exists.')
+        return self.state['start_folders'][ident]
+
+    def create_start_folder(self, apps, name='Folder'):
+        self._check_apps(apps)
+        apps=list(dict.fromkeys(apps));name=self._folder_name(name)
+        if len(apps)<2:raise ValueError('Choose two different apps to create a folder.')
+        for app in apps:self._detach_start_app(app)
+        before=self.state['pins']
+        target=before.index(apps[0]) if apps[0] in before else len(before)
+        index=sum(p not in apps for p in before[:target])
+        self.state['pins']=[p for p in self.state['pins'] if p not in apps]
+        ident='folder:'+uuid.uuid4().hex[:12]
+        self.state['start_folders'][ident]={'name':name,'apps':apps}
+        self.state['pins'].insert(min(index,len(self.state['pins'])),ident)
+        self.save();return ident
+
+    def rename_start_folder(self, ident, name):
+        folder=self.start_folder(ident);name=self._folder_name(name)
+        folder['name']=name;self.save()
+
+    def move_to_start_folder(self, app_id, ident):
+        self._check_apps([app_id]);folder=self.start_folder(ident)
+        if app_id in folder['apps']:return
+        self._detach_start_app(app_id)
+        self.state['pins']=[p for p in self.state['pins'] if p!=app_id]
+        folder['apps'].append(app_id);self.save()
+
+    def reorder_start_folder(self, ident, app_id, target_id):
+        apps=self.start_folder(ident)['apps']
+        if app_id in apps and target_id in apps and app_id!=target_id:
+            apps.remove(app_id);apps.insert(apps.index(target_id),app_id);self.save()
+
+    def remove_start_folder(self, ident):
+        folder=self.start_folder(ident)
+        index=self.state['pins'].index(ident)
+        self.state['pins'][index:index+1]=folder['apps']
+        del self.state['start_folders'][ident];self.save()
 
     def reorder(self, app_id, target_id):
         pins = self.state['pins']

@@ -18,6 +18,7 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, WebKit2
 from model import Store
 from platform_ui import panel_button, desktop_status
 import explorer
+import file_preview
 import settings_backend
 import wallpaper
 import notifications
@@ -169,7 +170,9 @@ class Surface(Gtk.ApplicationWindow):
 
     def on_key(self, window, event):
         if event.keyval == Gdk.KEY_Escape:
-            if self.mode in ('start', 'quick', 'notifications'):
+            if self.mode == 'start' and self.ready:
+                self.send({'type':'escape'})
+            elif self.mode in ('start','quick', 'notifications'):
                 self.hide()
             elif self.hub.peeking:
                 self.hub.peek()
@@ -325,6 +328,7 @@ class Hub(Gtk.Application):
 
     def refresh_apps(self):
         self.apps = {a.get_id(): a for a in Gio.AppInfo.get_all() if a.get_id() and a.should_show()}
+        if hasattr(self,'store'):self.store.app_ids=set(self.apps)
 
     def clipboard_get(self, widget, selection, info, timestamp):
         paths, cut, text = self.copied_files
@@ -493,7 +497,8 @@ class Hub(Gtk.Application):
         if group_id:
             return {'mode': 'group', 'group': self.group_info(self.store.group(group_id)), 'peeking': self.peeking}
         return {'mode': 'start', 'apps': sorted([self.app_info(i) for i in self.apps], key=lambda a: a['name'].casefold()),
-            'pins': [i for i in state['pins'] if i in self.apps],
+            'pins': [i for i in state['pins'] if i in self.apps or i in state['start_folders']],
+            'startFolders': [dict(folder,id=ident) for ident,folder in state['start_folders'].items()],
             'recent': [i for i in state['recent'] if i in self.apps],
             'groups': [self.group_info(g) for g in state['groups']], 'groupsVisible': state['groups_visible'],
             'user': self.presentation.get('displayName') or (GLib.get_real_name() if GLib.get_real_name() not in ('Unknown', '') else GLib.get_user_name()),
@@ -734,6 +739,15 @@ class Hub(Gtk.Application):
             self.broadcast()
         elif action == 'reorder':
             self.store.reorder(message['id'], message['target'])
+            self.broadcast()
+        elif action.startswith('start-folder-') and surface.mode=='start':
+            operation=action.removeprefix('start-folder-')
+            if operation=='create':self.store.create_start_folder(message['apps'],message.get('name','Folder'))
+            elif operation=='rename':self.store.rename_start_folder(message['folder'],message['name'])
+            elif operation=='add':self.store.move_to_start_folder(message['id'],message['folder'])
+            elif operation=='remove':self.store.remove_start_folder(message['folder'])
+            elif operation=='reorder':self.store.reorder_start_folder(message['folder'],message['id'],message['target'])
+            else:raise ValueError('Unknown Start folder action.')
             self.broadcast()
         elif action == 'open-path':
             self.open_path(message['path'])
@@ -1054,6 +1068,9 @@ class Hub(Gtk.Application):
         self.load_folder(surface, location)
 
     def load_folder(self, surface, location, hidden=False):
+        if location != surface.location:
+            surface.preview_current = None
+            surface.preview_waiting = None
         surface.request_id += 1
         request = surface.request_id
         surface.send({'type':'file-loading'}) if surface.ready else None
@@ -1083,9 +1100,36 @@ class Hub(Gtk.Application):
                 surface.send({'type':'file-loaded'})
         self.background(lambda: explorer.listing(location,hidden),loaded,failed)
 
+    def preview_file(self, surface, request):
+        surface.preview_current = request
+        surface.preview_waiting = request
+        if getattr(surface,'preview_busy',False):return
+        self.start_preview(surface)
+
+    def start_preview(self, surface):
+        request = surface.preview_waiting
+        surface.preview_waiting = None
+        if not request:return
+        surface.preview_busy = True
+        def done(result):
+            surface.preview_busy = False
+            if str(id(surface)) not in self.surfaces:return
+            if surface.preview_current == request and surface.location == request['location']:
+                surface.send({'type':'file-preview','id':request['id'],'result':result})
+            if surface.preview_waiting:self.start_preview(surface)
+        self.background(lambda:file_preview.read(request['path']),done,
+                        lambda _:done(file_preview.unavailable('This file could not be previewed.')))
+
     def file_action(self, surface, message):
         action = message['action']
-        if action == 'file-navigate':
+        if action == 'file-preview-cancel':
+            surface.preview_current = surface.preview_waiting = None
+        elif action == 'file-preview':
+            path=message.get('path')
+            if not any(e['path']==path and not e['folder'] for e in (surface.file_state or {}).get('entries',[])):
+                raise ValueError('Select a file in the current folder to preview.')
+            self.preview_file(surface,dict(path=path,id=message.get('id'),location=surface.location))
+        elif action == 'file-navigate':
             self.load_folder(surface,str(message['path']),bool(message.get('hidden')))
         elif action == 'file-open':
             path=Path(message['path'])

@@ -1,6 +1,6 @@
 # Windows 11 Desktop Parity — TODO
 
-Target: Zorin OS 18.1 Lite, Xfce 4.20, X11. Extend the existing Python/GTK3/WebKit/React companion rather than replacing the desktop stack.
+Target: Zorin OS 18.1 GNOME 46 (default), with Lite/Xfce 4.20 retained. Extend the existing Python/GTK3/WebKit/React companion. Existing Xfce-only validations below do not imply GNOME parity.
 
 Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md) before modifying tested behavior.
 
@@ -9,7 +9,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Taskbar: per-app badges and progress indicators when real application state is available.
 - [x] Taskbar: Snap Group cards with live layout previews; restore grouped positions and minimized members together; remove stale/closed members.
 - [x] Window switching: native GTK Alt+Tab chooser with individual windows and Snap Groups, live mosaics, combined MRU, forward/reverse cycling, release-to-select and Escape. Xfce shortcuts work on Xfwm and Compiz; verified 2026-10-18.
-- [ ] Start: app folders with drag/drop creation and persistent ordering.
+- [x] Start: app folders with drag/drop creation, persistent ordering, rename, keyboard-accessible move controls and ungrouping. Shared GNOME/Xfce interface; verified 2026-10-19.
 - [ ] Start: optional recommended/recent documents, with local-only indexing and privacy exclusions.
 - [ ] Search: unified apps, local files and settings search with previews and keyboard navigation.
 - [ ] Perform Windows 11 screenshot-based visual comparisons at matched scale for taskbar, Start, flyouts and window chrome.
@@ -22,8 +22,9 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Task View: reorder desktops and choose separate desktop wallpapers. Drag or Move left/right; local JPEG/PNG per desktop; shared Spotlight fallback. Verified 2026-10-18 on Xfwm and Compiz.
 - [x] Desktop switching: native Compiz slides, individual-picture crossfades, three speeds and reduced-motion controls. Standard Xfwm retains instant switching. Verified 2026-10-18.
 - [x] Task View: display Snap Groups and per-workspace previews. Includes drag/Move to, cross-desktop search and Win+Ctrl desktop shortcuts; verified on Xfwm and Compiz.
-- [ ] Explorer: safe preview pane with allowlisted content types and file-size limits.
-- [ ] Explorer: richer context menus, file properties, transfer/conflict dialogs and reliable operation errors.
+- [x] Explorer: read-only image/text preview pane with allowlisted content, file/pixel limits, timed decoding and stale-selection rejection. Verified 2026-10-19.
+- [x] Explorer: Windows-style context menus, Rename, Properties, Copy as path and drive details.
+- [ ] Explorer: transfer/conflict dialogs and richer operation progress/errors.
 - [ ] Add Start/taskbar jump lists and recent-item actions where supported.
 
 ## P2 — System appearance and utilities
@@ -32,8 +33,9 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Validate GTK3, GTK4/libadwaita, Qt, Electron and Flatpak differences; avoid fragile global overrides.
 - [ ] Improve notification actions/grouping and animations while respecting DND and logging preferences.
 - [ ] Add supported battery-saver, airplane-mode and connected-device controls to Quick Settings.
-- [ ] Build a Windows-inspired clock/avatar lock screen without weakening LightDM/Xfce authentication.
-- [ ] Windows-inspired Task Manager, Device Manager, Disk Management, Services and Event Viewer equivalents using real Linux information and permission boundaries.
+- [ ] Build a Windows-inspired clock/avatar lock screen while preserving native GNOME/GDM and Xfce authentication.
+- [x] GNOME Task Manager: Mission Center, expandable application groups, program icons, merged usage and supported GPU graphs. Intel telemetry verified; NVIDIA driver installed locally with post-reboot telemetry verification pending.
+- [ ] Windows-inspired Device Manager, Disk Management and Event Viewer equivalents; Task Manager includes Mission Center's Services view.
 - [ ] Polish cursor, emoji input, scaling, accessibility, keyboard navigation and reduced-motion behavior.
 - [ ] Evaluate per-monitor taskbars, wallpapers, snapping and mixed-DPI layouts.
 - [ ] Retain and validate existing 4K Spotlight/Bing rotation rather than duplicate it.

@@ -29,6 +29,51 @@ class PersistenceTests(unittest.TestCase):
         self.store.used('8')
         self.assertEqual(self.store.state['recent'], ['8', '9', '7', '6', '5', '4'])
 
+    def test_start_folders_order_persistence_and_ungroup(self):
+        self.store.pin('extra.desktop',True)
+        folder=self.store.create_start_folder(['zorin11-explorer.desktop','brave-browser.desktop'],'Work')
+        self.assertEqual(self.store.state['pins'],[folder,'zorin11-terminal.desktop','extra.desktop'])
+        self.store.move_to_start_folder('extra.desktop',folder)
+        self.store.reorder_start_folder(folder,'extra.desktop','zorin11-explorer.desktop')
+        self.store.rename_start_folder(folder,'Daily apps')
+        reloaded=Store(self.path,self.ids,self.home)
+        self.assertEqual(reloaded.start_folder(folder),{'name':'Daily apps','apps':['extra.desktop','zorin11-explorer.desktop','brave-browser.desktop']})
+        reloaded.remove_start_folder(folder)
+        self.assertEqual(reloaded.state['pins'],['extra.desktop','zorin11-explorer.desktop','brave-browser.desktop','zorin11-terminal.desktop'])
+        self.assertEqual(reloaded.state['start_folders'],{})
+
+    def test_start_folder_move_and_unpin_do_not_duplicate_or_lose_other_apps(self):
+        folder=self.store.create_start_folder(self.ids[:2])
+        other=self.store.create_start_folder(self.ids[2:])
+        self.store.move_to_start_folder(self.ids[0],other)
+        self.store.move_to_start_folder(self.ids[0],other)
+        self.assertEqual(self.store.start_folder(other)['apps'],self.ids[2:]+self.ids[:1])
+        self.store.pin(self.ids[1],True)
+        self.assertNotIn(folder,self.store.state['pins'])
+        self.assertNotIn(folder,self.store.state['start_folders'])
+        self.store.pin(self.ids[0],False)
+        self.assertNotIn(self.ids[0],self.store.start_folder(other)['apps'])
+        self.assertIn(self.ids[1],self.store.state['pins'])
+
+    def test_invalid_start_folder_operations_preserve_saved_layout(self):
+        folder=self.store.create_start_folder(self.ids[:2])
+        before=self.path.read_bytes()
+        for action in (lambda:self.store.create_start_folder(['missing.desktop',self.ids[0]]),
+                       lambda:self.store.create_start_folder([self.ids[0],self.ids[0]]),
+                       lambda:self.store.move_to_start_folder(folder,folder),
+                       lambda:self.store.rename_start_folder(folder,'\n'),
+                       lambda:self.store.rename_start_folder(folder,'x'*61)):
+            with self.assertRaises(ValueError):action()
+            self.assertEqual(self.path.read_bytes(),before)
+
+    def test_old_layout_without_start_folders_is_preserved_on_upgrade(self):
+        old=json.loads(self.path.read_text());old.pop('start_folders',None)
+        self.path.write_text(json.dumps(old))
+        restored=Store(self.path,self.ids,self.home)
+        self.assertEqual(restored.state['pins'],old['pins'])
+        self.assertEqual(restored.state['groups'],old['groups'])
+        self.assertEqual(restored.state['start_folders'],{})
+
     def test_shortcuts_do_not_move_files(self):
         target = self.home/'important.txt'
         target.write_text('keep this file')
