@@ -6,6 +6,7 @@ the physical workspace/viewport order changes.
 """
 import re
 import copy
+from gnome_bridge import active as is_gnome
 from pathlib import Path
 import dbus
 import gi
@@ -55,6 +56,9 @@ def restore_records(state,props):
 def sync(shared=None):
     """Apply the newest context, never the context at worker submission time."""
     import wallpaper
+    if is_gnome():
+        import gnome_wallpaper
+        with wallpaper.LOCK:return gnome_wallpaper.sync(shared)
     with wallpaper.LOCK:
         context=CONTEXT
         if not context:return

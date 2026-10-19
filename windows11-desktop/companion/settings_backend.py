@@ -8,6 +8,8 @@ import shutil
 import subprocess
 import dbus
 from platform_ui import desktop_status
+from gnome_bridge import active as is_gnome
+from gi.repository import Gio
 
 TOOLS = {
     'display': ['xfce4-display-settings'], 'sound': ['pavucontrol'],
@@ -25,6 +27,25 @@ TOOLS = {
     'advanced': ['xfce4-settings-manager'], 'about': ['xfce4-about'],
     'screenshot': ['xfce4-screenshooter'],
 }
+if is_gnome():
+    for key,panel in {'display':'display','sound':'sound','network':'network','bluetooth':'bluetooth',
+        'printers':'printers','mouse':'mouse','keyboard':'keyboard','background':'background',
+        'notifications':'notifications','power':'power','defaults':'default-apps','accounts':'user-accounts',
+        'time':'datetime','accessibility':'universal-access','lock':'privacy','advanced':'','about':'info-overview'}.items():
+        TOOLS[key]=['gnome-control-center']+([panel] if panel else [])
+    TOOLS.update(appearance=['zorin-appearance'], panel=['gnome-extensions','prefs','zorin-taskbar@zorinos.com'],
+                 startup=['gnome-session-properties'],screenshot=['gnome-screenshot','-i'])
+
+GNOME_SETTINGS={
+ ('xfce4-notifyd','/do-not-disturb'):('org.gnome.desktop.notifications','show-banners',True),
+
+ ('accessibility','/StickyKeys'):('org.gnome.desktop.a11y.keyboard','stickykeys-enable',False),
+ ('accessibility','/SlowKeys'):('org.gnome.desktop.a11y.keyboard','slowkeys-enable',False),
+ ('accessibility','/BounceKeys'):('org.gnome.desktop.a11y.keyboard','bouncekeys-enable',False),
+ ('accessibility','/MouseKeys'):('org.gnome.desktop.a11y.keyboard','mousekeys-enable',False),
+ ('xsettings','/Net/EnableEventSounds'):('org.gnome.desktop.sound','event-sounds',False),
+}
+
 BOOL_SETTINGS = {
     'dnd': ('xfce4-notifyd','/do-not-disturb'),
     'notificationHistory': ('xfce4-notifyd','/notification-log'),
@@ -42,6 +63,12 @@ def run(args):
 
 
 def properties(channel):
+    if is_gnome():
+        if channel=='xfce4-power-manager':
+            minutes=Gio.Settings.new('org.gnome.desktop.session').get_uint('idle-delay')//60
+            return {'/xfce4-power-manager/blank-on-ac':minutes,'/xfce4-power-manager/blank-on-battery':minutes}
+        return {key: (not Gio.Settings.new(schema).get_boolean(name) if invert else Gio.Settings.new(schema).get_boolean(name))
+                for (target,key),(schema,name,invert) in GNOME_SETTINGS.items() if target==channel}
     bus=dbus.SessionBus(private=True)
     try:
         xf=dbus.Interface(bus.get_object('org.xfce.Xfconf','/org/xfce/Xfconf'),'org.xfce.Xfconf')
@@ -51,6 +78,16 @@ def properties(channel):
 
 
 def set_property(channel,key,value):
+    if is_gnome():
+        if channel=='xfce4-power-manager':
+            accepted=Gio.Settings.new('org.gnome.desktop.session').set_uint('idle-delay',int(value)*60)
+        else:
+            if (channel,key)==('xfce4-notifyd','/notification-log'):
+                raise ValueError('GNOME keeps session notification history; use notification preferences for privacy controls.')
+            schema,name,invert=GNOME_SETTINGS[(channel,key)]
+            accepted=Gio.Settings.new(schema).set_boolean(name,not bool(value) if invert else bool(value))
+        if not accepted:raise RuntimeError('The GNOME setting is locked.')
+        Gio.Settings.sync();return
     bus=dbus.SessionBus(private=True)
     try:
         xf=dbus.Interface(bus.get_object('org.xfce.Xfconf','/org/xfce/Xfconf'),'org.xfce.Xfconf')
@@ -84,7 +121,7 @@ def facts():
     model=text('/sys/class/dmi/id/product_name')
     if model in ('System Product Name','To Be Filled By O.E.M.','Default string'):model='Desktop PC'
     return {'hostname':platform.node(),'model':model or 'This PC','os':os_info.get('PRETTY_NAME','Linux'),
-            'kernel':platform.release(),'architecture':platform.machine(),'cpu':cpu,
+            'desktop':'GNOME' if is_gnome() else 'Xfce','kernel':platform.release(),'architecture':platform.machine(),'cpu':cpu,
             'memory':int(memory)*1024 if memory else None,'account':getpass.getuser(),
             'timezone':text('/etc/timezone', 'Local time'),
             'tools':{key:bool(shutil.which(cmd[0])) for key,cmd in TOOLS.items()}}
@@ -94,6 +131,9 @@ def snapshot():
     result=desktop_status()
     from desktop_motion import load
     motion=load();result.update(desktopAnimations=motion['enabled'],desktopAnimationDuration=motion['duration'])
+    result['desktop']='GNOME' if is_gnome() else 'Xfce'
+    if is_gnome():
+        result['desktopAnimations']=Gio.Settings.new('org.gnome.desktop.interface').get_boolean('enable-animations')
     result['outputs']=sound_outputs()
     try:result['output']=run(['pactl','get-default-sink'])
     except (OSError,subprocess.SubprocessError):result['output']=None

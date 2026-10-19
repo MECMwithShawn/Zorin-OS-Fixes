@@ -1,5 +1,8 @@
 """File Explorer operations backed by real local files and Gio applications."""
 import datetime
+import json
+import tempfile
+import threading
 import os
 from pathlib import Path
 import shutil
@@ -9,6 +12,8 @@ gi.require_version('Gtk','3.0')
 from gi.repository import Gio, GLib, Gtk
 
 HOME = Path.home()
+DRIVE_LETTERS = Path(os.environ.get('ZORIN11_CONFIG_DIR', str(HOME/'.config/zorin11-hub')))/'drive-letters.json'
+DRIVE_LOCK = threading.Lock()
 PLACES = [('Desktop', 'desktop'), ('Downloads', 'download'), ('Documents', 'document'),
           ('Pictures', 'image'), ('Music', 'music'), ('Videos', 'video')]
 
@@ -36,6 +41,44 @@ def entry(path):
             'symbol': 'folder' if folder else 'image' if p.suffix.lower() in ('.png','.jpg','.jpeg','.webp','.gif','.svg') else 'document'}
 
 
+def label_drives(entries, registry=None):
+    """Windows-style aliases only; file operations still use the real paths."""
+    registry = registry or DRIVE_LETTERS
+    entries = sorted(entries, key=lambda item: (item['path'] != '/', item.get('removable', False),
+                                                item['name'].casefold(), item['path']))
+    with DRIVE_LOCK:
+        try:
+            saved = json.loads(registry.read_text())
+        except (OSError, ValueError):
+            saved = {}
+        letters = {}
+        for ident, letter in (saved.items() if isinstance(saved, dict) else []):
+            if isinstance(letter, str) and len(letter) == 1 and 'D' <= letter <= 'Z' and letter not in letters.values():
+                letters[ident] = letter
+        for item in entries:
+            if item['path'] == '/':
+                item.update(name='Local Disk', driveLetter='C')
+            else:
+                ident = item.get('driveId') or 'path:'+item['path']
+                if ident not in letters:
+                    available = next((chr(n) for n in range(ord('D'), ord('Z')+1) if chr(n) not in letters.values()), None)
+                    if available:
+                        letters[ident] = available
+                item['driveLetter'] = letters.get(ident, '')
+            if item['driveLetter']:
+                item['name'] += ' ('+item['driveLetter']+':)'
+        if letters != saved:
+            registry.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(mode='w', dir=registry.parent, delete=False) as stream:
+                json.dump(letters, stream)
+                temp = Path(stream.name)
+            try:
+                temp.replace(registry)
+            finally:
+                temp.unlink(missing_ok=True)
+    return sorted(entries, key=lambda item: (item['driveLetter'] or '~', item['name'].casefold()))
+
+
 def listing(location, hidden=False):
     places = place_paths()
     if location == '::home':
@@ -58,6 +101,11 @@ def listing(location, hidden=False):
             item['icon'] = 'drive-harddisk'
             if str(root)=='/':item['icon']='drive-harddisk-root'
             elif mount and 'usb' in mount.get_icon().to_string():item['icon']='drive-harddisk-usb'
+            volume=mount.get_volume() if mount else None
+            drive=mount.get_drive() if mount else None
+            uuid=(volume.get_uuid() if volume else None) or (mount.get_uuid() if mount else None)
+            item['driveId']='uuid:'+uuid if uuid else 'path:'+str(root)
+            item['removable']=bool((drive and drive.is_removable()) or item['icon']=='drive-harddisk-usb')
             item['type']='Local disk' if item['icon']!='drive-harddisk-usb' else 'USB drive'
             try:
                 usage = shutil.disk_usage(root)
@@ -66,14 +114,14 @@ def listing(location, hidden=False):
                 pass
             item['symbol'] = 'drive'
             entries.append(item)
-        return {'path': location, 'title': 'This PC', 'entries': entries, 'places': places}
+        return {'path': location, 'title': 'This PC', 'entries': label_drives(entries), 'places': places}
     folder = Path(location).expanduser().absolute()
     if not folder.is_dir():
         raise ValueError('This folder is unavailable.')
     # Listing is executed on a worker. No UI-thread filesystem traversal.
     with os.scandir(folder) as iterator:
         entries = [entry(item.path) for item in iterator if hidden or not item.name.startswith('.')]
-    return {'path': str(folder), 'title': 'Home folder' if folder==HOME else folder.name or 'System',
+    return {'path': str(folder), 'title': 'Home folder' if folder==HOME else folder.name or 'Local Disk (C:)',
             'entries': sorted(entries, key=lambda e: (not e['folder'], e['name'].casefold())), 'places': places}
 
 

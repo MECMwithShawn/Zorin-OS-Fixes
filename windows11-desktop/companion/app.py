@@ -22,6 +22,7 @@ import settings_backend
 import wallpaper
 import notifications
 import quick_controls
+from gnome_bridge import active as is_gnome
 
 BASE = Path(__file__).resolve().parent
 CONFIG = Path(os.environ.get('ZORIN11_CONFIG_DIR', str(Path.home()/'.config/zorin11-hub')))
@@ -48,6 +49,7 @@ class Surface(Gtk.ApplicationWindow):
         self.maximized = False
         self.drag_timer = 0
         self.set_title({'start':'Zorin 11 Start','quick':'Quick settings','notifications':'Notifications and calendar','explorer':'File Explorer','settings':'Settings','group':'Desktop group'}[self.mode])
+        self.set_wmclass("zorin11-hub", "Zorin11-hub")
         self.set_decorated(False)
         self.set_skip_taskbar_hint(self.mode not in ('explorer','settings'))
         self.set_skip_pager_hint(self.mode not in ('explorer','settings'))
@@ -341,6 +343,12 @@ class Hub(Gtk.Application):
         self.toggle_start()
 
     def do_command_line(self, command):
+        try:return self.handle_command_line(command)
+        except Exception as error:
+            print('Desktop action failed:',error,file=sys.stderr,flush=True)
+            return 1
+
+    def handle_command_line(self, command):
         args = command.get_arguments()[1:]
         if '--quit' in args:
             self.quit()
@@ -495,8 +503,16 @@ class Hub(Gtk.Application):
         for surface in list(self.surfaces.values()):
             surface.update()
 
-    def monitor_geometry(self):
+    def monitor_geometry(self, primary=False):
         display = Gdk.Display.get_default()
+        if primary:
+            # Mutter is authoritative on Wayland; XWayland may report a
+            # different primary output and pointer coordinates.
+            bus=Gio.bus_get_sync(Gio.BusType.SESSION,None)
+            state=bus.call_sync('org.gnome.Mutter.DisplayConfig','/org/gnome/Mutter/DisplayConfig',
+                'org.gnome.Mutter.DisplayConfig','GetCurrentState',None,None,Gio.DBusCallFlags.NONE,3000,None).unpack()
+            logical=next((m for m in state[2] if m[4]),state[2][0])
+            return self.work_area(logical[0]+1,logical[1]+1)
         pointer = display.get_default_seat().get_pointer()
         _, x, y = pointer.get_position()
         return self.work_area(x, y)
@@ -522,9 +538,9 @@ class Hub(Gtk.Application):
     def show_start(self, page='home'):
         self.notifications.hide()
         self.quick.hide()
-        anchor = panel_button('Start')
+        anchor = None if is_gnome() else panel_button('Start')
         display = Gdk.Display.get_default()
-        geometry = self.work_area(anchor[0], anchor[1]) if anchor else self.monitor_geometry()
+        geometry = self.work_area(anchor[0], anchor[1]) if anchor else self.monitor_geometry(primary=is_gnome())
         width, height = min(832, geometry.width - 24), min(864, geometry.height - 24)
         self.start.set_size_request(width, height)
         self.start.resize(width, height)
@@ -725,10 +741,10 @@ class Hub(Gtk.Application):
         elif action == 'settings':
             self.open_settings()
         elif action == 'lock':
-            subprocess.Popen(['xflock4'])
+            subprocess.Popen(['loginctl','lock-session'] if is_gnome() else ['xflock4'])
             self.start.hide()
         elif action == 'power':
-            subprocess.Popen(['xfce4-session-logout'])
+            subprocess.Popen(['gnome-session-quit','--power-off'] if is_gnome() else ['xfce4-session-logout'])
             self.start.hide()
         elif action == 'peek':
             self.peek()
@@ -939,7 +955,7 @@ class Hub(Gtk.Application):
                 'scale':display.get_monitor(i).get_scale_factor(),
                 'refresh':round(display.get_monitor(i).get_refresh_rate()/1000,2)} for i in range(display.get_n_monitors())]
             from effects import wm_name
-            self.settings_data['wobble']='compiz' in wm_name()
+            self.settings_data['wobble']=('zorin-window-move-effect@zorinos.com' in Gio.Settings.new('org.gnome.shell').get_strv('enabled-extensions')) if is_gnome() else 'compiz' in wm_name()
             surface.update()
 
     def refresh_settings(self):
@@ -982,7 +998,9 @@ class Hub(Gtk.Application):
             self.settings_change(lambda:settings_backend.apply(name,value))
         elif action=='settings-tool':settings_backend.launch(message.get('tool'))
         elif action=='settings-refresh':self.refresh_settings()
-        elif action=='settings-effects':subprocess.Popen(['/usr/bin/python3',str(BASE/'effects.py')])
+        elif action=='settings-effects':
+            if is_gnome():subprocess.Popen(['gnome-extensions','prefs','zorin-window-move-effect@zorinos.com'])
+            else:subprocess.Popen(['/usr/bin/python3',str(BASE/'effects.py')])
         elif action=='settings-explorer':self.open_explorer('::computer')
         elif action=='settings-launch':self.launch(message.get('id'))
         elif action=='settings-groups':
@@ -991,7 +1009,11 @@ class Hub(Gtk.Application):
         elif action=='settings-wallpaper-config':
             self.settings_change(lambda:wallpaper.configure(message.get('key'),message.get('value')))
         elif action=='settings-wallpaper-update':self.settings_change(wallpaper.update)
-        elif action=='settings-wallpaper-use':self.settings_change(lambda:wallpaper.apply(message.get('id','')))
+        elif action=='settings-wallpaper-use':
+            def use_picture():
+                if message.get('id','').startswith('zorin-'):wallpaper.configure('source','current')
+                wallpaper.apply(message.get('id',''))
+            self.settings_change(use_picture)
         elif action=='settings-wallpaper-restore':self.settings_change(wallpaper.restore)
         elif action=='settings-picture':
             self.modal=True
@@ -1075,9 +1097,9 @@ class Hub(Gtk.Application):
             dialog.destroy()
             self.modal=False
         elif action in ('file-network','file-trash-view'):
-            subprocess.Popen(['thunar','network:///' if action=='file-network' else 'trash:///'])
+            subprocess.Popen(['nautilus' if is_gnome() else 'thunar','network:///' if action=='file-network' else 'trash:///'])
         elif action == 'file-native':
-            subprocess.Popen(['thunar',surface.location if not surface.location.startswith('::') else str(Path.home())])
+            subprocess.Popen(['nautilus' if is_gnome() else 'thunar',surface.location if not surface.location.startswith('::') else str(Path.home())])
         elif action in ('file-minimize','file-maximize','file-move','file-resize'):
             if action=='file-minimize':surface.iconify()
             elif action=='file-maximize':
@@ -1141,7 +1163,7 @@ class Hub(Gtk.Application):
             if len(report['surfaces']) == len(pending):
                 Path(path).write_text(json.dumps(report, indent=2))
         for key, surface in pending:
-            surface.js('JSON.stringify({title:document.title,ready:!!window.desktopState,mode:window.desktopState?.mode,buttons:document.querySelectorAll("button").length,images:document.images.length,brokenImages:[...document.images].filter(i=>!i.complete||!i.naturalWidth).map(i=>i.src),errors:window.desktopErrors||[],text:document.body.innerText.slice(0,1600)})',
+            surface.js('JSON.stringify({title:document.title,ready:!!window.desktopState,mode:window.desktopState?.mode,buttons:document.querySelectorAll("button").length,images:document.images.length,brokenImages:[...document.images].filter(i=>i.complete&&!i.naturalWidth).map(i=>i.src),errors:window.desktopErrors||[],text:document.body.innerText.slice(0,1600)})',
                 lambda web, result, data, key=key: done(web, result, key))
         return False
 
@@ -1163,4 +1185,13 @@ class Hub(Gtk.Application):
 
 
 if __name__ == '__main__':
+    if is_gnome() and '--quit' not in sys.argv:
+        from gnome_bridge import call
+        deadline=time.monotonic()+(20 if '--background' in sys.argv else 3)
+        while True:
+            try:call('snapshot');break
+            except Exception:
+                if time.monotonic()>=deadline:
+                    raise SystemExit('The Windows 11 GNOME extension is not loaded. Sign out and sign back in, and enable Windows 11 Desktop Companion in Extensions.')
+                time.sleep(.2)
     raise SystemExit(Hub().run(sys.argv))

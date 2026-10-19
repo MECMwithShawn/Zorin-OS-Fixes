@@ -154,3 +154,17 @@ class Windows:
     def desktops(self):
         current=self.screen.get_active_workspace()
         return [(w.get_number(),w.get_name(),w==current) for w in self.screen.get_workspaces()]
+
+# Keep the UI and Snap Group engine shared; Mutter owns native GNOME clients.
+from gnome_bridge import active as is_gnome
+if is_gnome():
+    class GnomeWindows(Windows):
+        def __init__(self):
+            from gnome_bridge import Screen
+            self.screen=Screen();self.mru=[];self.saved={};self.pending={}
+            self.handlers=[self.screen.connect('active-window-changed',self.changed),self.screen.connect('window-closed',self.closed)]
+            self.changed()
+        def timestamp(self):return Gdk.CURRENT_TIME
+        def minimum(self,w):return 1,1  # Mutter enforces each app's native constraints.
+        def close(self):super().close();self.screen.close()
+    Windows=GnomeWindows

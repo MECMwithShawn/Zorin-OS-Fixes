@@ -44,6 +44,12 @@ class WallpaperTests(unittest.TestCase):
             result=wallpaper.candidates('spotlight')
             self.assertEqual(result,[{'url':ad['landscapeImage']['asset'],'title':'Landscape','credit':'Photographer'}])
             self.assertEqual(fetch.call_count,1)
+    def test_bing_empty_response_uses_official_fallback(self):
+        payload={'images':[{'urlbase':'/th?id=OHR.Test','title':'Test','copyright':'Credit'}]}
+        with patch.object(wallpaper,'fetch',side_effect=[b'',json.dumps(payload)] ) as fetch:
+            self.assertEqual(wallpaper.candidates('bing')[0]['title'],'Test')
+            self.assertEqual(fetch.call_count,2)
+            self.assertIn('www.bing.com/HPImageArchive.aspx',fetch.call_args.args[0])
     def test_daily_retry_and_success_guard(self):
         wallpaper.save({'source':'spotlight','daily':True,'lastDay':'2000-01-01','lastAttempt':0})
         self.assertTrue(wallpaper.due())

@@ -29,6 +29,16 @@ const assert=require('assert/strict');const path=require('path');
  assert(await page.evaluate(()=>window.messages.some(m=>m.action==='file-trash-view')));
  await page.getByRole('button',{name:'New tab',exact:true}).click();assert.equal(await page.locator('.explorer-tab').count(),2);
  await page.getByRole('button',{name:'Large icons',exact:true}).click();assert(await page.locator('.explorer-files').evaluate(e=>e.classList.contains('icons')));
+ await page.evaluate(()=>window.receive({type:'state',data:{...window.fileFixture,path:'::computer',title:'This PC',entries:[
+  {path:'/media/usb',name:'AXENTRA_OS (E:)',driveLetter:'E',folder:true,symbol:'drive',total:30,free:20},
+  {path:'/media/os',name:'OS (D:)',driveLetter:'D',folder:true,symbol:'drive',total:5000,free:2000},
+  {path:'/',name:'Local Disk (C:)',driveLetter:'C',folder:true,symbol:'drive',total:4000,free:3000}
+ ]}}));
+ assert.deepEqual(await page.locator('.file-item').evaluateAll(items=>items.map(e=>e.title)),['Local Disk (C:)','OS (D:)','AXENTRA_OS (E:)']);
+ await page.getByRole('button',{name:'Sort',exact:true}).click();await page.getByRole('button',{name:'Size',exact:true}).click();
+ assert.equal(await page.locator('.file-item').first().getAttribute('title'),'Local Disk (C:)');
+ await page.getByRole('option',{name:/Local Disk/}).dblclick();
+ assert.equal(await page.evaluate(()=>window.messages.filter(m=>m.action==='file-navigate').at(-1).path),'/');
  await page.evaluate(()=>window.receive({type:'state',data:{mode:'quick',wifi:true,networkType:'wifi',network:'Test network',bluetooth:true,dnd:false,volume:40,muted:false,sink:'Speakers'}}));
  await page.setViewportSize({width:368,height:430});await page.getByRole('button',{name:'Mute',exact:true}).click();
  assert(await page.evaluate(()=>window.messages.some(m=>m.action==='quick-set'&&m.name==='muted'&&m.value)));

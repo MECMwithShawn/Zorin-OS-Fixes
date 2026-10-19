@@ -26,6 +26,14 @@ class Visual(C.Structure):
 
 
 def capture(xid,desktop=False):
+    from gnome_bridge import active as is_gnome
+    if is_gnome() and not desktop:
+        import base64
+        from gi.repository import Gio, GLib
+        result=Gio.bus_get_sync(Gio.BusType.SESSION,None).call_sync(
+            'local.zorin11.Gnome','/local/zorin11/Gnome','local.zorin11.Gnome','Capture',
+            GLib.Variant('(t)',(xid,)),GLib.VariantType.new('(s)'),Gio.DBusCallFlags.NONE,2500,None)
+        return base64.b64decode(result.unpack()[0])
     x=C.CDLL('libX11.so.6');comp=C.CDLL('libXcomposite.so.1')
     def signature(lib,name,restype,args):
         fn=getattr(lib,name);fn.restype=restype;fn.argtypes=args;return fn

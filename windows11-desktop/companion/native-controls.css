@@ -1,62 +1,62 @@
 /* Native GTK3 application surfaces. Scoped to app windows so panel/flyout
    dimensions remain controlled by their own styles. Captions follow this block. */
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) { background-color: #202020; color: #f3f3f3; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) menubar, .background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) toolbar, .background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .toolbar,
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .inline-toolbar, .background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .primary-toolbar {
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) { background-color: #202020; color: #f3f3f3; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) menubar, .background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) toolbar, .background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .toolbar,
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .inline-toolbar, .background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .primary-toolbar {
   background-color: #202020; background-image: none; border-color: #383838;
   box-shadow: none; color: #f3f3f3;
 }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .view, .background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) treeview.view,
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) textview text, .background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) iconview {
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .view, .background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) treeview.view,
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) textview text, .background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) iconview {
   background-color: #191919; color: #f3f3f3;
 }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .sidebar, .background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .sidebar .view {
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .sidebar, .background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .sidebar .view {
   background-color: #202020; color: #f3f3f3;
 }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .view:selected, .background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .view:selected:focus,
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) row:selected { background-color: #394957; color: #ffffff; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button:not(.titlebutton) {
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .view:selected, .background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .view:selected:focus,
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) row:selected { background-color: #394957; color: #ffffff; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button:not(.titlebutton) {
   background-color: #303030; background-image: none; color: #f3f3f3;
   border: 1px solid rgba(255,255,255,0.071); border-bottom-color: rgba(255,255,255,0.145); border-radius: 4px;
   box-shadow: none; text-shadow: none; padding: 4px 10px; min-height: 24px;
 }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button:not(.titlebutton):hover { background-color: #3b3b3b; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button:not(.titlebutton):active,
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button:not(.titlebutton):checked { background-color: #404040; border-color: rgba(255,255,255,0.188); }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button.suggested-action { background-color: #60cdff; color: #12232d; border-color: transparent; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button.suggested-action:hover { background-color: #76d5ff; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button.destructive-action { color: #ffb4ab; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button:disabled { background-color: #282828; color: #898989; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) toolbar button:not(:hover):not(:checked),
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .toolbar button:not(:hover):not(:checked),
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button.flat:not(:hover):not(:checked) { background-color: transparent; border-color: transparent; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) entry, .background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) spinbutton {
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button:not(.titlebutton):hover { background-color: #3b3b3b; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button:not(.titlebutton):active,
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button:not(.titlebutton):checked { background-color: #404040; border-color: rgba(255,255,255,0.188); }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button.suggested-action { background-color: #60cdff; color: #12232d; border-color: transparent; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button.suggested-action:hover { background-color: #76d5ff; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button.destructive-action { color: #ffb4ab; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button:disabled { background-color: #282828; color: #898989; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) toolbar button:not(:hover):not(:checked),
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) .toolbar button:not(:hover):not(:checked),
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) button.flat:not(:hover):not(:checked) { background-color: transparent; border-color: transparent; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) entry, .background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) spinbutton {
   background-color: #292929; background-image: none; color: #f3f3f3;
   border: 1px solid rgba(255,255,255,0.094); border-bottom-color: #8a8a8a; border-radius: 4px;
   box-shadow: none; min-height: 28px; padding: 2px 8px;
 }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) entry:focus, .background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) spinbutton:focus { border-bottom: 2px solid #60cdff; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) entry selection, .background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) textview text selection { background-color: #176d99; color: white; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) separator { background-color: rgba(255,255,255,0.075); min-width: 1px; min-height: 1px; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) notebook > header { background-color: #202020; border-color: #383838; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) notebook > header tab { background-color: transparent; color: #c8c8c8; border-radius: 4px; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) notebook > header tab:checked { background-color: #333333; color: #ffffff; box-shadow: inset 0 -2px #60cdff; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) scrollbar { background-color: transparent; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) scrollbar slider { background-color: #858585; border: 3px solid transparent; border-radius: 8px; min-width: 3px; min-height: 3px; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) scrollbar slider:hover { background-color: #b5b5b5; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) progressbar trough { background-color: #404040; border: 0; border-radius: 3px; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) progressbar progress { background-color: #60cdff; border: 0; border-radius: 3px; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) scale trough { background-color: #555555; border: 0; min-height: 4px; border-radius: 3px; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) scale highlight { background-color: #60cdff; border: 0; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) scale slider { background-color: #60cdff; background-image: none; border: 4px solid #454545; box-shadow: none; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) switch { background-color: #292929; background-image: none; border: 1px solid #929292; border-radius: 14px; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) switch:checked { background-color: #60cdff; border-color: #60cdff; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) switch slider { background-color: #d4d4d4; background-image: none; border: 0; border-radius: 50%; box-shadow: none; margin: 3px; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) switch:checked slider { background-color: #143344; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) check, .background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) radio { background-color: #292929; border-color: #a0a0a0; box-shadow: none; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) check:checked, .background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) radio:checked { background-color: #60cdff; border-color: #60cdff; color: #152d3b; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) :focus { outline-color: #60cdff; outline-style: solid; outline-width: 1px; outline-offset: -2px; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) entry:focus { outline-width: 0; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) entry:focus, .background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) spinbutton:focus { border-bottom: 2px solid #60cdff; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) entry selection, .background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) textview text selection { background-color: #176d99; color: white; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) separator { background-color: rgba(255,255,255,0.075); min-width: 1px; min-height: 1px; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) notebook > header { background-color: #202020; border-color: #383838; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) notebook > header tab { background-color: transparent; color: #c8c8c8; border-radius: 4px; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) notebook > header tab:checked { background-color: #333333; color: #ffffff; box-shadow: inset 0 -2px #60cdff; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) scrollbar { background-color: transparent; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) scrollbar slider { background-color: #858585; border: 3px solid transparent; border-radius: 8px; min-width: 3px; min-height: 3px; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) scrollbar slider:hover { background-color: #b5b5b5; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) progressbar trough { background-color: #404040; border: 0; border-radius: 3px; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) progressbar progress { background-color: #60cdff; border: 0; border-radius: 3px; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) scale trough { background-color: #555555; border: 0; min-height: 4px; border-radius: 3px; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) scale highlight { background-color: #60cdff; border: 0; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) scale slider { background-color: #60cdff; background-image: none; border: 4px solid #454545; box-shadow: none; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) switch { background-color: #292929; background-image: none; border: 1px solid #929292; border-radius: 14px; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) switch:checked { background-color: #60cdff; border-color: #60cdff; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) switch slider { background-color: #d4d4d4; background-image: none; border: 0; border-radius: 50%; box-shadow: none; margin: 3px; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) switch:checked slider { background-color: #143344; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) check, .background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) radio { background-color: #292929; border-color: #a0a0a0; box-shadow: none; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) check:checked, .background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) radio:checked { background-color: #60cdff; border-color: #60cdff; color: #152d3b; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) :focus { outline-color: #60cdff; outline-style: solid; outline-width: 1px; outline-offset: -2px; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) entry:focus { outline-width: 0; }
 .background .dialog-action-area { background-color: #202020; padding: 16px; border-top: 1px solid rgba(255,255,255,0.063); }
 .background .dialog-action-area button { min-width: 85px; }
-.background:not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) statusbar { background-color: #202020; color: #bbbbbb; }
+.background:not(.desktopwindow):not(.xfce4-panel):not(.z11-multitask):not(.z11-switcher) statusbar { background-color: #202020; color: #bbbbbb; }

@@ -100,3 +100,7 @@ def watch():
 
 
 if __name__=='__main__':watch()
+
+from gnome_bridge import active as is_gnome
+if is_gnome():
+    from gnome_bridge import LifetimeWatch as WindowWatch

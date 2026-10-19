@@ -4,7 +4,7 @@ A consolidated repository for Zorin OS fixes, including wake-source suspend fixe
 
 ## Included Fixes
 
-- [Windows 11 desktop for Zorin Lite](windows11-desktop/) — reusable dark desktop, Start menu, Explorer, Fluent tray icons, Desktop Groups, PowerShell, Terminal, and optional wobbly windows, with installation and restore commands for a second machine.
+- [Windows 11 desktop for Zorin OS](windows11-desktop/) — GNOME by default, with automatic Xfce/Lite support: Start, Explorer, Settings, Quick Settings, notifications, Desktop Groups, multitasking, PowerShell/Terminal, and Spotlight/Bing alongside the Zorin wallpaper collection. Includes installation and restore commands.
 - `Zorin OS Stay Asleep` wake-source service and script for persistent suspend reliability.
 - Keyboard double-typing (key chatter) fix using Bounce Keys, for mechanical/gaming keyboards.
 - Slow qBittorrent downloads fix: open the listening port through UFW and the router, with a checker script.
@@ -16,7 +16,7 @@ A consolidated repository for Zorin OS fixes, including wake-source suspend fixe
 
 ## Contents
 
-- `windows11-desktop/` — portable Windows 11-inspired Xfce desktop setup, companion source, prebuilt UI, dependency pins, and optional Windows asset exporter.
+- `windows11-desktop/` — portable Windows 11-inspired GNOME and Xfce desktop setup, companion source, prebuilt UI, dependency pins, and optional Windows asset exporter.
 - `mini-disable-wakeup.service` — systemd service unit for applying wake-source settings.
 - `mini-disable-wakeup.sh` — shell script disabling known wake sources and clearing RTC wake alarms.
 - `keyboard-bounce-keys.sh` — enables Bounce Keys to stop a keyboard from double-typing characters.

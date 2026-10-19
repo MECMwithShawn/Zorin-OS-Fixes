@@ -21,7 +21,7 @@ class Desktops:
     def compiz(self):return 'compiz' in (self.screen.get_window_manager_name() or '').lower()
 
     @property
-    def backend(self):return 'compiz' if self.compiz else 'xfwm4'
+    def backend(self):return 'gnome' if 'mutter' in (self.screen.get_window_manager_name() or '').lower() else 'compiz' if self.compiz else 'xfwm4'
 
     def identities(self,count):
         identities=self.m.preferences.setdefault('desktop_ids',{}).setdefault(self.backend,[])
@@ -38,7 +38,7 @@ class Desktops:
     def items(self):
         self.screen.force_update();active=self.screen.get_active_workspace()
         if not active:return []
-        names=self.m.preferences.get('desktop_names',{}).get('compiz' if self.compiz else 'xfwm4',[])
+        names=self.m.preferences.get('desktop_names',{}).get(self.backend,[])
         if self.compiz:
             sw,sh,nx,ny=self.dimensions();current=active.get_viewport_x()//sw+nx*(active.get_viewport_y()//sh)
             identities=self.identities(nx*ny)
@@ -89,7 +89,7 @@ class Desktops:
 
     def remember_names(self,names,identities=None):
         if identities is not None:self.m.preferences.setdefault('desktop_ids',{})[self.backend]=identities[:]
-        self.m.preferences.setdefault('desktop_names',{})['compiz' if self.compiz else 'xfwm4']=names
+        self.m.preferences.setdefault('desktop_names',{})[self.backend]=names
         self.m.save()
         if not self.compiz:
             self.pending_names=names[:]

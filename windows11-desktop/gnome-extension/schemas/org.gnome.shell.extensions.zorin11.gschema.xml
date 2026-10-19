@@ -1,0 +1,15 @@
+<schemalist><schema id="org.gnome.shell.extensions.zorin11" path="/org/gnome/shell/extensions/zorin11/">
+<key name="start" type="as"><default>['&lt;Control&gt;Escape']</default></key>
+<key name="search" type="as"><default>['&lt;Super&gt;s']</default></key>
+<key name="explorer" type="as"><default>['&lt;Super&gt;e']</default></key>
+<key name="settings" type="as"><default>['&lt;Super&gt;i']</default></key>
+<key name="quick" type="as"><default>['&lt;Super&gt;a']</default></key>
+<key name="notifications" type="as"><default>['&lt;Super&gt;n']</default></key>
+<key name="snap" type="as"><default>['&lt;Super&gt;z']</default></key>
+<key name="tasks" type="as"><default>['&lt;Super&gt;Tab']</default></key>
+<key name="new-desktop" type="as"><default>['&lt;Super&gt;&lt;Control&gt;d']</default></key>
+<key name="previous-desktop" type="as"><default>['&lt;Super&gt;&lt;Control&gt;Left']</default></key>
+<key name="next-desktop" type="as"><default>['&lt;Super&gt;&lt;Control&gt;Right']</default></key>
+<key name="close-desktop" type="as"><default>['&lt;Super&gt;&lt;Control&gt;F4']</default></key>
+<key name="groups" type="as"><default>['&lt;Super&gt;&lt;Shift&gt;f']</default></key>
+<key name="terminal" type="as"><default>['&lt;Super&gt;t', '&lt;Control&gt;&lt;Alt&gt;t']</default></key><key name="switch-next" type="as"><default>['&lt;Alt&gt;Tab']</default></key><key name="switch-previous" type="as"><default>['&lt;Shift&gt;&lt;Alt&gt;Tab']</default></key></schema></schemalist>

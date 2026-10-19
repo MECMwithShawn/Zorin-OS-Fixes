@@ -21,6 +21,8 @@ import gi
 gi.require_version('GdkPixbuf','2.0')
 from gi.repository import GdkPixbuf
 from settings_backend import properties, set_property
+from gnome_bridge import active as is_gnome
+import gnome_wallpaper
 
 CONFIG=Path(os.environ.get('ZORIN11_CONFIG_DIR',str(Path.home()/'.config/zorin11-hub')))
 ROOT=CONFIG/'wallpapers'
@@ -84,7 +86,13 @@ def fetch(url,limit):
 
 def candidates(source,prefer_uhd=True):
     if source not in FEEDS:raise ValueError('Choose Bing or Windows Spotlight first.')
-    feed=json.loads(fetch(FEEDS[source],2*1024*1024))
+    try:feed=json.loads(fetch(FEEDS[source],2*1024*1024))
+    except (ValueError,OSError):
+        if source!='bing':raise
+        # Bing occasionally returns an empty 200 response for a market-specific
+        # archive URL. Retry its official default-market endpoint once.
+        try:feed=json.loads(fetch('https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1',2*1024*1024))
+        except (ValueError,OSError) as error:raise ValueError('Bing is temporarily unavailable; your current wallpaper is unchanged.') from error
     if source=='bing':
         return [{'url':'https://www.bing.com'+i['urlbase']+('_UHD.jpg' if prefer_uhd else '_1920x1080.jpg'),
                  'fallback':'https://www.bing.com'+i['urlbase']+'_1920x1080.jpg',
@@ -131,6 +139,7 @@ def download(source=None):
 
 
 def current_path():
+    if is_gnome():return gnome_wallpaper.current_path()
     props=properties('xfce4-desktop')
     values=[str(v) for k,v in props.items() if str(k).endswith('/last-image')]
     values += [str(v) for k,v in props.items() if str(k).endswith('/image-path')]
@@ -139,6 +148,7 @@ def current_path():
 
 def image_path(ident):
     if ident=='current':return current_path()
+    if ident.startswith('zorin-'):return gnome_wallpaper.resolve(ident)
     if not re.fullmatch('[a-f0-9]{24}',ident):raise ValueError('Unknown wallpaper.')
     state=load()
     if not any(i['id']==ident for i in state['history']) and ident not in state.get('desktopPictures',{}).values():raise ValueError('This picture is no longer in history.')
@@ -154,6 +164,7 @@ def thumbnail(ident):
 
 @locked
 def apply(ident):
+    if is_gnome():return gnome_wallpaper.apply(ident)
     path=image_path(ident)
     if not path or not path.is_file():raise ValueError('This wallpaper is unavailable.')
     props=properties('xfce4-desktop')
@@ -188,6 +199,7 @@ def apply(ident):
 
 @locked
 def restore():
+    if is_gnome():return gnome_wallpaper.restore()
     state=load();desktop_restored=set()
     if state.get('desktopWrites'):
         from desktop_backgrounds import restore_records
@@ -227,6 +239,8 @@ def status():
     state=load();state.pop('original',None);state.pop('appliedPath',None);state.pop('appliedPaths',None)
     for key in ('desktopWrites','desktopShared','desktopPictures'):state.pop(key,None)
     state['hasPreview']=current_path() is not None
+    state['collection']=[{k:v for k,v in e.items() if k!='path'} for e in gnome_wallpaper.catalog()]
+    state.pop('gnomeOriginal',None)
     state['lockFollowsDesktop']=bool(shutil.which('xfce4-screensaver'))
     return state
 

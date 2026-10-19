@@ -4,6 +4,27 @@ import unittest
 import explorer
 
 class ExplorerTests(unittest.TestCase):
+    def test_system_drive_first_and_letters_survive_reconnect(self):
+        with tempfile.TemporaryDirectory() as directory:
+            registry=Path(directory)/'letters.json'
+            def rows():
+                return [dict(path='/media/usb',name='AXENTRA_OS',driveId='uuid:usb',removable=True),
+                        dict(path='/',name='System'),dict(path='/media/os',name='OS',driveId='uuid:os')]
+            drives=explorer.label_drives(rows(),registry)
+            self.assertEqual([d['name'] for d in drives],['Local Disk (C:)','OS (D:)','AXENTRA_OS (E:)'])
+            self.assertEqual([d['path'] for d in drives],['/','/media/os','/media/usb'])
+            self.assertEqual(explorer.label_drives([rows()[0]],registry)[0]['driveLetter'],'E')
+            reconnect=rows();reconnect[0]['path']='/media/renamed'
+            self.assertEqual([d['driveLetter'] for d in explorer.label_drives(reconnect[::-1],registry)],['C','D','E'])
+
+    def test_drive_letter_registry_rejects_reserved_and_duplicate_letters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            registry=Path(directory)/'letters.json'
+            registry.write_text('{"uuid:usb":"C","uuid:os":"D","old":"D"}')
+            result=explorer.label_drives([dict(path='/',name='System'),
+                dict(path='/media/usb',name='USB',driveId='uuid:usb')],registry)
+            self.assertEqual([d['driveLetter'] for d in result],['C','E'])
+
     def test_listing_and_hidden_files(self):
         with tempfile.TemporaryDirectory() as directory:
             p=Path(directory)

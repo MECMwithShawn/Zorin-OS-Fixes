@@ -74,6 +74,11 @@ def configure(name,value):
     CONFIG.mkdir(parents=True,exist_ok=True)
     previous=STATE.read_bytes() if STATE.exists() else None
     tmp=STATE.with_suffix('.tmp');tmp.write_text(json.dumps(state)+'\n');tmp.replace(STATE)
+    from gnome_bridge import active as is_gnome
+    if is_gnome():
+        from gi.repository import Gio
+        Gio.Settings.new('org.gnome.desktop.interface').set_boolean('enable-animations',state['enabled'])
+        Gio.Settings.sync();return
     try:refresh_profile()
     except Exception:
         if previous is None:STATE.unlink(missing_ok=True)

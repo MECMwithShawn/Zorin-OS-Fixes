@@ -43,6 +43,10 @@ def desktop_status():
         result['dnd'] = bool(xf.GetProperty('xfce4-notifyd','/do-not-disturb'))
     except Exception:
         pass
+    from gnome_bridge import active as is_gnome
+    if is_gnome():
+        from gi.repository import Gio
+        result['dnd']=not Gio.Settings.new('org.gnome.desktop.notifications').get_boolean('show-banners')
     try:
         result['wifi'] = run(['nmcli', 'radio', 'wifi']) == 'enabled'
         devices = run(['nmcli', '-t', '-f', 'TYPE,STATE,CONNECTION', 'device']).splitlines()

@@ -3,6 +3,7 @@ from html.parser import HTMLParser
 import dbus
 import json
 from settings_backend import properties
+from gnome_bridge import active as is_gnome, call as gnome_call
 
 SERVICE='org.xfce.Notifyd'
 PATH='/org/xfce/Notifyd'
@@ -27,6 +28,13 @@ def call(method,*args):
     finally:bus.close()
 
 def snapshot():
+    if is_gnome():
+        result={'loading':False,'entries':[],'available':False,'logging':True,
+                'dnd':bool(properties('xfce4-notifyd').get('/do-not-disturb',False)),'hasMore':False}
+        try:
+            result['entries']=gnome_call('notifications');result['available']=True
+        except Exception:pass
+        return result
     config=properties('xfce4-notifyd')
     result={'loading':False,'entries':[],'available':False,'logging':bool(config.get('/notification-log',False)),
             'dnd':bool(config.get('/do-not-disturb',False)),'hasMore':False}
@@ -43,6 +51,7 @@ def snapshot():
     return result
 
 def change(action,ids=None):
+    if is_gnome():return gnome_call('notification',action=action,ids=ids)
     if action=='clear':return call('Clear')
     if action not in ('dismiss','read'):raise ValueError('Unknown notification action.')
     if not isinstance(ids,list) or not 1<=len(ids)<=200 or any(not isinstance(i,str) or not i or len(i)>200 for i in ids):
@@ -53,6 +62,7 @@ def change(action,ids=None):
 
 
 def has_unread():
+    if is_gnome():return any(not n['read'] for n in snapshot()['entries'])
     try:return bool(call('HasUnread'))
     except dbus.DBusException:return False
 

@@ -1,10 +1,10 @@
-# Windows 11 desktop for Zorin Lite
+# Windows 11 desktop for Zorin OS
 
-Reusable setup for **Zorin OS 18 Lite, Xfce, X11, Intel/AMD x86-64**. This is the configuration developed on the desktop PC, packaged for the same Zorin edition on a dual-boot laptop. The installer discovers panel/plugin IDs and uses the current account's home directory. It does not copy disk names, display resolution, network settings, or the desktop PC's personal data.
+**GNOME is the primary desktop.** The same installer detects Zorin 18 GNOME or Zorin Lite/Xfce and installs the matching integration. The shared companion provides the Windows 11-style Start menu, File Explorer, Settings, Quick Settings, notification/calendar flyout, Desktop Groups and multitasking UI.
 
-## Install on the laptop
+## Install on GNOME (default)
 
-Run inside a terminal in the laptop's Zorin desktop, as your normal user:
+Run as your desktop user from a Zorin OS 18 GNOME session:
 
 ```bash
 git clone https://github.com/MECMwithShawn/Zorin-OS-Fixes.git
@@ -14,224 +14,98 @@ python3 setup.py check
 python3 setup.py install
 ```
 
-The dependency command requests sudo for Ubuntu packages, including the taskbar extension's build tools. Desktop customization, PowerShell, WezTerm, and fonts install into your account. A prebuilt React frontend is included; Node is not needed for installation. Downloads are pinned in `dependencies.json`; PowerShell, WezTerm, Cascadia, and the PowerShell icon are checked against recorded SHA-256 hashes. The icon theme uses a pinned Git revision; the native taskbar source has a pinned commit and SHA-256 in `companion/taskbar_build.py`. Allow roughly 1–2 GB for downloads, build dependencies and extracted tools.
+**Sign out and sign back in after the first installation or a Shell extension update.** GNOME 46 discovers new extensions at login and caches loaded JavaScript. The installer does not restart your desktop or close applications.
 
-Run `python3 setup.py install` again after pulling updates. It retains the original recovery record and your saved Start pins/groups and Snap Group recipes while reapplying the managed appearance. `--skip-terminal` skips tool downloads; already installed local PowerShell/WezTerm are still integrated.
+Zorin Taskbar, Zorin Menu and User Themes must be enabled. The installer enables Zorin's bundled Window Move Effect for wobbly windows. The GNOME backend targets Zorin 18's GNOME Shell 46, including Wayland and X11. PowerShell and WezTerm downloads require x86-64; use `--skip-terminal` to skip those downloads. The prebuilt React interface is included, so Node is only needed for development.
 
-## Included
+Re-run `python3 setup.py install` to upgrade. Your original recovery values, Start pins, Desktop Groups and saved Snap Group recipes are retained. `--desktop gnome` or `--desktop xfce` can make the expected desktop explicit; a mismatched session is rejected.
 
-| Component | Behavior |
+## GNOME experience
+
+| Component | Integration |
 |---|---|
-| Desktop | Dark Zorin theme, 48 px bottom taskbar, centered Start/app area, Windows-style spacing and controls |
-| Taskbar state | 32 px icons; gray markers for running apps; blue underline and a subtle background for the focused app; Task View button |
-| Snap layouts | Win+Z, six layouts, target outlines, minimum-size checks, Snap Assist, restore size, and adjustable ultrawide Focus columns |
-| Task View | Win+Tab, desktop previews, create/rename/reorder/close, individual wallpapers, drag windows between desktops, search across desktops, Snap Groups, and saved app/layout recipes |
-| App windows | Dark Xfwm/Compiz frames, thin active/inactive borders, 46 px caption controls, red Close hover, shared dark GTK3 controls/dialogs, and edge/corner resizing in Explorer and Settings |
-| Start | Pinned apps, drag ordering, search, All apps, categories, recent launches, power/session actions |
-| File Explorer / This PC | Tabs, sidebar, address navigation, details view, mounted drives and capacity bars, create/rename/copy/cut/paste/trash |
-| Desktop Groups | Movable, resizable shortcut groups and live folder portals; original files stay in place |
-| Status tray | Microsoft Fluent Wi-Fi/Ethernet/offline and speaker/mute icons, crisp at their native size; chevron reveals hidden tray apps |
-| Quick Settings | Wi-Fi/Bluetooth toggles, volume/mute and output selection, keyboard accessibility, editable tiles, laptop brightness and battery status when available |
-| Notifications & calendar | Clock/bell/Win+N flyout, grouped local history, read/dismiss/clear, Do Not Disturb, keyboard-navigable calendar and dark bottom-right toast banners |
-| Settings | Windows 11 style sidebar, searchable categories, real system information and working controls; advanced pages open the corresponding Linux tools |
-| Backgrounds | Optional Windows Spotlight or Bing daily images, UHD preference, local photo selection, 60-image history and original-background restore |
-| Battery | The laptop's existing power/battery panel plugin stays visible when a battery is detected |
-| PowerShell | Microsoft PowerShell 7.6.7, installed per user with a Start entry |
-| Terminal | WezTerm with PowerShell and Bash profiles, tabs, split panes, Cascadia Mono, dark Campbell colors, Windows-style title buttons |
-| Window Effects | Optional Compiz wobble, smooth desktop slides, individual-background crossfades, three speeds and reduced-motion controls |
+| Taskbar | Dark blue appearance, Win11 icons, 48 px bottom taskbar, centered Start/Search/Task View/app area, native running-app indicators and previews |
+| Start | Opens on the primary monitor; shared Windows-style pinned apps, ordering, search, All apps, categories, recent launches, local folders and session actions |
+| Explorer / This PC | Tabs, sidebar, system drive first as Local Disk (C:), persistent display letters for other mounted drives, capacity, details view, create/rename/copy/cut/paste/trash; advanced locations open the system file manager |
+| Settings | Windows-style categories with actual device information and GNOME settings controls; advanced pages open the native tools |
+| Quick Settings | Network, Bluetooth, volume/output, Do Not Disturb, accessibility, supported backlights and battery information |
+| Notifications | GNOME's current session notifications, read/dismiss/clear and calendar; native notification banners remain managed by GNOME |
+| Backgrounds | Windows Spotlight, Bing daily/UHD images, local photos, history, original-background restore **and the installed Zorin wallpaper collection** |
+| Desktop Groups | Shared movable shortcut groups and folder portals; original files stay in place |
+| Multitasking | Snap Layouts/Assist, Task View, desktop create/rename/reorder/close, per-desktop backgrounds, saved app/layout recipes and Alt+Tab Snap Groups |
+| Terminal | Pinned PowerShell 7.6.7 and WezTerm, PowerShell/Bash profiles, Cascadia Mono, tabs and split panes |
 
-The duplicate Wi-Fi icon is removed by using `nm-applet --no-indicator` with `show-applet=false`. NetworkManager and its password/VPN agent keep running. The tray chevron can still reveal other applications. Right-click the tray and open its properties to choose which applications stay visible; newly discovered tray applications may initially appear until you hide them there.
+Drive letters are Explorer display aliases; file operations retain the actual Linux mount paths. Zorin's system filesystem is C:, even when a separate Windows partition is mounted.
 
-## Match the Windows shell icons and fonts
+The GTK/WebKit companion runs through XWayland for desktop-surface positioning. The per-user GNOME extension uses Mutter for both native Wayland and X11 application windows, including move/resize, activation, desktop membership and thumbnails. It does not use Shell unsafe-eval mode. Window captures stay in memory.
 
-The default installer uses the community [Win11 icon theme](https://github.com/yeyushengfan258/Win11-icon-theme) plus the bundled [Microsoft Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons) for the status tray, Explorer toolbar, and Quick Settings. For the closest match in This PC, drive icons, and folders, export shell icons from **your own Windows installation**:
+GNOME notifications are session history, not Xfce's persistent notification log. GNOME owns workspace transitions and reduced motion; Zorin's built-in Window Move Effect provides wobbly windows; Compiz workspace-speed controls remain Xfce-only. Taskbar hover previews remain Zorin's native previews; Snap Groups are available through Task View and Alt+Tab. App minimum sizes are enforced by Mutter and may adjust requested snap rectangles. GNOME's idle screen timeout applies to both power sources. GTK4/libadwaita, Qt and Electron applications may keep their own controls and titlebars.
 
-1. Boot Windows and copy `export-windows-assets.ps1` there.
-2. Run it in **Windows PowerShell 5.1**, without administrator privileges:
+## Backgrounds: keep Zorin and add Spotlight/Bing
 
-   ```powershell
-   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\export-windows-assets.ps1
-   ```
+Installation leaves your selected wallpaper unchanged and never replaces or deletes files in `/usr/share/backgrounds` or `/usr/share/wallpapers`.
 
-   Optionally add `-IncludeFonts` to include the locally installed Segoe UI fonts. The ZIP is created on the Windows desktop. Keep this personal export local; Microsoft Windows assets and fonts are not included in this repository.
+Open **Win+I → Personalization → Background**:
 
-3. Copy the ZIP to Zorin's Downloads folder, then run:
+- Choose **Windows Spotlight** or **Bing image of the day**, then **Get new wallpaper**.
+- Enable **Change the picture daily** for daily refresh while signed in.
+- Pick an image from **Zorin wallpapers** to return to the installed collection.
+- Use **Browse photos**, **Recent images**, or **Restore original background**.
 
-   ```bash
-   python3 setup.py install --windows-assets "$HOME/Downloads/Zorin11-Windows-assets.zip"
-   ```
+Downloaded pictures and credits stay in your local account. Both GNOME light/dark wallpaper values are journaled before changing them. Restore preserves a wallpaper you changed later through another tool. No Windows images, proprietary fonts, personal wallpaper exports or account data are committed.
 
-This imports six sizes (16–256 px), including the computer, drive, USB drive, folder, user folders, Recycle Bin, and Explorer icons. Segoe UI is used when imported; Selawik is the default fallback. Drive labels and capacity are read from the laptop itself.
-
-## Use it
+## Shortcuts
 
 | Shortcut | Action |
 |---|---|
-| Windows key / Ctrl+Esc | Start |
+| Super / Ctrl+Esc | Start |
 | Win+S | Search |
 | Win+E | File Explorer |
+| Win+I | Settings |
 | Win+A | Quick Settings |
-| Win+N / taskbar clock or bell | Notifications and calendar |
-| Win+I | Windows-style Settings |
+| Win+N | Notifications and calendar |
 | Win+T / Ctrl+Alt+T | Terminal |
-| Win+Z | Snap layouts for the active application |
-| Win+Tab | Task View: windows and virtual desktops |
-| Win+Ctrl+D | Create and enter a new desktop |
-| Win+Ctrl+Left / Right | Switch to the previous / next desktop |
-| Win+Ctrl+F4 | Close the current desktop, keeping its apps open |
-| Alt+Tab / Alt+Shift+Tab | Forward/reverse switching between individual windows and Snap Groups |
-| Win+Shift+F | Bring Desktop Groups forward / send them back |
-| Ctrl+Shift+T in Terminal | New tab |
-| Ctrl+Shift+Space in Terminal | Select PowerShell or Bash profile |
-| Alt+Shift+D in Terminal | Split horizontally |
-| Alt+Shift+- in Terminal | Split vertically |
+| Win+Z | Snap Layouts |
+| Win+Tab | Task View |
+| Win+Ctrl+D | New desktop |
+| Win+Ctrl+Left / Right | Previous / next desktop |
+| Win+Ctrl+F4 | Close desktop, retaining its applications |
+| Alt+Tab / Alt+Shift+Tab | Windows and Snap Groups |
+| Win+Shift+F | Bring Desktop Groups forward / send back |
 
-Search Start for **Window Effects** to preview wobble. Its **Install wobble support** button installs the optional Compiz packages through the Linux authentication dialog. A preview returns to Xfwm automatically unless you choose **Keep** within 15 seconds; an independent watchdog also recovers if the preview UI fails. Kept effects return on login. **Turn off** restores Xfwm. Compiz uses a private profile and preserves Start, Explorer, and terminal shortcuts. Window decoration and snapping behavior can differ while it is active.
+## Restore
 
-Emergency recovery, from a terminal or TTY in your session:
-
-```bash
-python3 "$HOME/.local/share/zorin11-hub/effects.py" --disable
-```
-
-For a TTY, set `DISPLAY` to your actual X11 display before that command (commonly `:0`).
-
-## Notifications and Quick Settings
-
-Click the taskbar **clock** or **bell**, or press **Win+N**, for the notification center and calendar. The bell shows an unread indicator and Do Not Disturb state. The calendar supports previous/next month, date selection with arrow keys, Home for today, Page Up/Down for months, and collapse/expand. This is a date browser; calendar-account appointments are not connected.
-
-Notifications come from Xfce Notifyd's existing local log, grouped by application. You can mark them read, dismiss one or a group, or clear all after confirming. The latest 200 are displayed; older retained entries remain accessible in native notification preferences. The installer enables local history and uses Xfce's existing retention limit, defaulting to 1,000 when none is set. Excluded applications and transient notifications retain their native logging behavior. **Settings → System → Notifications → Notification history** turns storage on/off. Restore returns the original logging, banner theme/location, clock command and panel plugin settings, while retaining the user's notification history.
-
-**Win+A** opens Quick Settings. Use the button beside volume to choose a sound output; current streams using the previous default output move with it, while explicitly separate app routes remain unchanged. The Accessibility tile exposes Sticky/Slow/Bounce/Mouse Keys. The pencil button chooses which of six tiles appear, and saves the selection. Bluetooth's main button toggles power; its arrow opens device management. Wi-Fi uses the same split control.
-
-Brightness appears only for real kernel backlight devices (usually a laptop's built-in screen), controlled through the active user's logind session. External-monitor DDC/CI brightness is not implemented. Battery details appear only when a battery is detected. Native hardware controls report errors instead of claiming a failed change succeeded.
-
-## Snap layouts and window switching
-
-Press **Win+Z** while an application is focused, or hover over the maximize button in the companion's Explorer/Settings. Choose a zone in one of six layouts. The target uses the current window's monitor work area, keeping the taskbar clear. App minimum sizes disable zones that cannot fit. Press 1–6 to focus a layout, use Tab/arrow keys to navigate, and Enter to select. Escape dismisses the chooser.
-
-**Snap Assist** suggests another open window for each remaining space. Skip/Escape keeps the placements already made. **Restore size** in Win+Z returns the selected window to its saved pre-snap geometry/maximized state, subject to the window manager's constraints. Under **Customize**, adjust the center width of **Focus columns** from 40–70%, or turn off Snap Assist. This is useful for an editor/browser in the middle of an ultrawide monitor and reference windows on either side.
-
-Click the **Task View** button beside Search, or press **Win+Tab**. The bottom strip shows named desktop previews and a blue border under the current desktop. Hover over a preview to inspect its windows; click it to switch. **New desktop** creates a desktop in place; **Win+Ctrl+D** creates one and immediately enters it. Click a desktop name to rename it, then press Enter. Escape cancels the edit. Names and desktop counts persist locally.
-
-Drag a window card onto a desktop preview to move it there, or right-click the card and choose **Move to**. Shift+F10 opens the same menu from the keyboard. Dropping onto **New desktop** creates a desktop for that window. Moving preserves maximized/minimized state. The desktop's **×** button and **Win+Ctrl+F4** move its windows to the desktop on its left (or the next desktop when closing the first), then remove it. The last desktop cannot be removed; applications are never closed by this action.
-
-Drag a **desktop preview** onto another preview to reorder the strip. Its name, apps and chosen background move together, and the active desktop remains active in its new position. Right-click a preview for **Move left** / **Move right**, or focus it and press **Shift+F10** to use the same menu from the keyboard.
-
-Choose **Choose background…** from that desktop menu to select a JPEG/PNG picture for just that desktop. The image is copied into your local wallpaper cache, so moving the original file does not break the background. The previews and actual Xfce desktop use the chosen pictures; assignments and order survive companion restarts. **Use shared background / Spotlight** removes only that desktop's override. Your shared Spotlight/Bing rotation keeps running, and new daily images leave custom desktop pictures in place. Closing a desktop removes its picture assignment without transferring it to a neighbor. All monitors on a desktop use the same chosen picture.
-
-The window area normally shows the desktop being previewed. Type in Search to find titles/app names across all desktops; Enter activates the first match on its desktop, and Down moves focus into the cards. Window previews are snapshots of composited app contents, captured while Task View is open. Up to 36 previews are retained in memory; none are written to disk. Hidden/minimized windows use their last available preview or app icon. Desktop thumbnails combine each desktop's wallpaper with window positions and those previews.
-
-Completed Snap Assist arrangements appear as **Snap groups** in Task View, Alt+Tab and the taskbar previews of every member app, so their windows can be brought back together. Recognized apps also save a portable recipe automatically; use **Task View → Saved groups** to reopen it after login/restart. Snap Assist now suggests windows on the current desktop only.
-
-Desktop management uses native Xfwm workspaces, or horizontal viewports when the optional Compiz effects profile is active. No window-manager restart is needed. Existing two-dimensional Compiz layouts can be browsed and switched, but creation/removal/reordering requires a single row. Up to 32 desktops are supported. Desktops span the connected monitors.
-
-### Desktop animations
-
-With **Window Effects** enabled, **Win+Ctrl+Left / Right** and desktop selection in Task View use Compiz's native horizontal slide. The taskbar stays in place; the extra Compiz workspace popup is hidden. Desktops with different pictures also crossfade their backgrounds. Live applications remain managed by the window manager throughout the transition.
-
-Open **Win+I → System → Multitasking** to choose **Quick**, **Balanced** (default), or **Relaxed**, or turn **Desktop animations** off for instant switching. The same off switch is available under **Accessibility**. The system GTK reduced-motion setting is also respected. Standard Xfwm keeps its native instant desktop switching; enabling this preference alone does not replace your window manager.
-
-The effects profile derives redraw pacing from connected monitor modes and retains vertical synchronization. Zorin's Compiz build caps this setting at 200 Hz; a faster monitor keeps its actual display mode. No resolution or GPU driver is changed. Short slide durations keep the window manager's input grab brief. The wallpaper fade uses one bounded snapshot of Xfdesktop's own background and icons, held only in memory; it does not capture normal application windows or save screenshots. If the compositor or capture is unavailable, the background changes normally. The temporary surface accepts no input and is automatically removed. These effects follow Windows conventions, while the exact easing and wallpaper motion differ from Windows 11.
-
-### Taskbar hover previews
-
-Hover over a running app's taskbar icon for about a third of a second to see its windows in a rounded dark preview panel. Each card has the window title, a live thumbnail and an **×** close button with red hover feedback. Click the thumbnail to activate or restore that window. Multiple windows appear side by side; large groups scroll within the monitor. Moving away dismisses the panel. Closed pinned apps show no window preview.
-
-Previews keep updating while the pointer is over the icon or panel, including for covered windows when the compositor can capture them. Minimized/unavailable windows show the last captured image or their app icon. Closing a card sends a normal window-close request, so an app can still ask to save work. Captures stay in memory, and sampling stops when the panel closes. Exact refresh speed depends on the app, compositor and display size.
-
-Create an arrangement with **Win+Z → choose a layout → choose the other windows in Snap Assist**. Hover over any member app on the taskbar, then click the **Snap group** card to restore the whole layout. Its miniature layout contains live previews of the member windows. Minimized members return to their saved positions, and the app whose taskbar icon you used receives focus. Individual window cards and Close buttons remain separate.
-
-Groups contain currently open windows and last only for this companion session. Closing a member updates the card; fewer than two members removes it. Re-snapping a member replaces its previous group. Multiple disjoint groups can appear under the same app. A group on another desktop returns to that desktop; windows moved apart onto different desktops are not gathered automatically. Saved recipes remain available after closure or logout; reopening is an explicit action in **Saved groups**.
-
-The setup builds a pinned, locally patched Docklike plugin once in your user cache. `install-system-deps.sh` includes its build dependencies. The library, descriptor and styling install per user, retain your Docklike pins and indicators, and participate in the existing restore mechanism. The distribution's plugin remains installed. See [native preview implementation and license](companion/taskbar/README.md).
-
-### Saved groups across restarts
-
-Complete a **Win+Z → Snap Assist** arrangement. When each window matches an installed application, its app IDs and layout are saved automatically. Open **Win+Tab → Saved groups** to rename, remove, or **Reopen group**. Unrecognized or ambiguous apps have a **Choose apps and save…** action while the live group exists. Re-snapping members updates their linked recipe; closing apps removes live cards but keeps the saved recipe.
-
-Reopening reuses matching windows on the saved desktop, launches missing apps through their installed desktop entries, and restores their positions together. The original desktop is selected by its stable identity; if it no longer exists, the current desktop is used. Layout proportions scale to the current monitor's usable area. Restored groups appear in Task View, Alt+Tab and taskbar hover previews with fresh live identities. App minimum sizes and window-manager constraints still apply.
-
-A recipe saves app identities and geometry, **not documents, browser profiles/tabs, terminal commands or unsaved content**. App contents depend on that app's session-restore feature. With several matching windows, the most recently used ones on the target desktop are selected. A matching app on another desktop prompts you to move the intended window yourself. Apps that permit only one window may need additional windows opened manually. Missing apps are reported before anything launches; startup/matching has a 30-second timeout. Cancel stops restoration and leaves already opened apps available.
-
-Recipes live in `~/.config/zorin11-hub/snap-groups.json`, with private file permissions and atomic writes. At most 40 recipes are retained; remove an old recipe when full. They survive upgrades and desktop-style rollback. Nothing is automatically launched on login. Single-display layouts are supported; a layout spanning monitors must first be arranged on one display.
-
-**On another laptop:** install this repository's setup, install the same applications, and either create fresh groups there or copy your own `snap-groups.json` into the same config folder while the companion is stopped. Back up an existing destination file before replacing it, then restart the companion. This is an optional transfer of personal recipes; they are never added to Git. A desktop identity absent on the laptop falls back to its current desktop.
-
-### Alt+Tab with Snap Groups
-
-Hold **Alt** and press **Tab** to open the dark window switcher. Individual windows and **Snap group · N windows** cards appear together, with a blue outline around the selected card. Press Tab again to advance, **Shift+Tab** to go back, or use arrow keys. Release Alt (or press Enter/click the card) to select; **Escape** cancels and returns to the original window. A quick Alt+Tab tap switches immediately without leaving a popup behind.
-
-Following the [Windows Snap Groups interaction](https://support.microsoft.com/en-gb/windows/experience/snap-your-windows), group cards show the arrangement and previews of all members. Selecting one restores its minimized windows and saved positions, focusing its most recently used member. After selection, that group participates in the recent-item order: activate another app, then Alt+Tab to return to the whole group. Individual members remain selectable. Closed members are removed while the switcher is open; groups with fewer than two windows disappear. All entries on the current desktop are reachable by keyboard, with scrolling for larger lists. Use Task View to browse other desktops.
-
-Previews update only while the switcher is open. They use a bounded capture helper and the existing in-memory cache; minimized/unavailable clients use cached previews or app icons. The switcher uses Xfce application shortcuts and briefly grabs the keyboard while visible. It installs no idle key listener. A conflicting grab dismisses the chooser after a short timeout; closing/shutting down releases its grab and timers. Compiz's **Ctrl+Alt+Tab** native all-window switcher remains available. Wobble and edge/Win+arrow snapping are retained. The installer records the prior Alt+Tab shortcuts for compare-safe restoration.
-
-Remaining differences: third-party custom maximize buttons use Win+Z. Live group cards come from companion Snap Assist or a restored recipe; arbitrary manual tiling is not automatically grouped. Some applications impose size increments, minimum sizes or edge constraints that can adjust the requested snap rectangle.
-
-## Settings and Windows Spotlight
-
-Open **Win+I → Personalization → Background**. Choose **Windows Spotlight** or **Bing image of the day**, then **Get new wallpaper**. Turn on **Change the picture daily** to refresh once per local calendar day while signed in. On login, the companion checks for an update; an offline failure leaves the existing picture in place and retries no more than hourly. Rotation does not require Settings to stay open. New installations keep the current background until you choose a source.
-
-Bing requests UHD with a 1080p fallback. Spotlight uses the original landscape image returned by Microsoft's Windows 11 feed (up to 4K); images can differ between devices and days. These are unofficial feed integrations and service availability can change. No Microsoft account is used. The downloader requests metadata and image assets only, never the feed's analytics or action links. Images, credits, and history stay in your local account; they are not bundled or uploaded to this repository.
-
-**Browse photos** accepts JPEG/PNG images. Recent images can be selected again. **Restore original background** disables rotation and restores the backed-up Xfce background properties, preserving properties you changed manually after the companion applied its picture. Xfce Screensaver reads the desktop background; the separate LightDM login screen is not changed. The full package restore also restores managed wallpaper settings and stops rotation, while retaining the image cache.
-
-Settings includes working volume/output/mute, Wi-Fi and Bluetooth power, Do Not Disturb, screen blanking timeouts, keyboard accessibility, and desktop-group controls. Display arrangement, network configuration, software updates, drivers, themes, and other advanced configuration open the installed Linux settings tools. Hardware, storage, account and OS information come from this device. Settings does not label Zorin as Windows or invent security/update status.
-
-The broader Windows 11 replication inventory and remaining work are tracked in [PARITY.md](PARITY.md).
-
-## Restore the previous desktop
+From the matching desktop session:
 
 ```bash
 python3 setup.py restore
+# Or without the repository checkout:
+python3 "$HOME/.local/share/zorin11-hub/gnome_install.py" restore
 ```
 
-Or, without the repository checkout:
+GNOME recovery records are private files in `~/.config/zorin11-gnome/`. Restore disables the companion extension, stops the companion, restores managed settings/files that still match the installed version, and preserves later manual edits. Downloaded tools/icons and personal pins, groups and wallpaper history remain available. Sign out/in after restoring to finish unloading the extension.
 
-```bash
-python3 "$HOME/.local/share/zorin11-hub/install.py" --uninstall
-```
+The shared runtime lives in `~/.local/share/zorin11-hub/`; personal state lives in `~/.config/zorin11-hub/`. The GNOME extension is `~/.local/share/gnome-shell/extensions/zorin11@zorin-os-fixes/`.
 
-The installer saves the original file contents and typed Xfconf/GSettings values **before** modifying them in `~/.config/zorin11-hub/integration-backup.json`. Restore changes only entries that still match the installed values. Later manual edits are preserved and reported. Saved pins, groups, imported reference assets, source files, downloaded tools, icon themes, fonts, and installed system packages remain available. Restore does not remove packages or personal files.
+## Zorin Lite / Xfce
 
-## Files and limits
-
-Caption changes appear immediately for native window frames. Reopen an existing GTK3 application if it has cached the previous styling. GTK3 app controls, toolbars, lists, entries, tabs and dialogs share the dark palette. Explorer and Settings also resize from all four edges and corners and use matching active/inactive borders; Explorer dialogs use a separate action footer. Restart an app if it has cached GTK styling. Applications that draw their own controls, including GTK4/libadwaita, Qt and Electron apps, may retain their own interfaces; no third-party app binaries are patched. Compiz theme updates refresh the decorator without replacing the window manager or changing the saved wobble preference.
-
-- Application: `~/.local/share/zorin11-hub/`
-- Pins/groups: `~/.config/zorin11-hub/layout.json`
-- Desktop names, order and stable identities: `~/.config/zorin11-hub/multitasking.json`
-- Saved app/layout recipes: `~/.config/zorin11-hub/snap-groups.json`
-- Desktop motion preferences: `~/.config/zorin11-hub/desktop-motion.json`
-- Background state/history: `~/.config/zorin11-hub/wallpapers.json` and `wallpapers/`
-- Runtime log: `~/.config/zorin11-hub/desktop.log`
-- Optional effects log: `~/.config/zorin11-hub/effects.log`
-- Terminal preferences: `~/.config/wezterm/wezterm.lua`
-- Download cache: `~/.cache/zorin11-setup/`
-
-This is a Linux desktop styled after Windows 11, with working Linux applications. It does not provide Windows APIs, Microsoft Windows Terminal, commercial Start11/Fences binaries, or Windows-only commands such as `winver`. WezTerm supplies the terminal experience. Thunar remains available for advanced file operations, network browsing, and Trash. Phone Link, Windows widgets, and every Windows shell feature are outside this package. Zorin Core/GNOME, Wayland, ARM, and older Zorin releases are not supported by this installer.
-
-The package leaves dual-boot configuration, Windows partitions, bootloader settings, GPU drivers, display modes, and suspend fixes to their existing tools.
+The existing Xfce/X11 backend is retained. See [the complete Xfce guide](XFCE.md) for its native taskbar build, Compiz effects, Windows asset importer, shortcuts and recovery details. It is selected automatically in an Xfce session. GNOME installations do not install or switch to Xfce.
 
 ## Development and validation
-
-The companion uses Python/GTK3/WebKit2GTK 4.1 and a local React interface. All UI assets are local; no web server is exposed.
 
 ```bash
 python3 -m unittest discover -s tests -v
 cd companion
-python3 -m unittest -v test_model.py test_explorer.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py
-# For frontend changes, use the committed pnpm lockfile:
+XDG_CURRENT_DESKTOP=XFCE python3 -m unittest -v test_model.py test_explorer.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py
+# Frontend: use the pinned lockfile, then rebuild committed dist/ assets.
 corepack pnpm install --frozen-lockfile
 node build.mjs
+cd ..
+python3 tests/gnome_live.py
+# Optional network-dependent verification:
+ZORIN11_TEST_FEEDS=1 python3 tests/gnome_live.py
 ```
 
-Live tests require an X11 session and briefly open disposable windows. `test_live.py` uses a separate application ID and temporary files. `test_native.py` should be run with a temporary `ZORIN11_CONFIG_DIR`. `test_flyouts_live.py` uses Xephyr and a private D-Bus session, config and cache to verify notification ingestion/read/delete without modifying the live user history. Browser UI tests additionally need Playwright and a Chromium executable; see their environment variables.
+The GNOME live test starts a private headless Mutter/Wayland compositor, private D-Bus, settings, runtime and companion state. It exercises the shared UI, native Wayland resizing/desktops/thumbnails, notification read/dismiss, every installed Zorin thumbnail and wallpaper apply/restore. It closes only its disposable processes and windows. The default run does not access image feeds.
 
-Run `test_saved_groups_live.py`, `test_switcher_live.py`, `test_multitasking_live.py`, `test_desktops_live.py`, `test_desktop_personalization_live.py` and `test_desktop_motion_live.py` **sequentially** with Python. Each starts private Xephyr/D-Bus sessions for Xfwm and Compiz. The saved-group test restarts the controller, closes/relaunches disposable application processes, checks same-app windows and scaled geometry, and covers missing apps/cancellation. The personalization test checks real Xfdesktop pixels, desktop dragging, keyboard menus, the picture picker, Spotlight coexistence and restart persistence using disposable windows and local image fixtures. The motion test samples intermediate app positions and background colors, rapid reversals, reduced motion and transition cleanup. Never run these nested-display tests at the same time as live-session keyboard/pointer automation.
-
-Original artwork/code and the Fluent icon license are included with their notices. Windows reference exports, SSH credentials, account photos, screenshots of personal applications, and machine recovery manifests must never be committed.
-
-Spotlight feed protocol reference: [ORelio/Spotlight-Downloader](https://github.com/ORelio/Spotlight-Downloader/blob/master/SpotlightAPI.md). The Python integration here is original code using the documented v4 image feed.
-
-Notification integration uses the [Xfce Notifyd log interface](https://github.com/xfce-mirror/xfce4-notifyd/blob/xfce4-notifyd-0.9.7/common/xfce-notify-log-util.c) and [Xfce clock command](https://github.com/xfce-mirror/xfce4-panel/blob/xfce4-panel-4.20.3/plugins/clock/clock.c). Backlight control uses [logind SetBrightness](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.login1.html).
+GNOME support shares the repository's Linux-based Windows-style experience; it does not provide Windows APIs, Microsoft Windows Terminal, Phone Link, Windows Widgets or commercial Start11/Fences binaries. The broader feature inventory is in [PARITY.md](PARITY.md).

@@ -30,6 +30,8 @@ class AltKeys:
         self.codes=[self.x.XKeysymToKeycode(self.display,key) for key in (Gdk.KEY_Alt_L,Gdk.KEY_Alt_R)]
 
     def held(self):
+        from gnome_bridge import active as is_gnome,call
+        if is_gnome():return bool(call('modifiers') & int(Gdk.ModifierType.MOD1_MASK))
         keys=(C.c_ubyte*32)();self.x.XQueryKeymap(self.display,keys)
         return any(code and keys[code//8] & (1<<(code%8)) for code in self.codes)
 
@@ -143,6 +145,8 @@ class Switcher:
     def tick(self):
         if not self.window:return False
         if not self.keys.held():self.timer=0;self.commit();return False
+        from gnome_bridge import active as is_gnome
+        if is_gnome():return True  # Shell owns Alt+Tab; poll native modifier release.
         if not self.grabbed:
             status=Gdk.Display.get_default().get_default_seat().grab(
                 self.window.get_window(),Gdk.SeatCapabilities.KEYBOARD,False,None,None,None,None)

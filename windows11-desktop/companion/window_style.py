@@ -26,7 +26,7 @@ def css(content, source):
     return content.rstrip()+f'''
 /* BEGIN Windows 11 captions */
 {native}
-window.background {{ background-color: #202020; color: #f3f3f3; }}
+window.background:not(.desktopwindow) {{ background-color: #202020; color: #f3f3f3; }}
 headerbar.titlebar {{ min-height: 32px; padding: 0 0 0 12px; background: #202020; color: #f5f5f5; border: 0; box-shadow: inset 0 -1px #ffffff08; }}
 headerbar.titlebar:backdrop {{ background: #202020; color: #999999; }}
 headerbar.titlebar .title {{ font-weight: normal; color: inherit; }}

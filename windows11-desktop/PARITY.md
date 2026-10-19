@@ -1,6 +1,9 @@
 # Windows 11 → Zorin Lite GUI coverage
 
-Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11, preserving Linux behavior. This inventory records delivered capabilities and remaining differences; it is not a claim that the desktop is indistinguishable from Windows. Current implementation: 2026-10-19.
+Target: Windows 11 visual and interaction conventions on Zorin 18, with GNOME as the primary desktop and Lite/Xfce/X11 retained, preserving Linux behavior. This inventory records delivered capabilities and remaining differences; it is not a claim that the desktop is indistinguishable from Windows. Current implementation: 2026-10-19.
+
+GNOME backend (2026-10-19): shared Start, Explorer, Settings, Quick Settings, notification/calendar and Desktop Groups interfaces; Mutter bridge for native Wayland/X11 windows, Task View/desktops, Snap Layouts and saved groups; installed Zorin wallpapers alongside Spotlight/Bing and local photos. Native Zorin taskbar previews remain in use. GNOME notifications last for the login session, workspace animations use Mutter, and application size constraints are enforced by the compositor. The detailed matrix below describes the original Xfce integration where a desktop is named explicitly. See [the GNOME installation guide](README.md) for platform-specific behavior.
+
 
 | Area | Delivered | Remaining differences / next work |
 |---|---|---|

@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Repeatable, per-user Zorin Lite desktop setup. Run inside the Xfce session."""
+"""Repeatable Windows 11 desktop for Zorin 18 GNOME (default) or Lite/Xfce."""
 import argparse
 import hashlib
 import json
@@ -193,12 +193,35 @@ def import_reference(path):
     print('Imported',len(entries),'local Windows reference files.',flush=True)
 
 
+def desktop_backend(requested='auto', desktop=None):
+    actual=(os.environ.get('XDG_CURRENT_DESKTOP','') if desktop is None else desktop).upper().split(':')
+    detected='gnome' if 'GNOME' in actual else 'xfce' if 'XFCE' in actual else None
+    if requested!='auto' and requested!=detected:
+        raise ValueError('Run the installer inside the selected desktop session.')
+    if not detected:raise ValueError('Use a Zorin GNOME or Xfce desktop session.')
+    return detected
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action',choices=['check','install','restore'])
     parser.add_argument('--windows-assets',type=Path,help='ZIP exported on your Windows installation')
     parser.add_argument('--skip-terminal',action='store_true',help='Skip PowerShell/WezTerm downloads')
+    parser.add_argument('--desktop',choices=['auto','gnome','xfce'],default='auto',help='Automatically detect GNOME or Xfce')
     args=parser.parse_args()
+    backend=desktop_backend(args.desktop)
+    if backend=='gnome':
+        import gnome_setup,gnome_install
+        if args.action=='restore':gnome_install.restore();return
+        records=gnome_setup.check()
+        if args.action=='check':return
+        if args.windows_assets:raise SystemExit('--windows-assets currently requires the Xfce backend; GNOME uses the pinned Win11 icon theme.')
+        if not args.skip_terminal and platform.machine()!='x86_64':raise SystemExit('Pinned terminal tools require x86-64; use --skip-terminal on other architectures.')
+        install_icons()
+        if not args.skip_terminal:install_tools()
+        gnome_setup.install(records)
+        gnome_install.install()
+        return
     if args.action=='restore':
         if os.geteuid()==0:raise SystemExit('Run as your desktop user, without sudo.')
         run('/usr/bin/python3',ROOT/'companion/install.py','--uninstall')

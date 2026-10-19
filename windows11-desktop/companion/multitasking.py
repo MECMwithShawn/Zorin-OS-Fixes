@@ -314,6 +314,8 @@ class Multitasking:
         if not enter:return
         def show():
             self.hover_timer=0
-            if surface.is_active():self.show_snap(surface.get_window().get_xid())
+            if surface.is_active():
+                from gnome_bridge import active as is_gnome
+                self.show_snap(None if is_gnome() else surface.get_window().get_xid())
             return False
         self.hover_timer=GLib.timeout_add(650,show)
