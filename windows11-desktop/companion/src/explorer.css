@@ -63,3 +63,13 @@
 .explorer-files::-webkit-scrollbar,.explorer-sidebar::-webkit-scrollbar{width:10px;height:10px}
 .explorer-files::-webkit-scrollbar-thumb,.explorer-sidebar::-webkit-scrollbar-thumb{border:3px solid #191919;background:#8a8a8a;border-radius:6px}
 .explorer-files::-webkit-scrollbar-thumb:hover,.explorer-sidebar::-webkit-scrollbar-thumb:hover{background:#b0b0b0}
+
+/* Windows-style item and drive menus, with labeled commands and key hints. */
+.explorer-menu.context-menu{width:280px;padding:5px;background:#2b2b2bf5;backdrop-filter:blur(24px);border-color:#ffffff20;box-shadow:0 12px 28px #0006,0 2px 7px #0005;overflow:auto}
+.explorer-menu.context-menu>button{display:flex;align-items:center;gap:12px;min-height:34px;padding:7px 10px;font-size:13px;white-space:nowrap}
+.context-menu>button>svg{flex-shrink:0;color:#d6e8ef}.context-menu>button>span{flex:1}.context-menu kbd{font:11px 'Segoe UI',Selawik,sans-serif;color:#bcbcbc;margin-left:12px}
+.context-menu button:hover,.context-menu button:focus-visible{background:#ffffff0d;outline:0}.context-menu .menu-separator{height:1px;background:#ffffff13;margin:4px -5px}
+.context-tools{justify-content:space-between;gap:5px;margin:0 -5px 4px;padding:3px 10px 7px}.context-tools>button{height:34px;width:38px}.rename-note{font-size:12px;line-height:1.5;color:#bdbdbd}
+.properties-heading{display:flex;align-items:center;gap:15px;margin:6px 0 20px}.properties-heading strong{overflow-wrap:anywhere}.properties-tab{font-size:12px;border-bottom:1px solid #555;padding:0 0 10px;margin-bottom:16px}.properties dl{display:grid;grid-template-columns:100px minmax(0,1fr);gap:12px;font-size:12px;user-select:text}.properties dt{color:#bdbdbd}.properties dd{margin:0;overflow-wrap:anywhere}.properties progress{width:100%;height:8px;margin:12px 0;accent-color:#60cdff}.file-modal .properties{max-height:60vh;overflow:auto}
+
+.explorer-shell .file-modal .dialog-buttons button{flex:0 0 auto;min-width:85px}.explorer-shell .file-modal .rename-note{margin:0 24px 20px}

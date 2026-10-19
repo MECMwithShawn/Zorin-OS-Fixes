@@ -9,8 +9,18 @@ import unittest
 from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT),str(ROOT/'companion')]
-import setup,gnome_setup,gnome_wallpaper
+import setup,gnome_setup,gnome_wallpaper,gnome_install
 class GnomeTests(unittest.TestCase):
+    def test_explorer_replaces_files_in_place_without_duplicate_pins(self):
+        self.assertEqual(gnome_install.explorer_favorites(['browser.desktop','org.gnome.Nautilus.desktop','other.desktop','zorin11-explorer.desktop']),
+                         ['browser.desktop','zorin11-explorer.desktop','other.desktop'])
+        self.assertEqual(gnome_install.explorer_favorites(['browser.desktop']),['browser.desktop'])
+    def test_folder_defaults_preserve_unrelated_associations(self):
+        text='[Default Applications]\ninode/directory=org.gnome.Nautilus.desktop;\nx-scheme-handler/codex=chatgpt.desktop;\n'
+        result=gnome_install.folder_defaults(text).decode()
+        self.assertIn('inode/directory=zorin11-explorer.desktop;',result)
+        self.assertIn('x-scheme-handler/codex=chatgpt.desktop;',result)
+        self.assertEqual(gnome_install.folder_defaults(result).decode(),result)
     def test_dispatch_requires_matching_session(self):
         self.assertEqual(setup.desktop_backend(desktop='zorin:GNOME'),'gnome')
         self.assertEqual(setup.desktop_backend(desktop='XFCE'),'xfce')

@@ -1,9 +1,23 @@
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 import explorer
 
 class ExplorerTests(unittest.TestCase):
+    def test_drive_rename_changes_display_label_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            names=Path(directory)/'names.json';registry=Path(directory)/'letters.json'
+            drive=dict(path='/',name='Local Disk (C:)',driveId='path:/')
+            with patch.object(explorer,'DRIVE_NAMES',names),patch.object(explorer,'listing',return_value={'entries':[drive]}):
+                explorer.rename_drive('/','Zorin System')
+                with self.assertRaises(ValueError):explorer.rename_drive('/unmounted','Other')
+                for invalid in ('','bad/name','bad\\name','bad\nname','a'*65):
+                    with self.assertRaises(ValueError):explorer.rename_drive('/',invalid)
+            result=explorer.label_drives([dict(drive)],registry,names)
+            self.assertEqual(result[0]['name'],'Zorin System (C:)')
+            self.assertEqual(result[0]['path'],'/')
+            self.assertEqual(result[0]['driveLetter'],'C')
     def test_system_drive_first_and_letters_survive_reconnect(self):
         with tempfile.TemporaryDirectory() as directory:
             registry=Path(directory)/'letters.json'

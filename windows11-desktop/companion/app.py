@@ -378,7 +378,7 @@ class Hub(Gtk.Application):
             self.open_settings(args[offset] if offset<len(args) else 'home')
         elif '--explorer' in args:
             offset = args.index('--explorer')+1
-            self.open_explorer(args[offset] if offset<len(args) else '::home')
+            for location in args[offset:] or ['::home']:self.open_explorer(location)
         elif '--diagnostics' in args:
             path = args[args.index('--diagnostics') + 1]
             GLib.timeout_add(400, self.diagnostics, path)
@@ -665,7 +665,7 @@ class Hub(Gtk.Application):
     def launch(self, app_id):
         if app_id not in self.apps:
             raise ValueError('This application is no longer installed.')
-        if app_id in ('thunar.desktop','zorin11-explorer.desktop'):
+        if app_id in ('thunar.desktop','org.gnome.Nautilus.desktop','zorin11-explorer.desktop'):
             self.open_explorer()
         elif app_id=='zorin11-settings.desktop':
             self.open_settings()
@@ -1036,6 +1036,9 @@ class Hub(Gtk.Application):
         self.quick.hide()
         if location.startswith('computer:'):
             location='::computer'
+        parsed=urlparse(location)
+        if parsed.scheme and (parsed.scheme!='file' or parsed.netloc not in ('','localhost')):
+            subprocess.Popen(['nautilus' if is_gnome() else 'thunar',location]);return
         if location.startswith('file://'):
             location = unquote(urlparse(location).path)
         self.start.hide()
@@ -1109,6 +1112,9 @@ class Hub(Gtk.Application):
                 _,x,y=pointer.get_position()
                 if action=='file-move':surface.begin_move_drag(1,x,y,Gdk.CURRENT_TIME)
                 else:surface.begin_resize_drag(Gdk.WindowEdge.SOUTH_EAST,1,x,y,Gdk.CURRENT_TIME)
+        elif action=='file-copy-path':
+            Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text('\n'.join(message['paths']),-1)
+            surface.send({'type':'notice','message':'Path copied'})
         elif action in ('file-copy','file-cut'):
             paths=[str(Path(p).absolute()) for p in message['paths']]
             text='\n'.join(Path(p).as_uri() for p in paths)
@@ -1133,6 +1139,8 @@ class Hub(Gtk.Application):
                 task=lambda: explorer.create_folder(destination,message['name'])
             elif action=='file-rename':
                 task=lambda: explorer.rename(message['path'],message['name'])
+            elif action=='file-rename-drive' and destination=='::computer':
+                task=lambda: explorer.rename_drive(message['path'],message['name'])
             elif action=='file-paste':
                 clipboard=Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
                 paths,cut,text=self.copied_files

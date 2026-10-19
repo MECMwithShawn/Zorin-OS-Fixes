@@ -33,6 +33,19 @@ def desktop(name,args,icon,wmclass='Zorin11-hub',categories='Utility;'):
     return f'[Desktop Entry]\nType=Application\nName={name}\nExec={launcher} {args}\nIcon={icon}\nTerminal=false\nCategories={categories}\nStartupWMClass={wmclass}\n'.encode()
 
 
+def explorer_favorites(favorites):
+    return list(dict.fromkeys('zorin11-explorer.desktop' if item=='org.gnome.Nautilus.desktop' else item
+                             for item in favorites))
+
+
+def folder_defaults(content):
+    _,GLib=gnome_setup.bindings()
+    keyfile=GLib.KeyFile()
+    if content:keyfile.load_from_data(content,len(content.encode()),GLib.KeyFileFlags.KEEP_COMMENTS)
+    keyfile.set_string('Default Applications','inode/directory','zorin11-explorer.desktop;')
+    return keyfile.to_data()[0].encode()
+
+
 def install():
     # Sources are managed runtime files; personal state lives under .config.
     DEST.mkdir(parents=True,exist_ok=True)
@@ -53,6 +66,10 @@ def install():
         ('quick','Quick Settings','--quick-settings','preferences-system','Zorin11-hub'),
         ('notifications','Notifications and calendar','--notifications','preferences-system-notifications','Zorin11-hub'),
     ]:files[apps/f'zorin11-{ident}.desktop']=desktop(name,args,icon,wm)
+    files[apps/'zorin11-explorer.desktop']+=b'MimeType=inode/directory;\nKeywords=Files;Folders;File Manager;Explorer;\n'
+    # Zorin's desktop-specific defaults take precedence over generic defaults.
+    mimeapps=HOME/'.config/zorin-mimeapps.list'
+    files[mimeapps]=folder_defaults(mimeapps.read_text() if mimeapps.exists() else '')
     files[HOME/'.config/autostart/zorin11-desktop.desktop']=desktop('Windows 11 Desktop','--background',str(DEST/'start.svg'))+b'X-GNOME-Autostart-Delay=5\n'
     if (HOME/'.local/bin/wezterm').exists():
         for name,ident,extra,icon in [('Terminal','terminal','','utilities-terminal'),('PowerShell','powershell',f' "{HOME / ".local/bin/pwsh"}" -NoLogo','zorin11-powershell')]:
@@ -69,6 +86,7 @@ def install():
     Gio,GLib=gnome_setup.bindings()
     shell=Gio.Settings.new('org.gnome.shell')
     changes={'org.gnome.shell':{'enabled-extensions':list(dict.fromkeys(shell.get_strv('enabled-extensions')+[UUID,'zorin-window-move-effect@zorinos.com'])),
+                             'favorite-apps':explorer_favorites(shell.get_strv('favorite-apps')),
                              'disabled-extensions':[x for x in shell.get_strv('disabled-extensions') if x not in (UUID,'zorin-window-move-effect@zorinos.com')]},
              'org.gnome.mutter':{'dynamic-workspaces':False}}
     gnome_setup.install(gnome_setup.plan(changes))

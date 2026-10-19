@@ -13,6 +13,7 @@ from gi.repository import Gio, GLib, Gtk
 
 HOME = Path.home()
 DRIVE_LETTERS = Path(os.environ.get('ZORIN11_CONFIG_DIR', str(HOME/'.config/zorin11-hub')))/'drive-letters.json'
+DRIVE_NAMES = DRIVE_LETTERS.with_name('drive-names.json')
 DRIVE_LOCK = threading.Lock()
 PLACES = [('Desktop', 'desktop'), ('Downloads', 'download'), ('Documents', 'document'),
           ('Pictures', 'image'), ('Music', 'music'), ('Videos', 'video')]
@@ -41,12 +42,37 @@ def entry(path):
             'symbol': 'folder' if folder else 'image' if p.suffix.lower() in ('.png','.jpg','.jpeg','.webp','.gif','.svg') else 'document'}
 
 
-def label_drives(entries, registry=None):
+def read_drive_names(path):
+    try:values=json.loads(path.read_text())
+    except (OSError,ValueError):return {}
+    return {key:value for key,value in values.items() if isinstance(value,str)} if isinstance(values,dict) else {}
+
+
+def save_drive_names(values,path):
+    path.parent.mkdir(parents=True,exist_ok=True)
+    with tempfile.NamedTemporaryFile(mode='w',dir=path.parent,delete=False) as stream:
+        json.dump(values,stream);temp=Path(stream.name)
+    try:temp.replace(path)
+    finally:temp.unlink(missing_ok=True)
+
+
+def rename_drive(path,name):
+    if not isinstance(name,str) or not name.strip() or len(name.strip())>64 or any(ord(c)<32 for c in name) or any(c in name for c in '/\\'):
+        raise ValueError('Enter a drive label of 1–64 characters without slashes or control characters.')
+    drive=next((item for item in listing('::computer')['entries'] if item['path']==path),None)
+    if not drive:raise ValueError('This drive is no longer mounted.')
+    with DRIVE_LOCK:
+        names=read_drive_names(DRIVE_NAMES);names[drive['driveId']]=name.strip()
+        save_drive_names(names,DRIVE_NAMES)
+
+
+def label_drives(entries, registry=None, names_path=None):
     """Windows-style aliases only; file operations still use the real paths."""
     registry = registry or DRIVE_LETTERS
     entries = sorted(entries, key=lambda item: (item['path'] != '/', item.get('removable', False),
                                                 item['name'].casefold(), item['path']))
     with DRIVE_LOCK:
+        names=read_drive_names(names_path or (registry.with_name('drive-names.json') if registry!=DRIVE_LETTERS else DRIVE_NAMES))
         try:
             saved = json.loads(registry.read_text())
         except (OSError, ValueError):
@@ -56,6 +82,7 @@ def label_drives(entries, registry=None):
             if isinstance(letter, str) and len(letter) == 1 and 'D' <= letter <= 'Z' and letter not in letters.values():
                 letters[ident] = letter
         for item in entries:
+            item['driveId']=item.get('driveId') or 'path:'+item['path']
             if item['path'] == '/':
                 item.update(name='Local Disk', driveLetter='C')
             else:
@@ -65,6 +92,8 @@ def label_drives(entries, registry=None):
                     if available:
                         letters[ident] = available
                 item['driveLetter'] = letters.get(ident, '')
+            item['label']=names.get(item['driveId'],item['name'])
+            item['name']=item['label']
             if item['driveLetter']:
                 item['name'] += ' ('+item['driveLetter']+':)'
         if letters != saved:
@@ -110,7 +139,9 @@ def listing(location, hidden=False):
             try:
                 usage = shutil.disk_usage(root)
                 item.update(total=usage.total, free=usage.free)
-            except OSError:
+                info=Gio.File.new_for_path(str(root)).query_filesystem_info('filesystem::type',None)
+                item['filesystem']=info.get_attribute_string('filesystem::type') or ''
+            except (OSError,GLib.Error):
                 pass
             item['symbol'] = 'drive'
             entries.append(item)

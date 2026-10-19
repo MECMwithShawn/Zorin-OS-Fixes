@@ -35,6 +35,10 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 | Multitasking | Snap Layouts/Assist, Task View, desktop create/rename/reorder/close, per-desktop backgrounds, saved app/layout recipes and Alt+Tab Snap Groups |
 | Terminal | Pinned PowerShell 7.6.7 and WezTerm, PowerShell/Bash profiles, Cascadia Mono, tabs and split panes |
 
+The installer replaces the pinned GNOME Files shortcut with File Explorer and makes it the default for local folders. Network and Trash views remain available through the native file manager.
+
+Drive menus include Rename, Copy as path and Properties with filesystem, capacity and free-space details. Drive Rename changes the label shown in Explorer; it does not relabel or remount the filesystem.
+
 Drive letters are Explorer display aliases; file operations retain the actual Linux mount paths. Zorin's system filesystem is C:, even when a separate Windows partition is mounted.
 
 The GTK/WebKit companion runs through XWayland for desktop-surface positioning. The per-user GNOME extension uses Mutter for both native Wayland and X11 application windows, including move/resize, activation, desktop membership and thumbnails. It does not use Shell unsafe-eval mode. Window captures stay in memory.
