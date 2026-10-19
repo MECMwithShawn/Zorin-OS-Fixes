@@ -15,6 +15,7 @@
 .z11-multitask flowboxchild { padding: 0; }
 .z11-multitask entry { background: #1c1c1c; color: #f3f3f3; border: 1px solid #5b5b5b; border-bottom: 2px solid #60cdff; border-radius: 6px; padding: 10px 12px; min-height: 20px; }
 .z11-multitask .z11-primary { background: #60cdff; color: #13212b; border-color: #60cdff; }
+.z11-multitask .z11-primary label { color: #13212b; }
 .z11-taskview { background: #202123; }
 .z11-taskview button.z11-desktop-card { padding: 5px; border: 2px solid #56585c; border-radius: 8px; background: #292b30; }
 .z11-taskview button.z11-desktop-card:hover, .z11-taskview button.z11-desktop-previewed { border-color: #bdc5ce; }
@@ -36,3 +37,5 @@
 .z11-switcher { background: #202123; }
 .z11-switcher button.z11-window-card { border: 2px solid #454545; padding: 11px; }
 .z11-switcher button.z11-window-card:focus, .z11-switcher button.z11-switch-selected { border-color: #60cdff; background: #34383c; outline: none; }
+
+.z11-saved-card { background: #303030; border: 1px solid #454545; border-radius: 9px; }

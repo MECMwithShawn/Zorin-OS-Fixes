@@ -40,10 +40,13 @@ class Multitasking:
         self.backgrounds=Backgrounds(self)
         from switcher import Switcher
         self.switcher=Switcher(self)
+        from saved_groups import SavedGroups
+        self.saved_groups=SavedGroups(self)
         self.css=Gtk.CssProvider();self.css.load_from_path(str(BASE/'multitasking.css'))
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(),self.css,650)
 
     def shutdown(self):
+        self.saved_groups.close()
         self.switcher.shutdown()
         self.snap_groups.close()
         self.backgrounds.close()
@@ -83,7 +86,8 @@ class Multitasking:
         def blur(*_):
             def finish():
                 view=getattr(self,'task_view',None)
-                held=view and view.alive() and view.hold_focus()
+                saved=getattr(self,'saved_view',None)
+                held=(view and view.alive() and view.hold_focus()) or (saved and saved.alive() and saved.hold_focus())
                 if generation==self.generation and self.window and not self.window.is_active() and not held:self.close(False)
                 return False
             GLib.timeout_add(200,finish)
@@ -274,6 +278,10 @@ class Multitasking:
                 GLib.timeout_add(250,begin)
         if not windows and not view:box.pack_start(label('No open windows on this desktop.','z11-muted'),False,False,0)
         return flow
+
+    def show_saved_groups(self):
+        from saved_groups_view import SavedGroupsView
+        self.saved_view=SavedGroupsView(self)
 
     def show_tasks(self):
         if self.window and self.window.get_title()=='Task view':self.close();return

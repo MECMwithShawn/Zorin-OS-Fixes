@@ -16,7 +16,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 
 ## P1 — Window management and Explorer
 - [ ] Expand maximize-hover Snap Layouts to compatible third-party windows; keep Win+Z fallback.
-- [ ] Investigate top-edge snap bar and persistent layout presets without breaking native tiling.
+- [x] Persist Snap Group app/layout recipes across restarts; on-demand relaunch, rename/remove and monitor scaling.
+- [ ] Investigate top-edge snap bar and custom free-form zones without breaking native tiling.
 - [x] Task View: workspace thumbnails plus create, rename and remove desktop actions. Verified 2026-10-18.
 - [x] Task View: reorder desktops and choose separate desktop wallpapers. Drag or Move left/right; local JPEG/PNG per desktop; shared Spotlight fallback. Verified 2026-10-18 on Xfwm and Compiz.
 - [x] Desktop switching: native Compiz slides, individual-picture crossfades, three speeds and reduced-motion controls. Standard Xfwm retains instant switching. Verified 2026-10-18.
@@ -38,6 +39,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Retain and validate existing 4K Spotlight/Bing rotation rather than duplicate it.
 
 ## Premium Visual Fidelity — rendering and polish
+- [x] Extend the dark palette to native GTK3 controls/dialogs; match Explorer dialog footers, active/inactive borders and all-edge/corner resizing in Explorer/Settings. Other toolkits still need app-specific work.
 - [ ] Detect native monitor resolution, refresh rate, DPI, GPU renderer and active scale without changing display modes automatically.
 - [ ] Verify native-resolution rendering at 1080p, 1440p and 4K, including 100%, 125%, 150% and 200% scaling where supported; document Xfce/X11 fractional-scaling limits.
 - [ ] Eliminate blurry text and bitmap upscaling in the companion; ensure appropriate WebKit device scale and consistent font hinting/antialiasing.

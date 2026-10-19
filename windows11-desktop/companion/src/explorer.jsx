@@ -1,5 +1,6 @@
 import React,{useState,useEffect,useRef} from 'react';
 import fluentPaths from './fluent-paths.js';
+import {WindowEdges} from './window-chrome.jsx';
 const send=(action,payload={})=>window.webkit.messageHandlers.desktop.postMessage(JSON.stringify({action,...payload}));
 export function Glyph({name,size=18}){
  if(fluentPaths[name])return <svg width={size} height={size} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">{fluentPaths[name].map((d,i)=><path key={i} d={d}/>)}</svg>;
@@ -45,6 +46,7 @@ export function Explorer({data,toast}){
  const parent=data.path.startsWith('::')?null:data.path.replace(/\/?[^/]+\/?$/,'')||'/';
  const crumbs=data.path.startsWith('::')?[{name:data.title,path:data.path}]:[{name:'This PC',path:'::computer'},...data.path.split('/').filter(Boolean).map((name,i,parts)=>({name,path:'/'+parts.slice(0,i+1).join('/')}))];
  return <main className={'explorer-shell'+(data.maximized?' maximized':'')+(data.focused===false?' inactive':'')} tabIndex={0} onClick={()=>setMenu(null)} onKeyDown={e=>{
+  if(dialog){if(e.key==='Escape'){e.preventDefault();setDialog(null);}return;}
   if(e.target.matches('input'))return;
   const ctrl=e.ctrlKey;let handled=true;
   if(ctrl&&e.key.toLowerCase()==='a')setSelected(entries.map(x=>x.path));
@@ -80,7 +82,8 @@ export function Explorer({data,toast}){
  {menu.kind==='view'&&<>{['details','icons'].map(v=><button key={v} onClick={()=>{setView(v);setMenu(null);}}>{view===v?'✓ ':''}{v==='details'?'Details':'Large icons'}</button>)}<button onClick={()=>{setHidden(!hidden);send('file-navigate',{path:data.path,hidden:!hidden});setMenu(null);}}>{hidden?'✓ ':''}Hidden items</button></>}
  {menu.kind==='more'&&<><button onClick={()=>{send('file-native');setMenu(null);}}>Open in Thunar</button><button onClick={()=>{setAddress(data.path.startsWith('::')?'':data.path);setMenu(null);}}>Edit folder address</button></>}
  </div>}
- {dialog&&<div className="file-modal"><form onSubmit={e=>{e.preventDefault();if(dialog==='properties'){setDialog(null);return;}send('file-'+dialog,{name:value,path:selected[0]});setDialog(null);}}><h2>{dialog==='new-folder'?'New folder':dialog==='rename'?'Rename':'Properties'}</h2>{dialog==='properties'?<div className="properties">{chosen.map(item=><div key={item.path}><strong>{item.name}</strong><p>{item.path}</p><p>{item.type}{!item.folder?' · '+human(item.size):''}</p><p>Modified {item.date}</p></div>)}</div>:<input aria-label="Name" autoFocus value={value} onChange={e=>setValue(e.target.value)} onFocus={e=>e.target.select()}/>}<div className="dialog-buttons"><button type="button" onClick={()=>setDialog(null)}>Cancel</button><button className="primary" type="submit">{dialog==='properties'?'OK':'Save'}</button></div></form></div>}
+ {dialog&&<div className="file-modal"><form role="dialog" aria-modal="true" aria-label={dialog==='properties'?'Properties':dialog==='rename'?'Rename':'New folder'} onSubmit={e=>{e.preventDefault();if(dialog==='properties'){setDialog(null);return;}send('file-'+dialog,{name:value,path:selected[0]});setDialog(null);}}><h2>{dialog==='new-folder'?'New folder':dialog==='rename'?'Rename':'Properties'}</h2>{dialog==='properties'?<div className="properties">{chosen.map(item=><div key={item.path}><strong>{item.name}</strong><p>{item.path}</p><p>{item.type}{!item.folder?' · '+human(item.size):''}</p><p>Modified {item.date}</p></div>)}</div>:<input aria-label="Name" autoFocus value={value} onChange={e=>setValue(e.target.value)} onFocus={e=>e.target.select()}/>}<div className="dialog-buttons"><button type="button" onClick={()=>setDialog(null)}>Cancel</button><button className="primary" type="submit">{dialog==='properties'?'OK':'Save'}</button></div></form></div>}
+ {!data.maximized&&<WindowEdges/>}
  {toast&&<div className="file-toast" role="alert">{toast}</div>}
  </main>;
 }

@@ -1,0 +1,25 @@
+/* Native X11 resize requests keep Snap Layouts and app minimum sizes working. */
+.window-edges{position:absolute;inset:0;pointer-events:none;z-index:25}
+.window-edge{position:absolute;pointer-events:auto}
+.window-edge.north,.window-edge.south{left:10px;right:10px;height:4px;cursor:ns-resize}
+.window-edge.north{top:0}.window-edge.south{bottom:0}
+.window-edge.west,.window-edge.east{top:10px;bottom:10px;width:4px;cursor:ew-resize}
+.window-edge.west{left:0}.window-edge.east{right:0}
+.window-edge.north-west,.window-edge.north-east,.window-edge.south-west,.window-edge.south-east{width:10px;height:10px}
+.window-edge.north-west{top:0;left:0;cursor:nwse-resize}.window-edge.north-east{top:0;right:0;cursor:nesw-resize}
+.window-edge.south-west{bottom:0;left:0;cursor:nesw-resize}.window-edge.south-east{bottom:0;right:0;cursor:nwse-resize}
+/* Shared dark surfaces, quiet borders, and native-sized caption targets. */
+.explorer-shell,.settings-shell{border-color:#525252}
+.explorer-shell.inactive,.settings-shell.inactive{border-color:#353535}
+.explorer-shell.inactive .explorer-title,.settings-shell.inactive .settings-titlebar{color:#a1a1a1}
+.explorer-title{background:linear-gradient(115deg,#25272b,#202020 65%)}
+.settings-titlebar{background:linear-gradient(115deg,#23252a,#202020 65%)}
+.file-modal form{padding:0;overflow:hidden;background:#2b2b2b;border-color:#4b4b4b;box-shadow:0 16px 48px #0007}
+.file-modal h2{font-size:20px;font-weight:600;margin:0;padding:24px 24px 18px}
+.file-modal form>input{width:calc(100% - 48px);margin:0 24px 24px;min-height:34px;border-bottom-color:#9a9a9a}
+.file-modal form>input:focus{border-bottom:2px solid #60cdff}
+.file-modal .properties{padding:0 24px 12px;font-size:13px;line-height:1.5}
+.file-modal .dialog-buttons{margin:0;padding:20px 24px;background:#202020;border-top:1px solid #ffffff0b;display:flex;gap:8px}
+.file-modal .dialog-buttons button{flex:1;min-height:32px}
+.file-modal .dialog-buttons .primary:hover{background:#76d5ff}
+@media(prefers-reduced-motion:reduce){.window-controls button{transition:none}}

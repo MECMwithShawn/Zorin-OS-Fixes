@@ -348,6 +348,8 @@ class Hub(Gtk.Application):
             self.multitasking.switcher.show('--switch-previous' in args)
         elif '--snap-layouts' in args:
             self.multitasking.show_snap()
+        elif '--saved-groups' in args:
+            self.multitasking.show_saved_groups()
         elif '--task-view' in args:
             self.multitasking.show_tasks()
         elif '--desktop' in args:
@@ -681,6 +683,15 @@ class Hub(Gtk.Application):
             self.multitasking.caption_hover(surface,bool(message.get('enter')))
         elif action=='snap-layouts' and surface.mode in ('explorer','settings'):
             self.multitasking.show_snap(surface.get_window().get_xid())
+        elif action=='window-resize' and surface.mode in ('explorer','settings'):
+            edges={name.lower().replace('_','-'):getattr(Gdk.WindowEdge,name) for name in
+                   ('NORTH','SOUTH','EAST','WEST','NORTH_WEST','NORTH_EAST','SOUTH_WEST','SOUTH_EAST')}
+            edge=edges.get(message.get('edge'))
+            if edge is None:raise ValueError('Unknown window edge.')
+            if not surface.is_maximized():
+                pointer=Gdk.Display.get_default().get_default_seat().get_pointer()
+                _,x,y=pointer.get_position()
+                surface.begin_resize_drag(edge,1,x,y,Gdk.CURRENT_TIME)
         elif action=='task-view':
             self.multitasking.show_tasks()
         elif action.startswith('settings-') and surface.mode=='settings':

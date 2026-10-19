@@ -1,5 +1,6 @@
 """Reversible Windows-style captions for GTK apps and native window frames."""
 import re
+from pathlib import Path
 
 THEME = 'Zorin11-Dark'
 
@@ -20,8 +21,11 @@ def apply(home, source, setting, file):
 def css(content, source):
     content = re.sub(r'/\* BEGIN Windows 11 captions \*/.*?/\* END Windows 11 captions \*/\n?', '', content, flags=re.S)
     controls = source/'window-theme/controls'
+    # Upgrade builds CSS before copying the new runtime to its destination.
+    native = Path(__file__).with_name('native-controls.css').read_text()
     return content.rstrip()+f'''
 /* BEGIN Windows 11 captions */
+{native}
 window.background {{ background-color: #202020; color: #f3f3f3; }}
 headerbar.titlebar {{ min-height: 32px; padding: 0 0 0 12px; background: #202020; color: #f5f5f5; border: 0; box-shadow: inset 0 -1px #ffffff08; }}
 headerbar.titlebar:backdrop {{ background: #202020; color: #999999; }}
@@ -42,7 +46,8 @@ headerbar.titlebar button.titlebutton.close image {{ -gtk-icon-source: url('{con
 headerbar.titlebar separator.titlebutton {{ min-width: 0; margin: 0; opacity: 0; }}
 window.background.csd headerbar.titlebar {{ border-top-left-radius: 8px; border-top-right-radius: 8px; }}
 window.background.csd.maximized headerbar.titlebar, window.background.csd.tiled headerbar.titlebar {{ border-radius: 0; }}
-window.csd decoration {{ border-radius: 8px; box-shadow: 0 8px 28px 4px rgba(0,0,0,0.30), 0 0 0 1px rgba(255,255,255,0.16); }}
-window.csd.maximized decoration, window.csd.tiled decoration {{ border-radius: 0; }}
+.background.csd decoration {{ border: 1px solid #454545; background-color: transparent; border-radius: 8px; box-shadow: 0 8px 28px 4px rgba(0,0,0,0.30), 0 0 0 1px rgba(255,255,255,0.16); }}
+.background.solid-csd decoration {{ border: 1px solid #454545; background-color: #202020; border-radius: 0; box-shadow: none; margin: 0; padding: 0; }}
+.background.maximized decoration, .background.tiled decoration {{ border-radius: 0; }}
 /* END Windows 11 captions */
 '''

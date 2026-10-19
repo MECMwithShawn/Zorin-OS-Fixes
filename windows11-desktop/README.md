@@ -16,7 +16,7 @@ python3 setup.py install
 
 The dependency command requests sudo for Ubuntu packages, including the taskbar extension's build tools. Desktop customization, PowerShell, WezTerm, and fonts install into your account. A prebuilt React frontend is included; Node is not needed for installation. Downloads are pinned in `dependencies.json`; PowerShell, WezTerm, Cascadia, and the PowerShell icon are checked against recorded SHA-256 hashes. The icon theme uses a pinned Git revision; the native taskbar source has a pinned commit and SHA-256 in `companion/taskbar_build.py`. Allow roughly 1–2 GB for downloads, build dependencies and extracted tools.
 
-Run `python3 setup.py install` again after pulling updates. It retains the original recovery record and your saved Start pins/groups while reapplying the managed appearance. `--skip-terminal` skips tool downloads; already installed local PowerShell/WezTerm are still integrated.
+Run `python3 setup.py install` again after pulling updates. It retains the original recovery record and your saved Start pins/groups and Snap Group recipes while reapplying the managed appearance. `--skip-terminal` skips tool downloads; already installed local PowerShell/WezTerm are still integrated.
 
 ## Included
 
@@ -25,8 +25,8 @@ Run `python3 setup.py install` again after pulling updates. It retains the origi
 | Desktop | Dark Zorin theme, 48 px bottom taskbar, centered Start/app area, Windows-style spacing and controls |
 | Taskbar state | 32 px icons; gray markers for running apps; blue underline and a subtle background for the focused app; Task View button |
 | Snap layouts | Win+Z, six layouts, target outlines, minimum-size checks, Snap Assist, restore size, and adjustable ultrawide Focus columns |
-| Task View | Win+Tab, desktop previews, create/rename/reorder/close, individual wallpapers, drag windows between desktops, search across desktops, and session Snap Groups |
-| Window captions | Original flat dark Xfwm/Compiz frames, thin borders, 46 px caption controls, red Close hover, and matching GTK3 title buttons |
+| Task View | Win+Tab, desktop previews, create/rename/reorder/close, individual wallpapers, drag windows between desktops, search across desktops, Snap Groups, and saved app/layout recipes |
+| App windows | Dark Xfwm/Compiz frames, thin active/inactive borders, 46 px caption controls, red Close hover, shared dark GTK3 controls/dialogs, and edge/corner resizing in Explorer and Settings |
 | Start | Pinned apps, drag ordering, search, All apps, categories, recent launches, power/session actions |
 | File Explorer / This PC | Tabs, sidebar, address navigation, details view, mounted drives and capacity bars, create/rename/copy/cut/paste/trash |
 | Desktop Groups | Movable, resizable shortcut groups and live folder portals; original files stay in place |
@@ -122,7 +122,7 @@ Choose **Choose background…** from that desktop menu to select a JPEG/PNG pict
 
 The window area normally shows the desktop being previewed. Type in Search to find titles/app names across all desktops; Enter activates the first match on its desktop, and Down moves focus into the cards. Window previews are snapshots of composited app contents, captured while Task View is open. Up to 36 previews are retained in memory; none are written to disk. Hidden/minimized windows use their last available preview or app icon. Desktop thumbnails combine each desktop's wallpaper with window positions and those previews.
 
-Completed Snap Assist arrangements appear as **Snap groups** in Task View, Alt+Tab and the taskbar previews of every member app, so their windows can be brought back together. Groups and restore positions last for the current companion process and are not saved across login/restart. Snap Assist now suggests windows on the current desktop only.
+Completed Snap Assist arrangements appear as **Snap groups** in Task View, Alt+Tab and the taskbar previews of every member app, so their windows can be brought back together. Recognized apps also save a portable recipe automatically; use **Task View → Saved groups** to reopen it after login/restart. Snap Assist now suggests windows on the current desktop only.
 
 Desktop management uses native Xfwm workspaces, or horizontal viewports when the optional Compiz effects profile is active. No window-manager restart is needed. Existing two-dimensional Compiz layouts can be browsed and switched, but creation/removal/reordering requires a single row. Up to 32 desktops are supported. Desktops span the connected monitors.
 
@@ -142,9 +142,21 @@ Previews keep updating while the pointer is over the icon or panel, including fo
 
 Create an arrangement with **Win+Z → choose a layout → choose the other windows in Snap Assist**. Hover over any member app on the taskbar, then click the **Snap group** card to restore the whole layout. Its miniature layout contains live previews of the member windows. Minimized members return to their saved positions, and the app whose taskbar icon you used receives focus. Individual window cards and Close buttons remain separate.
 
-Groups contain currently open windows and last only for this companion session. Closing a member updates the card; fewer than two members removes it. Re-snapping a member replaces its previous group. Multiple disjoint groups can appear under the same app. A group on another desktop returns to that desktop; windows moved apart onto different desktops are not gathered automatically. No applications are reopened after closure or logout.
+Groups contain currently open windows and last only for this companion session. Closing a member updates the card; fewer than two members removes it. Re-snapping a member replaces its previous group. Multiple disjoint groups can appear under the same app. A group on another desktop returns to that desktop; windows moved apart onto different desktops are not gathered automatically. Saved recipes remain available after closure or logout; reopening is an explicit action in **Saved groups**.
 
 The setup builds a pinned, locally patched Docklike plugin once in your user cache. `install-system-deps.sh` includes its build dependencies. The library, descriptor and styling install per user, retain your Docklike pins and indicators, and participate in the existing restore mechanism. The distribution's plugin remains installed. See [native preview implementation and license](companion/taskbar/README.md).
+
+### Saved groups across restarts
+
+Complete a **Win+Z → Snap Assist** arrangement. When each window matches an installed application, its app IDs and layout are saved automatically. Open **Win+Tab → Saved groups** to rename, remove, or **Reopen group**. Unrecognized or ambiguous apps have a **Choose apps and save…** action while the live group exists. Re-snapping members updates their linked recipe; closing apps removes live cards but keeps the saved recipe.
+
+Reopening reuses matching windows on the saved desktop, launches missing apps through their installed desktop entries, and restores their positions together. The original desktop is selected by its stable identity; if it no longer exists, the current desktop is used. Layout proportions scale to the current monitor's usable area. Restored groups appear in Task View, Alt+Tab and taskbar hover previews with fresh live identities. App minimum sizes and window-manager constraints still apply.
+
+A recipe saves app identities and geometry, **not documents, browser profiles/tabs, terminal commands or unsaved content**. App contents depend on that app's session-restore feature. With several matching windows, the most recently used ones on the target desktop are selected. A matching app on another desktop prompts you to move the intended window yourself. Apps that permit only one window may need additional windows opened manually. Missing apps are reported before anything launches; startup/matching has a 30-second timeout. Cancel stops restoration and leaves already opened apps available.
+
+Recipes live in `~/.config/zorin11-hub/snap-groups.json`, with private file permissions and atomic writes. At most 40 recipes are retained; remove an old recipe when full. They survive upgrades and desktop-style rollback. Nothing is automatically launched on login. Single-display layouts are supported; a layout spanning monitors must first be arranged on one display.
+
+**On another laptop:** install this repository's setup, install the same applications, and either create fresh groups there or copy your own `snap-groups.json` into the same config folder while the companion is stopped. Back up an existing destination file before replacing it, then restart the companion. This is an optional transfer of personal recipes; they are never added to Git. A desktop identity absent on the laptop falls back to its current desktop.
 
 ### Alt+Tab with Snap Groups
 
@@ -154,7 +166,7 @@ Following the [Windows Snap Groups interaction](https://support.microsoft.com/en
 
 Previews update only while the switcher is open. They use a bounded capture helper and the existing in-memory cache; minimized/unavailable clients use cached previews or app icons. The switcher uses Xfce application shortcuts and briefly grabs the keyboard while visible. It installs no idle key listener. A conflicting grab dismisses the chooser after a short timeout; closing/shutting down releases its grab and timers. Compiz's **Ctrl+Alt+Tab** native all-window switcher remains available. Wobble and edge/Win+arrow snapping are retained. The installer records the prior Alt+Tab shortcuts for compare-safe restoration.
 
-Remaining differences: third-party custom maximize buttons use Win+Z. Groups come from companion Snap Assist, remain session-only, and arbitrary manual tiling is not automatically grouped. Some applications impose size increments, minimum sizes or edge constraints that can adjust the requested snap rectangle.
+Remaining differences: third-party custom maximize buttons use Win+Z. Live group cards come from companion Snap Assist or a restored recipe; arbitrary manual tiling is not automatically grouped. Some applications impose size increments, minimum sizes or edge constraints that can adjust the requested snap rectangle.
 
 ## Settings and Windows Spotlight
 
@@ -184,11 +196,12 @@ The installer saves the original file contents and typed Xfconf/GSettings values
 
 ## Files and limits
 
-Caption changes appear immediately for native window frames. Reopen an existing GTK3 application if it has cached the previous styling. Applications that draw their own controls, including GTK4/libadwaita and some cross-platform apps, may retain their own title bars. Compiz theme updates refresh the decorator without replacing the window manager or changing the saved wobble preference.
+Caption changes appear immediately for native window frames. Reopen an existing GTK3 application if it has cached the previous styling. GTK3 app controls, toolbars, lists, entries, tabs and dialogs share the dark palette. Explorer and Settings also resize from all four edges and corners and use matching active/inactive borders; Explorer dialogs use a separate action footer. Restart an app if it has cached GTK styling. Applications that draw their own controls, including GTK4/libadwaita, Qt and Electron apps, may retain their own interfaces; no third-party app binaries are patched. Compiz theme updates refresh the decorator without replacing the window manager or changing the saved wobble preference.
 
 - Application: `~/.local/share/zorin11-hub/`
 - Pins/groups: `~/.config/zorin11-hub/layout.json`
 - Desktop names, order and stable identities: `~/.config/zorin11-hub/multitasking.json`
+- Saved app/layout recipes: `~/.config/zorin11-hub/snap-groups.json`
 - Desktop motion preferences: `~/.config/zorin11-hub/desktop-motion.json`
 - Background state/history: `~/.config/zorin11-hub/wallpapers.json` and `wallpapers/`
 - Runtime log: `~/.config/zorin11-hub/desktop.log`
@@ -207,7 +220,7 @@ The companion uses Python/GTK3/WebKit2GTK 4.1 and a local React interface. All U
 ```bash
 python3 -m unittest discover -s tests -v
 cd companion
-python3 -m unittest -v test_model.py test_explorer.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py
+python3 -m unittest -v test_model.py test_explorer.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py
 # For frontend changes, use the committed pnpm lockfile:
 corepack pnpm install --frozen-lockfile
 node build.mjs
@@ -215,7 +228,7 @@ node build.mjs
 
 Live tests require an X11 session and briefly open disposable windows. `test_live.py` uses a separate application ID and temporary files. `test_native.py` should be run with a temporary `ZORIN11_CONFIG_DIR`. `test_flyouts_live.py` uses Xephyr and a private D-Bus session, config and cache to verify notification ingestion/read/delete without modifying the live user history. Browser UI tests additionally need Playwright and a Chromium executable; see their environment variables.
 
-Run `test_multitasking_live.py`, `test_desktops_live.py`, `test_desktop_personalization_live.py` and `test_desktop_motion_live.py` **sequentially** with Python. Each starts private Xephyr/D-Bus sessions for Xfwm and Compiz. The personalization test checks real Xfdesktop pixels, desktop dragging, keyboard menus, the picture picker, Spotlight coexistence and restart persistence using disposable windows and local image fixtures. The motion test samples intermediate app positions and background colors, rapid reversals, reduced motion and transition cleanup. Never run these nested-display tests at the same time as live-session keyboard/pointer automation.
+Run `test_saved_groups_live.py`, `test_switcher_live.py`, `test_multitasking_live.py`, `test_desktops_live.py`, `test_desktop_personalization_live.py` and `test_desktop_motion_live.py` **sequentially** with Python. Each starts private Xephyr/D-Bus sessions for Xfwm and Compiz. The saved-group test restarts the controller, closes/relaunches disposable application processes, checks same-app windows and scaled geometry, and covers missing apps/cancellation. The personalization test checks real Xfdesktop pixels, desktop dragging, keyboard menus, the picture picker, Spotlight coexistence and restart persistence using disposable windows and local image fixtures. The motion test samples intermediate app positions and background colors, rapid reversals, reduced motion and transition cleanup. Never run these nested-display tests at the same time as live-session keyboard/pointer automation.
 
 Original artwork/code and the Fluent icon license are included with their notices. Windows reference exports, SSH credentials, account photos, screenshots of personal applications, and machine recovery manifests must never be committed.
 

@@ -62,6 +62,7 @@ class TaskView:
         header=Gtk.Box(spacing=16)
         header.pack_start(label('Task view','z11-heading'),False,False,0)
         self.subtitle=label('','z11-muted');header.pack_start(self.subtitle,True,True,0)
+        header.pack_end(button('Saved groups',lambda:self.m.show_saved_groups()),False,False,0)
         header.pack_end(button('Close',lambda:self.m.close()),False,False,0)
         header.pack_end(label('Win + Tab','z11-muted'),False,False,0);self.box.pack_start(header,False,False,0)
         self.search=Gtk.SearchEntry();self.search.set_placeholder_text('Search windows across your desktops')

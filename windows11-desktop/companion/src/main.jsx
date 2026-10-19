@@ -5,6 +5,7 @@ import {Explorer} from './explorer.jsx';
 import './explorer.css';
 import {Settings} from './settings.jsx';
 import {QuickSettings,NotificationCenter} from './flyouts.jsx';
+import './window-chrome.css';
 
 window.desktopErrors = [];
 window.addEventListener('error', e => window.desktopErrors.push(e.message));

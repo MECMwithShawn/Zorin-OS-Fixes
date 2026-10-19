@@ -1,6 +1,6 @@
 # Windows 11 → Zorin Lite GUI coverage
 
-Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11, preserving Linux behavior. This inventory records delivered capabilities and remaining differences; it is not a claim that the desktop is indistinguishable from Windows. Current implementation: 2026-10-18.
+Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11, preserving Linux behavior. This inventory records delivered capabilities and remaining differences; it is not a claim that the desktop is indistinguishable from Windows. Current implementation: 2026-10-19.
 
 | Area | Delivered | Remaining differences / next work |
 |---|---|---|
@@ -8,8 +8,8 @@ Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11,
 | 2. Taskbar | Centered Start/app area, 32 px icons, distinct active/running/closed states through Docklike, live grouped hover thumbnails with close buttons, bounded overflow and minimized/icon fallbacks, live Snap Group cards with whole-layout restoration; Task View button, search, tray overflow, compact Fluent network/audio, clock/date, laptop battery retained | Desktop peek, badges/progress and per-monitor taskbars need further work |
 | 3. Start | Anchored rounded panel, pinned grid/reordering, All apps/categories, search, recent launches, account and power actions | Recommended documents, app folders, expanded jump lists |
 | 4. Search | Local application search, category navigation, Settings search | Unified file/settings search, previews and full keyboard navigation parity |
-| 5. Window frames | Dark Xfwm/Compiz frames, thin borders, large caption targets, red Close hover, companion captions | Third-party custom title bars and corner/shadow parity vary |
-| 6. Snap Layouts | Win+Z six-layout picker, Explorer/Settings maximize hover, target outline, minimum-size checks, Snap Assist, session Snap Groups in Task View, taskbar previews and Alt+Tab with combined MRU, live mosaics and release-to-select, restore size, adjustable Focus columns; existing edge/arrow snapping retained | Third-party maximize-hover integration, drag-to-top snap bar, persistent/custom free-form zones |
+| 5. Window frames | Dark Xfwm/Compiz frames, thin borders, large caption targets, red Close hover, companion captions and edge/corner resizing | Third-party custom title bars and corner/shadow parity vary |
+| 6. Snap Layouts | Win+Z six-layout picker, Explorer/Settings maximize hover, target outline, minimum-size checks, Snap Assist, live Snap Groups in Task View, taskbar previews and Alt+Tab; persistent app/layout recipes with on-demand relaunch, rename/remove and screen scaling with combined MRU, live mosaics and release-to-select, restore size, adjustable Focus columns; existing edge/arrow snapping retained | Third-party maximize-hover integration, drag-to-top snap bar, custom free-form zones, document/browser-session restoration |
 | 7. File Explorer | This PC drive capacity, personal Windows drive/folder icons, tabs, breadcrumbs/address, sidebar, views, details pane, common file operations | Content preview pane, richer context menus, network/Trash handled by native tools |
 | 8. Settings | Windows-style Home/sidebar/cards/search and 12 categories; working controls and real system information | Advanced pages still open Linux tools; individual pages can be progressively integrated |
 | 9. Quick Settings | Wi-Fi/Bluetooth toggles and management, volume/mute, output selection with active-stream routing, DND, keyboard accessibility, six editable tiles, hardware backlight and battery readout | Battery-saver/airplane-mode controls, richer connected-device UI, external-monitor DDC/CI brightness; laptop hardware validation |
@@ -17,8 +17,8 @@ Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11,
 | 11. Visual design | Dark rounded companion surfaces, accent colors, shadows, captured-background blur for Start/Quick Settings | Uniform Mica/Acrylic across native applications and light-mode counterpart |
 | 12. Typography | Segoe UI from personal export, Selawik fallback, tuned companion sizes/spacing, Cascadia terminal | Variable-font coverage and typography consistency in third-party apps |
 | 13. Icons | Community Win11 base, Fluent toolbar/tray icons, optional personal Windows system assets at six sizes | Third-party app/tray icon consistency; additional Fluent category artwork |
-| 14. Controls | Companion buttons, switches, sliders, selects, progress and focus states | Native GTK/Qt controls retain toolkit differences |
-| 15. Dialogs | Functional file-operation dialogs and native file/authentication dialogs | Windows-style common-dialog layouts, copy/conflict progress experience |
+| 14. Controls | Companion controls plus shared dark GTK3 buttons, entries, toolbars, views, tabs, switches and focus states | GTK4/libadwaita, Qt and custom app controls retain toolkit differences |
+| 15. Dialogs | Explorer dialogs with dark action footers and keyboard dismissal; GTK3 dialog palette; native file/authentication dialogs | Windows-style common-dialog layouts, copy/conflict progress experience |
 | 16. Lock screen | Spotlight/background shared through Xfce Screensaver; lock preferences accessible | Windows clock/login/avatar layout and transitions; LightDM login screen unchanged |
 | 17. Power menu | Existing lock/session/power actions through supported Linux tools | Windows-style confirmation screens; hibernate remains hardware/system dependent |
 | 18. Animations | Hover transitions, optional Compiz wobble with recovery preview; native desktop slides, wallpaper crossfades, three speeds, motion-off controls and monitor-aware pacing | Exact Windows easing/background motion; opening/minimizing/snapping/notification parity; Xfwm uses instant workspace switching |

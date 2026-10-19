@@ -1,8 +1,8 @@
-"""Session-only Snap Groups and the typed bridge used by native taskbar previews.
+"""Live Snap Groups and the typed bridge used by native taskbar previews.
 
 Only known group tokens can be activated over D-Bus. The preferred focus XID
 must be a member; the panel cannot supply membership or placement rectangles.
-Groups are never persisted or resurrected after their clients have closed.
+Live XIDs are never persisted. Separate saved recipes reopen installed apps.
 """
 import uuid
 from gi.repository import Gio, GLib, Gdk
@@ -65,7 +65,9 @@ class SnapGroups:
         groups=[g for g in self.m.groups if not ids.intersection(x for x,_ in g)]
         if len(groups)!=len(self.m.groups):self.m.groups=groups;self.changed()
 
-    def remember(self,placements):
+    def remember(self,placements,persist=True):
+        ids={x for x,_ in placements}
+        saved_id=next((getattr(g,"saved_id",None) for g in self.m.groups if ids.intersection(x for x,_ in g)),None)
         if self.watch.process.poll() is not None:
             from window_watch import WindowWatch
             self.watch.close();self.watch=WindowWatch(self.prune,self.watch_failed)
@@ -75,7 +77,9 @@ class SnapGroups:
         group=Group([(x,r) for x,r in placements if x in live])
         if len(group)<2:return
         self.m.groups.insert(0,group);self.m.groups=self.m.groups[:8];self.changed()
-        if any(g is group for g in self.m.groups):self.m.switcher.group_activated(group.token,restoring=False)
+        if any(g is group for g in self.m.groups):
+            self.m.switcher.group_activated(group.token,restoring=False)
+            if persist:self.m.saved_groups.automatic(group,saved_id)
 
     def desktop(self,group):
         desktops=set()
