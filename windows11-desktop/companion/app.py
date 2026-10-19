@@ -147,7 +147,7 @@ class Surface(Gtk.ApplicationWindow):
             elif self.mode == 'notifications':
                 data = dict(self.hub.notification_data,mode='notifications',busy=self.hub.notification_busy)
             elif self.mode == 'explorer':
-                data = dict(self.file_state or {'path':self.location,'title':'Home','entries':[], 'places':explorer.place_paths()}, mode='explorer')
+                data = dict(self.file_state or {'path':self.location,'title':'Home','entries':[], 'places':explorer.place_paths(), 'clouds':explorer.cloud_places()}, mode='explorer')
                 data.update(maximized=self.maximized,focused=self.is_active())
             elif self.mode == 'settings':
                 data = dict(self.hub.settings_data,mode='settings',maximized=self.maximized,

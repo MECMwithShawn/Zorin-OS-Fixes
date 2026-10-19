@@ -27,6 +27,53 @@ def place_paths():
             for (name, symbol), kind in zip(PLACES, values)]
 
 
+ONEDRIVE_BUS = ('io.github.mecmwithshawn.AxentraOneDrive', '/io/github/mecmwithshawn/AxentraOneDrive',
+                'io.github.mecmwithshawn.AxentraOneDrive1')
+CLOUD_CACHE = {'at': -60.0, 'value': []}
+
+
+def _onedrive_folder():
+    """Axentra OneDrive's folder, from its settings; None when it isn't set up."""
+    config = Path(os.environ.get('XDG_CONFIG_HOME', str(HOME/'.config')))/'axentra/onedrive/config.toml'
+    try:
+        text = config.read_text()
+    except OSError:
+        return None
+    folder = '~/OneDrive'
+    for line in text.splitlines():
+        key, _, value = line.partition('=')
+        if key.strip() == 'mount_point':
+            folder = value.strip().strip('"')
+    return Path(os.path.expanduser(folder))
+
+
+def _onedrive_name():
+    """'OneDrive - Personal' or 'OneDrive - Work or school', as Windows labels it."""
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        reply = bus.call_sync(*ONEDRIVE_BUS, 'Account', None, GLib.VariantType('(s)'),
+                              Gio.DBusCallFlags.NO_AUTO_START, 300, None)
+        account = json.loads(reply.unpack()[0])
+    except (GLib.Error, ValueError):
+        return 'OneDrive'
+    if not account.get('signed_in'):
+        return 'OneDrive'
+    return 'OneDrive - Work or school' if account.get('drive_type') == 'business' else 'OneDrive - Personal'
+
+
+def cloud_places():
+    """Cloud folders shown under Home in the navigation pane, like Windows' OneDrive entry."""
+    now = GLib.get_monotonic_time() / 1e6
+    if now - CLOUD_CACHE['at'] < 30:
+        return CLOUD_CACHE['value']
+    folder = _onedrive_folder()
+    value = []
+    if folder and folder.is_dir():
+        value = [dict(name=_onedrive_name(), path=str(folder), icon='axentra-onedrive')]
+    CLOUD_CACHE.update(at=now, value=value)
+    return value
+
+
 def entry(path):
     p = Path(path)
     folder = p.is_dir()
@@ -110,8 +157,10 @@ def label_drives(entries, registry=None, names_path=None):
 
 def listing(location, hidden=False):
     places = place_paths()
+    clouds = cloud_places()
     if location == '::home':
-        return {'path': location, 'title': 'Home', 'entries': [entry(p['path']) for p in places if Path(p['path']).exists()], 'places': places}
+        return {'path': location, 'title': 'Home', 'entries': [entry(p['path']) for p in places if Path(p['path']).exists()],
+                'places': places, 'clouds': clouds}
     if location == '::computer':
         roots = [Path('/')]
         mounts={}
@@ -119,6 +168,9 @@ def listing(location, hidden=False):
             roots.append(HOME)
         for mount in Gio.VolumeMonitor.get().get_mounts():
             p = mount.get_root().get_path()
+            # Cloud folders have their own entry in the navigation pane, not a drive here.
+            if p and any(Path(p) == Path(c['path']) for c in clouds):
+                continue
             if p and Path(p) not in roots:
                 roots.append(Path(p))
                 mounts[Path(p)]=mount
@@ -145,15 +197,18 @@ def listing(location, hidden=False):
                 pass
             item['symbol'] = 'drive'
             entries.append(item)
-        return {'path': location, 'title': 'This PC', 'entries': label_drives(entries), 'places': places}
+        return {'path': location, 'title': 'This PC', 'entries': label_drives(entries), 'places': places, 'clouds': clouds}
     folder = Path(location).expanduser().absolute()
     if not folder.is_dir():
         raise ValueError('This folder is unavailable.')
     # Listing is executed on a worker. No UI-thread filesystem traversal.
     with os.scandir(folder) as iterator:
         entries = [entry(item.path) for item in iterator if hidden or not item.name.startswith('.')]
-    return {'path': str(folder), 'title': 'Home folder' if folder==HOME else folder.name or 'Local Disk (C:)',
-            'entries': sorted(entries, key=lambda e: (not e['folder'], e['name'].casefold())), 'places': places}
+    cloud = next((c for c in clouds if Path(c['path']) == folder), None)
+    title = cloud['name'] if cloud else 'Home folder' if folder==HOME else folder.name or 'Local Disk (C:)'
+    return {'path': str(folder), 'title': title,
+            'entries': sorted(entries, key=lambda e: (not e['folder'], e['name'].casefold())), 'places': places,
+            'clouds': clouds}
 
 
 def child_path(parent, name):
