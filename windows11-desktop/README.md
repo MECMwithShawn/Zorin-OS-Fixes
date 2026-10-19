@@ -24,7 +24,7 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 
 | Component | Integration |
 |---|---|
-| Taskbar | Dark blue appearance, Win11 icons, 48 px bottom taskbar, centered Start/Search/Task View/app area, native running-app indicators and previews |
+| Taskbar | Dark blue appearance, Win11 icons, 48 px bottom taskbar, centered Start/Search/Task View/app area, native running-app indicators/previews and notification badges, app-reported progress bars, narrow Show desktop/hover-peek strip |
 | Start | Opens on the primary monitor; shared Windows-style pinned apps, ordering, search, All apps, categories, recent documents/apps, desktop-entry actions, local folders and session actions |
 | Explorer / This PC | Tabs, sidebar, system drive first as Local Disk (C:), persistent display letters for other mounted drives, capacity, details view, create/rename/copy/cut/paste/trash; advanced locations open the system file manager |
 | Settings | Windows-style categories with actual device information and GNOME settings controls; advanced pages open the native tools |
@@ -37,6 +37,10 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 | Terminal | Pinned PowerShell 7.6.7 and WezTerm, PowerShell/Bash profiles, Cascadia Mono, tabs and split panes |
 
 The installer replaces the pinned GNOME Files shortcut with File Explorer and makes it the default for local folders. Network and Trash views remain available through the native file manager.
+
+The narrow strip at the far right of the GNOME taskbar shows the desktop when clicked; click again to restore the windows. Hover to peek temporarily. Notification badges use Zorin's native app notification state. Compatible apps can report progress through `com.canonical.Unity.LauncherEntry`; a blue progress bar then appears on their taskbar icon. Apps that do not report progress have no bar. Bars disappear when the app hides them or its reporting connection closes. The badge switch remains in Taskbar preferences. To hide progress bars, run `gsettings set org.gnome.shell.extensions.zorin-taskbar progress-show-bar false` (use `true` to restore them).
+
+After upgrading GNOME extension code, **sign out and back in when convenient** to load the progress integration. The installer does not restart your session. The desktop-strip setting applies immediately; the new code can be tested separately with the isolated native test below.
 
 Open **Quick Settings** with **Win+A**. Battery saver uses the installed power-profile service and restores the previous mode when switched off; **Settings → System → Power & battery** also lets you choose an available power mode. Airplane mode controls wireless radios through GNOME; a physical radio switch must be released on the device. Wired networking remains available. These controls show as unavailable when their services or hardware are missing. Airplane mode requires GNOME’s radio service; Xfce keeps its Wi-Fi/Bluetooth controls.
 
@@ -143,6 +147,9 @@ python3 companion/test_start_search_live.py
 # Power/radio/device services are isolated; this does not change host hardware.
 python3 companion/test_quick_hardware_live.py
 python3 companion/test_bluetooth_pairing_live.py
+# Native taskbar, protocol updates, desktop peek and extension lifecycle on a private display/bus.
+node tests/test_progress_state.mjs
+python3 tests/taskbar_live.py
 # Optional network-dependent verification:
 ZORIN11_TEST_FEEDS=1 python3 tests/gnome_live.py
 ```

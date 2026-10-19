@@ -56,6 +56,9 @@ def appearance(monitors):
             'panel-element-positions': json.dumps({m: positions for m in monitors}),
             'group-apps': True, 'dot-style-focused': 'METRO',
             'dot-style-unfocused': 'DOTS', 'global-border-radius': 6,
+            'progress-show-count': True, 'progress-show-bar': True,
+            'show-showdesktop-icon': False, 'showdesktop-button-width': 8,
+            'show-showdesktop-hover': True,
             'trans-use-custom-opacity': True, 'trans-panel-opacity': 0.95},
         'org.gnome.shell.extensions.zorin-menu': {'super-hotkey': True},
     }
