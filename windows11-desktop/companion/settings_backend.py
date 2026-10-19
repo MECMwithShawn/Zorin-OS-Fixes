@@ -6,6 +6,7 @@ from pathlib import Path
 import platform
 import shutil
 import subprocess
+import sys
 import dbus
 import hardware_controls
 from platform_ui import desktop_status
@@ -36,6 +37,9 @@ if is_gnome():
         TOOLS[key]=['gnome-control-center']+([panel] if panel else [])
     TOOLS.update(appearance=['zorin-appearance'], panel=['gnome-extensions','prefs','zorin-taskbar@zorinos.com'],
                  startup=['gnome-session-properties'],screenshot=['gnome-screenshot','-i'])
+
+# Pairing uses a bounded, searchable picker on both supported desktops.
+TOOLS['bluetooth']=[sys.executable,str(Path(__file__).with_name('bluetooth_pairing.py'))]
 
 GNOME_SETTINGS={
  ('xfce4-notifyd','/do-not-disturb'):('org.gnome.desktop.notifications','show-banners',True),

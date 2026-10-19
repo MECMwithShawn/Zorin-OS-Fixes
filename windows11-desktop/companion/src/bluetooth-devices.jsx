@@ -7,7 +7,7 @@ function DeviceIcon({name}){
  return kind?<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[kind]}</svg>:<Glyph name="bluetooth" size={24}/>;
 }
 export function BluetoothDevices({devices=[],enabled,busy,onConnect}){
- if(!devices.length)return <p className="bluetooth-empty">{enabled?'No paired devices yet. Add a device in Bluetooth settings.':'Turn on Bluetooth to connect your paired devices.'}</p>;
+ if(!devices.length)return <p className="bluetooth-empty">{enabled?'No paired devices yet. Choose Add device to pair one.':'Turn on Bluetooth to connect your paired devices.'}</p>;
  return <div className="bluetooth-devices">{[true,false].map(connected=>{
   const group=devices.filter(d=>d.connected===connected);
   return !!group.length&&<section key={String(connected)}><h3>{connected?'Connected':'Paired devices'}</h3>{group.map(device=><div className="bluetooth-device" key={device.id}>

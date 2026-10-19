@@ -40,7 +40,9 @@ The installer replaces the pinned GNOME Files shortcut with File Explorer and ma
 
 Open **Quick Settings** with **Win+A**. Battery saver uses the installed power-profile service and restores the previous mode when switched off; **Settings → System → Power & battery** also lets you choose an available power mode. Airplane mode controls wireless radios through GNOME; a physical radio switch must be released on the device. Wired networking remains available. These controls show as unavailable when their services or hardware are missing. Airplane mode requires GNOME’s radio service; Xfce keeps its Wi-Fi/Bluetooth controls.
 
-Click the arrow beside **Bluetooth** for connected and paired devices, reported battery levels, and **Connect/Disconnect**. Only previously paired devices can be controlled here; **Add and manage devices** opens native Bluetooth settings for pairing and removal. Devices can refuse a connection or omit battery information. The same controls appear under **Settings → Bluetooth & devices**. Use the pencil button to choose tiles; upgrades preserve your existing tile selection, with new controls available in the editor.
+Click the arrow beside **Bluetooth** for connected and paired devices, reported battery levels, and **Connect/Disconnect**. Only previously paired devices appear here. **Add device** opens a searchable pairing window: repeated names collapse into one expandable group, individual addresses remain selectable, and discovery stops after 60 seconds or when the window closes. Search by name (for example, AirPods) or address, select the exact device, and confirm pairing or enter its code when requested. Already paired devices are excluded from discovery results. Devices can refuse a connection or omit battery information. The same controls appear under **Settings → Bluetooth & devices**. Use the pencil button to choose tiles; upgrades preserve your existing tile selection, with new controls available in the editor.
+
+The GNOME Bluetooth shortcut opens this paired-device page. Use **Add device** when you want to search nearby. The installer records the previous shortcut for recovery.
 
 In Start, click your profile for Account settings, Lock, Switch user and Sign out. The power button offers Sleep, Shut down and Restart. GNOME confirms Sign out, Shut down and Restart through its native session dialogs and retains application inhibitors.
 
@@ -126,7 +128,7 @@ The existing Xfce/X11 backend is retained. See [the complete Xfce guide](XFCE.md
 ```bash
 python3 -m unittest discover -s tests -v
 cd companion
-XDG_CURRENT_DESKTOP=XFCE python3 -m unittest -v test_model.py test_explorer.py test_file_preview.py test_file_transfer.py test_unified_search.py test_start_preferences.py test_hardware_controls.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py test_session_actions.py
+XDG_CURRENT_DESKTOP=XFCE python3 -m unittest -v test_model.py test_explorer.py test_file_preview.py test_file_transfer.py test_unified_search.py test_start_preferences.py test_bluetooth_pairing.py test_hardware_controls.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py test_session_actions.py
 # Frontend: use the pinned lockfile, then rebuild committed dist/ assets.
 corepack pnpm install --frozen-lockfile
 node build.mjs
@@ -140,6 +142,7 @@ python3 companion/test_search_transfer_live.py
 python3 companion/test_start_search_live.py
 # Power/radio/device services are isolated; this does not change host hardware.
 python3 companion/test_quick_hardware_live.py
+python3 companion/test_bluetooth_pairing_live.py
 # Optional network-dependent verification:
 ZORIN11_TEST_FEEDS=1 python3 tests/gnome_live.py
 ```
