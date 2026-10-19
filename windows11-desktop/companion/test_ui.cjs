@@ -6,7 +6,8 @@ const assert = require('assert/strict');
  const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_EXECUTABLE||undefined});
  const page=await browser.newPage({viewport:{width:832,height:864}});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- const fixture=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+ const sampleApps=Array.from({length:20},(_,i)=>({id:i===0?'brave-browser.desktop':i===1?'org.gnome.Calculator.desktop':`test-${i}.desktop`,name:i===0?'Brave':i===1?'Calculator':`App ${i}`,description:'Test application'}));
+ const fixture=process.argv[2]?JSON.parse(fs.readFileSync(process.argv[2],'utf8')):{mode:'start',user:'Test User',apps:sampleApps,pins:sampleApps.slice(0,18).map(a=>a.id),recent:[],places:[],groupsVisible:true,groups:[{id:'everyday',title:'Everyday',items:[],collapsed:false}]};
  for(const a of fixture.apps){a.categories=a.name==='Brave'?['Network']:['Utility'];}
  for(const a of fixture.apps)a.icon='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="%2360cdff"/></svg>';
  await page.addInitScript(data=>{
@@ -57,8 +58,26 @@ const assert = require('assert/strict');
  assert((await page.evaluate(()=>window.testMessages)).some(m=>m.action==='new-group'&&m.title==='Projects'));
  await page.getByRole('button',{name:'Show a folder on the desktop',exact:true}).click();
  assert((await page.evaluate(()=>window.testMessages)).some(m=>m.action==='new-group'&&m.folder));
+ const sessionCount=()=>page.evaluate(()=>window.testMessages.filter(m=>m.action==='session-action').length);
+ const count=await sessionCount();
+ await page.getByRole('button',{name:'Account options'}).click();
+ assert.deepEqual(await page.getByRole('menu',{name:'Account menu'}).getByRole('menuitem').allTextContents(),['Account settings','Lock','Switch user','Sign out']);
  await page.getByRole('button',{name:'Power options'}).click();
- assert.equal(await page.getByRole('button',{name:'Sign out / power…',exact:true}).count(),1);
+ assert.equal(await page.getByRole('menu',{name:'Account menu'}).count(),0);
+ assert.deepEqual(await page.getByRole('menu',{name:'Power menu'}).getByRole('menuitem').allTextContents(),['Sleep','Shut down','Restart']);
+ await page.keyboard.press('End');assert.equal(await page.evaluate(()=>document.activeElement.textContent),'Restart');
+ await page.keyboard.press('Escape');assert.equal(await page.getByRole('menu').count(),0);
+ assert.equal(await sessionCount(),count,'Opening or dismissing a menu must not request a session action');
+ assert.equal(await page.getByRole('button',{name:'Power options'}).evaluate(e=>e===document.activeElement),true);
+ for(const [menu,label,command] of [['Account','Lock','lock'],['Account','Switch user','switch-user'],['Account','Sign out','sign-out'],['Power','Sleep','sleep'],['Power','Shut down','shutdown'],['Power','Restart','restart']]){
+  await page.getByRole('button',{name:menu+' options'}).click();
+  await page.getByRole('menuitem',{name:label,exact:true}).click();
+  assert.deepEqual(await page.evaluate(()=>window.testMessages.filter(m=>m.action==='session-action').at(-1)),{action:'session-action',command});
+  assert.equal(await page.getByRole('menu').count(),0);
+ }
+ await page.getByRole('button',{name:'Account options'}).click();
+ await page.getByRole('menuitem',{name:'Account settings'}).click();
+ assert.deepEqual(await page.evaluate(()=>window.testMessages.at(-1)),{action:'settings',page:'accounts'});
  await page.evaluate(()=>window.receive({type:'state',data:{mode:'group',group:window.fixture.groups[0],peeking:false}}));
  await page.setViewportSize({width:380,height:280});
  await page.getByRole('button',{name:'Collapse group'}).click();

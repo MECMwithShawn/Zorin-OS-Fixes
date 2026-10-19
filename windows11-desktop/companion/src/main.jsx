@@ -16,6 +16,10 @@ function Symbol({name,size=20}) {
   arrow:<path d="m9 5 7 7-7 7"/>,back:<path d="m15 5-7 7 7 7"/>,down:<path d="m6 9 6 6 6-6"/>,
   plus:<path d="M12 5v14M5 12h14"/>,close:<path d="m6 6 12 12M18 6 6 18"/>,
   power:<><path d="M12 3v9M6 5a9 9 0 1 0 12 0"/></>,
+  restart:<><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5"/></>,
+  sleep:<path d="M20 15A8.5 8.5 0 0 1 9 4a8.5 8.5 0 1 0 11 11Z"/>,
+  logout:<><path d="M10 4H4v16h6M9 12h12m-4-4 4 4-4 4"/></>,
+  switchUser:<><circle cx="8" cy="7" r="3"/><path d="M2 19v-2a6 6 0 0 1 12 0M16 6h6m-2-2 2 2-2 2M22 13h-6m2-2-2 2 2 2"/></>,
   user:<><circle cx="12" cy="8" r="4"/><path d="M4 22v-2a8 8 0 0 1 16 0v2"/></>,
   grid:<><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
   folder:<path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v10H3Z"/>,
@@ -28,24 +32,39 @@ function Symbol({name,size=20}) {
  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]||paths.grid}</svg>;
 }
 
+function SessionMenu({kind,trigger,onClose,onAction}) {
+ const menu=useRef(null);
+ useEffect(()=>{menu.current?.querySelector('button')?.focus();},[kind]);
+ const items=kind==='account'
+  ?[['user','Account settings','accounts'],['lock','Lock','lock'],['switchUser','Switch user','switch-user'],['logout','Sign out','sign-out']]
+  :[['sleep','Sleep','sleep'],['power','Shut down','shutdown'],['restart','Restart','restart']];
+ return <div ref={menu} className={'power-menu session-menu '+kind+'-menu'} role="menu" aria-label={kind==='account'?'Account menu':'Power menu'} onClick={e=>e.stopPropagation()} onKeyDown={e=>{
+  if(e.key==='Escape'){e.preventDefault();e.stopPropagation();onClose();trigger.current?.focus();}
+  if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();const buttons=[...menu.current.querySelectorAll('button')],index=buttons.indexOf(document.activeElement);buttons[e.key==='Home'?0:e.key==='End'?buttons.length-1:(index+(e.key==='ArrowUp'?-1:1)+buttons.length)%buttons.length]?.focus();}
+ }}>
+ {items.map(([icon,label,action])=><button role="menuitem" key={action} onClick={()=>onAction(action)}><Symbol name={icon} size={18}/>{label}</button>)}
+ </div>;
+}
+
 function App(){
  const [data,setData]=useState(null),[page,setPage]=useState('home'),[query,setQuery]=useState('');
  const [category,setCategory]=useState(null),[appView,setAppView]=useState('Category');
- const [context,setContext]=useState(null),[toast,setToast]=useState(''),[power,setPower]=useState(false);
+ const [context,setContext]=useState(null),[toast,setToast]=useState(''),[footerMenu,setFooterMenu]=useState(null);
  const [addTo,setAddTo]=useState(null),[newName,setNewName]=useState(''),[rename,setRename]=useState(null);
  const search=useRef(null),drag=useRef(null),root=useRef(null);
+ const accountButton=useRef(null),powerButton=useRef(null);
  useEffect(()=>{
   window.receive=message=>{
    window.dispatchEvent(new CustomEvent('desktop-message',{detail:message}));
    if(message.type==='state'){window.desktopState=message.data;setData(message.data);}
-   if(message.type==='show'){setPage(message.page||'home');setQuery('');setContext(null);setAddTo(null);setPower(false);setCategory(null);setTimeout(()=>search.current?.focus(),40);}
+   if(message.type==='show'){setPage(message.page||'home');setQuery('');setContext(null);setAddTo(null);setFooterMenu(null);setCategory(null);setTimeout(()=>search.current?.focus(),40);}
    if(message.type==='error'||message.type==='notice'){setToast(message.message);setTimeout(()=>setToast(''),5000);}
   };
   send('ready');
   return ()=>delete window.receive;
  },[]);
  useEffect(()=>{
-  const close=e=>{if(e.key==='Escape'){setContext(null);setPower(false);setAddTo(null);} };
+  const close=e=>{if(e.key==='Escape'){setContext(null);setFooterMenu(null);setAddTo(null);} };
   document.addEventListener('keydown',close);return()=>document.removeEventListener('keydown',close);
  },[]);
  if(!data)return <div className="loading">Opening your desktop…</div>;
@@ -100,7 +119,7 @@ function App(){
   </main>;
  }
 
- return <main className="start-shell" style={data.backdrop?{'--panel-backdrop':`url("${data.backdrop}")`}:undefined} ref={root} onClick={()=>{setContext(null);setPower(false);}}>
+ return <main className="start-shell" style={data.backdrop?{'--panel-backdrop':`url("${data.backdrop}")`}:undefined} ref={root} onClick={()=>{setContext(null);setFooterMenu(null);}}>
   <div className="menu-main">
    <div className="search-box"><Symbol name="search" size={18}/><input ref={search} aria-label="Search apps" placeholder="Search your apps" value={query} onChange={e=>{setQuery(e.target.value);setPage('home');}}
     onKeyDown={e=>{if(e.key==='Enter'&&query.trim()&&matches[0])open(matches[0]);if(e.key==='ArrowDown'){e.preventDefault();document.querySelector('.app-list button,.pins .app-tile')?.focus();}}}/>
@@ -145,10 +164,10 @@ function App(){
    </>}
    </div>
   </div>
-  <footer className="start-footer"><button className="profile" onClick={()=>send('open-path',{path:data.places[0]?.path})}><span className="avatar">{data.avatar?<img src={data.avatar} alt=""/>:<Symbol name="user" size={19}/>}</span><span>{data.user}</span></button>
-   <div className="footer-actions"><button className="icon-button" title="Desktop groups" aria-label="Desktop groups" onClick={()=>{setPage('groups');setQuery('');}}><Symbol name="grid" size={20}/></button><button className="icon-button" title="Settings" aria-label="Settings" onClick={()=>send('settings')}><Symbol name="settings" size={20}/></button><button className="icon-button" title="Power" aria-label="Power options" onClick={e=>{e.stopPropagation();setPower(!power);}}><Symbol name="power" size={20}/></button></div>
+  <footer className="start-footer"><button ref={accountButton} className="profile" title="Account options" aria-label="Account options" aria-haspopup="menu" aria-expanded={footerMenu==='account'} onClick={e=>{e.stopPropagation();setContext(null);setFooterMenu(footerMenu==='account'?null:'account');}}><span className="avatar">{data.avatar?<img src={data.avatar} alt=""/>:<Symbol name="user" size={19}/>}</span><span>{data.user}</span></button>
+   <div className="footer-actions"><button className="icon-button" title="Desktop groups" aria-label="Desktop groups" onClick={()=>{setPage('groups');setQuery('');}}><Symbol name="grid" size={20}/></button><button className="icon-button" title="Settings" aria-label="Settings" onClick={()=>send('settings')}><Symbol name="settings" size={20}/></button><button ref={powerButton} className="icon-button" title="Power" aria-label="Power options" aria-haspopup="menu" aria-expanded={footerMenu==='power'} onClick={e=>{e.stopPropagation();setContext(null);setFooterMenu(footerMenu==='power'?null:'power');}}><Symbol name="power" size={20}/></button></div>
   </footer>
-  {power&&<div className="power-menu" onClick={e=>e.stopPropagation()}><button onClick={()=>send('lock')}><Symbol name="lock" size={17}/> Lock</button><button onClick={()=>send('power')}><Symbol name="power" size={17}/> Sign out / power…</button></div>}
+  {footerMenu&&<SessionMenu kind={footerMenu} trigger={footerMenu==='account'?accountButton:powerButton} onClose={()=>setFooterMenu(null)} onAction={command=>{setFooterMenu(null);if(command==='accounts')send('settings',{page:'accounts'});else send('session-action',{command});}}/>}
   {addTo&&<div className="modal-backdrop" onClick={()=>setAddTo(null)}><section className="picker" onClick={e=>e.stopPropagation()}><div className="section-heading"><h2>{addTo.group?'Add an app':'Add to desktop group'}</h2><button className="icon-button" aria-label="Close picker" onClick={()=>setAddTo(null)}><Symbol name="close"/></button></div>
    {addTo.group?<div className="picker-apps">{apps.map(app=><button className="app-launch" key={app.id} onClick={()=>{send('add-app',{group:addTo.group,id:app.id});setAddTo(null);}}>{icon(app)}<span>{app.name}</span><Symbol name="plus" size={16}/></button>)}</div>:<div className="group-choices">{data.groups.filter(g=>!g.folder).map(g=><button key={g.id} onClick={()=>{send('add-app',{group:g.id,id:addTo.id});setAddTo(null);}}><Symbol name="grid"/><span>{g.title}</span><Symbol name="plus" size={16}/></button>)}{!data.groups.some(g=>!g.folder)&&<p className="empty">Create a shortcut group in Desktop groups first.</p>}</div>}
   </section></div>}

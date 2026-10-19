@@ -22,6 +22,7 @@ import settings_backend
 import wallpaper
 import notifications
 import quick_controls
+import session_actions
 from gnome_bridge import active as is_gnome
 
 BASE = Path(__file__).resolve().parent
@@ -739,13 +740,16 @@ class Hub(Gtk.Application):
         elif action == 'close':
             surface.on_delete()
         elif action == 'settings':
-            self.open_settings()
-        elif action == 'lock':
-            subprocess.Popen(['loginctl','lock-session'] if is_gnome() else ['xflock4'])
+            self.open_settings(message.get('page','home'))
+        elif action in ('session-action','lock','power') and surface.mode=='start':
+            command = {'lock':'lock','power':'shutdown'}.get(action,message.get('command'))
+            gnome = is_gnome()
+            session_actions.command(command,gnome)
             self.start.hide()
-        elif action == 'power':
-            subprocess.Popen(['gnome-session-quit','--power-off'] if is_gnome() else ['xfce4-session-logout'])
-            self.start.hide()
+            def failed(error):
+                self.show_start()
+                self.start.send({'type':'error','message':error})
+            self.background(lambda:session_actions.run(command,gnome),lambda _:None,failed)
         elif action == 'peek':
             self.peek()
         elif action == 'groups-visible':
