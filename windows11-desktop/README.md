@@ -79,7 +79,7 @@ This imports six sizes (16–256 px), including the computer, drive, USB drive, 
 | Win+Ctrl+D | Create and enter a new desktop |
 | Win+Ctrl+Left / Right | Switch to the previous / next desktop |
 | Win+Ctrl+F4 | Close the current desktop, keeping its apps open |
-| Alt+Tab / Alt+Shift+Tab | Native forward/reverse window switching |
+| Alt+Tab / Alt+Shift+Tab | Forward/reverse switching between individual windows and Snap Groups |
 | Win+Shift+F | Bring Desktop Groups forward / send them back |
 | Ctrl+Shift+T in Terminal | New tab |
 | Ctrl+Shift+Space in Terminal | Select PowerShell or Bash profile |
@@ -122,7 +122,7 @@ Choose **Choose background…** from that desktop menu to select a JPEG/PNG pict
 
 The window area normally shows the desktop being previewed. Type in Search to find titles/app names across all desktops; Enter activates the first match on its desktop, and Down moves focus into the cards. Window previews are snapshots of composited app contents, captured while Task View is open. Up to 36 previews are retained in memory; none are written to disk. Hidden/minimized windows use their last available preview or app icon. Desktop thumbnails combine each desktop's wallpaper with window positions and those previews.
 
-Completed Snap Assist arrangements appear as **Snap groups** in Task View and the taskbar previews of every member app, so their windows can be brought back together. Groups and restore positions last for the current companion process and are not saved across login/restart. Snap Assist now suggests windows on the current desktop only.
+Completed Snap Assist arrangements appear as **Snap groups** in Task View, Alt+Tab and the taskbar previews of every member app, so their windows can be brought back together. Groups and restore positions last for the current companion process and are not saved across login/restart. Snap Assist now suggests windows on the current desktop only.
 
 Desktop management uses native Xfwm workspaces, or horizontal viewports when the optional Compiz effects profile is active. No window-manager restart is needed. Existing two-dimensional Compiz layouts can be browsed and switched, but creation/removal/reordering requires a single row. Up to 32 desktops are supported. Desktops span the connected monitors.
 
@@ -146,9 +146,15 @@ Groups contain currently open windows and last only for this companion session. 
 
 The setup builds a pinned, locally patched Docklike plugin once in your user cache. `install-system-deps.sh` includes its build dependencies. The library, descriptor and styling install per user, retain your Docklike pins and indicators, and participate in the existing restore mechanism. The distribution's plugin remains installed. See [native preview implementation and license](companion/taskbar/README.md).
 
-Alt+Tab stays with the native window manager. The optional Compiz profile uses a dark switcher with previews, minimized windows, forward/reverse cycling, and a shorter popup delay. No global Alt-key hook is installed. Wobble and existing edge/Win+arrow snapping remain available.
+### Alt+Tab with Snap Groups
 
-Remaining differences: third-party custom maximize buttons use Win+Z; Snap Groups are not yet shown in Alt+Tab. Some applications impose size increments, minimum sizes or edge constraints that can adjust the requested snap rectangle.
+Hold **Alt** and press **Tab** to open the dark window switcher. Individual windows and **Snap group · N windows** cards appear together, with a blue outline around the selected card. Press Tab again to advance, **Shift+Tab** to go back, or use arrow keys. Release Alt (or press Enter/click the card) to select; **Escape** cancels and returns to the original window. A quick Alt+Tab tap switches immediately without leaving a popup behind.
+
+Following the [Windows Snap Groups interaction](https://support.microsoft.com/en-gb/windows/experience/snap-your-windows), group cards show the arrangement and previews of all members. Selecting one restores its minimized windows and saved positions, focusing its most recently used member. After selection, that group participates in the recent-item order: activate another app, then Alt+Tab to return to the whole group. Individual members remain selectable. Closed members are removed while the switcher is open; groups with fewer than two windows disappear. All entries on the current desktop are reachable by keyboard, with scrolling for larger lists. Use Task View to browse other desktops.
+
+Previews update only while the switcher is open. They use a bounded capture helper and the existing in-memory cache; minimized/unavailable clients use cached previews or app icons. The switcher uses Xfce application shortcuts and briefly grabs the keyboard while visible. It installs no idle key listener. A conflicting grab dismisses the chooser after a short timeout; closing/shutting down releases its grab and timers. Compiz's **Ctrl+Alt+Tab** native all-window switcher remains available. Wobble and edge/Win+arrow snapping are retained. The installer records the prior Alt+Tab shortcuts for compare-safe restoration.
+
+Remaining differences: third-party custom maximize buttons use Win+Z. Groups come from companion Snap Assist, remain session-only, and arbitrary manual tiling is not automatically grouped. Some applications impose size increments, minimum sizes or edge constraints that can adjust the requested snap rectangle.
 
 ## Settings and Windows Spotlight
 

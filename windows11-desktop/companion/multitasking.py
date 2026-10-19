@@ -38,10 +38,13 @@ class Multitasking:
         self.snap_groups=SnapGroups(self)
         from desktop_backgrounds import Backgrounds
         self.backgrounds=Backgrounds(self)
+        from switcher import Switcher
+        self.switcher=Switcher(self)
         self.css=Gtk.CssProvider();self.css.load_from_path(str(BASE/'multitasking.css'))
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(),self.css,650)
 
     def shutdown(self):
+        self.switcher.shutdown()
         self.snap_groups.close()
         self.backgrounds.close()
         self.desktops.stopped=True

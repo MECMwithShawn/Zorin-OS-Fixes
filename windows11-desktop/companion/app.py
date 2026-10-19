@@ -344,6 +344,8 @@ class Hub(Gtk.Application):
         args = command.get_arguments()[1:]
         if '--quit' in args:
             self.quit()
+        elif '--switch-next' in args or '--switch-previous' in args:
+            self.multitasking.switcher.show('--switch-previous' in args)
         elif '--snap-layouts' in args:
             self.multitasking.show_snap()
         elif '--task-view' in args:

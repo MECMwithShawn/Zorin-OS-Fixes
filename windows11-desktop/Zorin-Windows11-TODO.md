@@ -8,7 +8,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Taskbar: live grouped hover thumbnails, per-window Close, minimized/icon fallbacks and scrollable overflow. Includes launcher-less app grouping; verified on Xfwm, Compiz and the installed desktop on 2026-10-18.
 - [ ] Taskbar: per-app badges and progress indicators when real application state is available.
 - [x] Taskbar: Snap Group cards with live layout previews; restore grouped positions and minimized members together; remove stale/closed members.
-- [ ] Window switching: expose Snap Groups in the native Alt+Tab switcher.
+- [x] Window switching: native GTK Alt+Tab chooser with individual windows and Snap Groups, live mosaics, combined MRU, forward/reverse cycling, release-to-select and Escape. Xfce shortcuts work on Xfwm and Compiz; verified 2026-10-18.
 - [ ] Start: app folders with drag/drop creation and persistent ordering.
 - [ ] Start: optional recommended/recent documents, with local-only indexing and privacy exclusions.
 - [ ] Search: unified apps, local files and settings search with previews and keyboard navigation.

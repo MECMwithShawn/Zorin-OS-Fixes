@@ -32,3 +32,7 @@
 .z11-desktop-menu { background: #292a2d; color: #f3f3f3; border: 1px solid #56585c; border-radius: 8px; padding: 6px; font: 14px 'Segoe UI', Selawik, sans-serif; }
 .z11-desktop-menu menuitem { padding: 8px 18px; border-radius: 4px; }
 .z11-desktop-menu menuitem:hover { background: #414348; }
+
+.z11-switcher { background: #202123; }
+.z11-switcher button.z11-window-card { border: 2px solid #454545; padding: 11px; }
+.z11-switcher button.z11-window-card:focus, .z11-switcher button.z11-switch-selected { border-color: #60cdff; background: #34383c; outline: none; }

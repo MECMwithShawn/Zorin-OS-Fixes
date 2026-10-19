@@ -163,6 +163,11 @@ Font=Segoe UI 10
               'XF86AudioLowerVolume':'pactl set-sink-volume @DEFAULT_SINK@ -5%',
               'XF86AudioMute':'pactl set-sink-mute @DEFAULT_SINK@ toggle'}
         keys.update({'<Super>z':launcher+' --snap-layouts','<Super>Tab':launcher+' --task-view'})
+        for binding,argument in [('<Alt>Tab','--switch-next'),('<Alt><Shift>Tab','--switch-previous')]:
+            setting('xfce4-keyboard-shortcuts','/xfwm4/custom/'+binding,dbus.String(''))
+            # Xfce's command grabber resolves Shift+Tab as ISO_Left_Tab.
+            command_binding=binding.replace('Tab','ISO_Left_Tab') if 'Shift' in binding else binding
+            keys[command_binding]=launcher+' '+argument
         for key,action in [('d','new'),('F4','close'),('Left','left'),('Right','right')]:
             binding='<Primary><Super>'+key
             keys[binding]=launcher+' --desktop '+action

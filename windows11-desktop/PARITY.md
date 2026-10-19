@@ -9,7 +9,7 @@ Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11,
 | 3. Start | Anchored rounded panel, pinned grid/reordering, All apps/categories, search, recent launches, account and power actions | Recommended documents, app folders, expanded jump lists |
 | 4. Search | Local application search, category navigation, Settings search | Unified file/settings search, previews and full keyboard navigation parity |
 | 5. Window frames | Dark Xfwm/Compiz frames, thin borders, large caption targets, red Close hover, companion captions | Third-party custom title bars and corner/shadow parity vary |
-| 6. Snap Layouts | Win+Z six-layout picker, Explorer/Settings maximize hover, target outline, minimum-size checks, Snap Assist, session Snap Groups in Task View and taskbar previews, restore size, adjustable Focus columns; existing edge/arrow snapping retained | Third-party maximize-hover integration, drag-to-top snap bar, persistent/custom free-form zones; groups in Alt+Tab |
+| 6. Snap Layouts | Win+Z six-layout picker, Explorer/Settings maximize hover, target outline, minimum-size checks, Snap Assist, session Snap Groups in Task View, taskbar previews and Alt+Tab with combined MRU, live mosaics and release-to-select, restore size, adjustable Focus columns; existing edge/arrow snapping retained | Third-party maximize-hover integration, drag-to-top snap bar, persistent/custom free-form zones |
 | 7. File Explorer | This PC drive capacity, personal Windows drive/folder icons, tabs, breadcrumbs/address, sidebar, views, details pane, common file operations | Content preview pane, richer context menus, network/Trash handled by native tools |
 | 8. Settings | Windows-style Home/sidebar/cards/search and 12 categories; working controls and real system information | Advanced pages still open Linux tools; individual pages can be progressively integrated |
 | 9. Quick Settings | Wi-Fi/Bluetooth toggles and management, volume/mute, output selection with active-stream routing, DND, keyboard accessibility, six editable tiles, hardware backlight and battery readout | Battery-saver/airplane-mode controls, richer connected-device UI, external-monitor DDC/CI brightness; laptop hardware validation |
@@ -32,7 +32,7 @@ Target: Windows 11 visual and interaction conventions on Zorin 18 Lite/Xfce/X11,
 
 ## Next implementation priorities
 
-1. Broaden native maximize-hover support and evaluate Snap Groups in Alt+Tab.
+1. Broaden native maximize-hover support and add a drag-to-top snap bar.
 2. Additional Settings pages and native dialog styling; close remaining icon and spacing differences against the user's Windows reference.
 3. Battery-saver and connected-device controls, plus richer notification actions where supported.
 4. Validate on the laptop, especially real backlight control, battery, touchpad, scaling, suspend and multiple displays.

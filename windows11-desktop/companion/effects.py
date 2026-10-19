@@ -30,6 +30,18 @@ def environment():
     return dict(os.environ,XDG_CONFIG_HOME=str(CONFIG/'compiz'),GSETTINGS_BACKEND='keyfile',GTK_CSD='0')
 
 
+def companion_switcher():
+    # Only release the native bindings when Xfce owns the companion shortcuts.
+    # Standalone effects previews/tests keep the native switcher.
+    import dbus, shlex
+    try:
+        xf=dbus.Interface(dbus.SessionBus().get_object(
+            "org.xfce.Xfconf","/org/xfce/Xfconf"),"org.xfce.Xfconf")
+        command=str(xf.GetProperty("xfce4-keyboard-shortcuts","/commands/custom/<Alt>Tab"))
+        return shlex.split(command)==["/usr/bin/python3",str(HERE.parent/"app.py"),"--switch-next"]
+    except (dbus.DBusException,ValueError):return False
+
+
 def configure():
     # This subprocess's XDG_CONFIG_HOME is private to the effects profile.
     import compizconfig
@@ -49,6 +61,8 @@ def configure():
                          'popup_delay':0.12,'mouse_select':True,'bring_to_front':False,
                          'use_background_color':True,'background_color':[9252,9252,9252,64250]},
     }
+    if companion_switcher():
+        values['staticswitcher'].update(next_key='Disabled',prev_key='Disabled')
     for name,options in values.items():
         for option,value in options.items():context.Plugins[name].Screen[option].Value=value
     from desktop_motion import configure_profile

@@ -30,20 +30,27 @@ class SnapGroups:
         self.info=Gio.DBusNodeInfo.new_for_xml(XML)
         self.registration=self.bus.register_object(PATH,self.info.interfaces[0],self.call,None,None)
         self.owner=Gio.bus_own_name_on_connection(self.bus,BUS,Gio.BusNameOwnerFlags.NONE,None,None)
-        self.closed_handler=m.windows.screen.connect('window-closed',lambda _,w:self.prune(w.get_xid()))
+        from window_watch import WindowWatch
+        self.watch=WindowWatch(self.prune,self.watch_failed)
 
     def close(self):
         self.stopped=True;self.serial+=1
-        self.m.windows.screen.disconnect(self.closed_handler)
+        self.watch.close()
         self.bus.unregister_object(self.registration);Gio.bus_unown_name(self.owner)
         self.m.groups=[]
 
+    def watch_failed(self):
+        # Without lifetime events, retaining group tokens could target reused
+        # XIDs. Drop the registry; a later Snap Assist can start a fresh watcher.
+        self.m.groups=[];self.changed()
+
     def changed(self):
+        if not self.watch.track(x for g in self.m.groups for x,_ in g):self.m.groups=[]
         self.bus.emit_signal(None,PATH,BUS,'Changed',None)
 
     def prune(self,closed=None):
-        # A screen snapshot can be temporarily incomplete while clients remap.
-        # Only the actual window-closed event invalidates a member's identity.
+        # Both Wnck snapshots and window-closed signals can be transient while
+        # Compiz remaps a client. Only X11 DestroyNotify invalidates its identity.
         changed=False;groups=[]
         for group in self.m.groups:
             kept=[(x,r) for x,r in group if x!=closed]
@@ -59,12 +66,16 @@ class SnapGroups:
         if len(groups)!=len(self.m.groups):self.m.groups=groups;self.changed()
 
     def remember(self,placements):
+        if self.watch.process.poll() is not None:
+            from window_watch import WindowWatch
+            self.watch.close();self.watch=WindowWatch(self.prune,self.watch_failed)
         self.prune();self.forget({x for x,_ in placements})
         if len(placements)<2:return
         live={w.get_xid() for w in self.m.windows.windows()}
         group=Group([(x,r) for x,r in placements if x in live])
         if len(group)<2:return
         self.m.groups.insert(0,group);self.m.groups=self.m.groups[:8];self.changed()
+        if any(g is group for g in self.m.groups):self.m.switcher.group_activated(group.token,restoring=False)
 
     def desktop(self,group):
         desktops=set()
@@ -108,6 +119,7 @@ class SnapGroups:
             if not w or any(a>b for a,b in zip(self.m.windows.minimum(w),rect[2:])):return False
         self.serial+=1;serial=self.serial
         self.m.close(False)
+        self.m.switcher.group_activated(group.token)
         generation=self.m.generation
         preferred=preferred if any(x==preferred for x,_ in group) else group[0][0]
         def valid():
