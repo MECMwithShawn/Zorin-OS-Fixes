@@ -181,6 +181,10 @@ Font=Segoe UI 10
         explorer_icon='system-file-manager' if (config/'reference-icons/48/system-file-manager.png').exists() else str(dest/'explorer.svg')
         desktop=installer.desktop_file('File Explorer','--explorer %U',explorer_icon).replace('Categories=Utility;','Categories=System;FileTools;FileManager;')
         desktop+='MimeType=inode/directory;x-scheme-handler/computer;\nStartupWMClass=Zorin11-explorer\n'
+        launcher=f'/usr/bin/python3 "{dest / "app.py"}"'
+        desktop+=(f'Actions=new-window;this-pc;\n\n'
+                  f'[Desktop Action new-window]\nName=New window\nExec={launcher} --explorer\n\n'
+                  f'[Desktop Action this-pc]\nName=This PC\nExec={launcher} --explorer ::computer\n')
         file(explorerfile,desktop)
         computer=installer.desktop_file('This PC','--explorer ::computer','computer')
         computer=computer.replace('Categories=Utility;','Categories=System;FileTools;FileManager;')

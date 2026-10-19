@@ -25,7 +25,7 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 | Component | Integration |
 |---|---|
 | Taskbar | Dark blue appearance, Win11 icons, 48 px bottom taskbar, centered Start/Search/Task View/app area, native running-app indicators and previews |
-| Start | Opens on the primary monitor; shared Windows-style pinned apps, ordering, search, All apps, categories, recent launches, local folders and session actions |
+| Start | Opens on the primary monitor; shared Windows-style pinned apps, ordering, search, All apps, categories, recent documents/apps, desktop-entry actions, local folders and session actions |
 | Explorer / This PC | Tabs, sidebar, system drive first as Local Disk (C:), persistent display letters for other mounted drives, capacity, details view, create/rename/copy/cut/paste/trash; advanced locations open the system file manager |
 | Settings | Windows-style categories with actual device information and GNOME settings controls; advanced pages open the native tools |
 | Quick Settings | Network, Bluetooth, volume/output, Do Not Disturb, accessibility, supported backlights and battery information |
@@ -46,7 +46,12 @@ Explorer's **Preview** button or **Alt+P** opens a read-only preview pane. Suppo
 
 Start and taskbar Search now combine **Apps, Files, Folders, and Settings**. Apps and settings appear immediately while local filename search runs. Use the category buttons, arrow keys and Enter, or select a result and choose **Open** / **Open file location**. Supported files show the same bounded image/text preview as Explorer. Settings results open the actual page (for example, “volume” → Sound).
 
-File search reads names on demand in your configured Desktop, Documents, Downloads, Pictures, Music and Videos folders. It does not index file contents, save queries or upload results. Hidden items, symbolic links and common dependency/build folders are excluded. File queries need two characters; scans are limited to 25,000 entries, 16 nested levels and about 1.5 seconds of traversal, with up to 80 results per category. A visible notice indicates incomplete results. This is scoped filename search, not a whole-disk content index.
+File search reads names on demand in the folders chosen under **Settings → Personalization → Search & Start**. Desktop, Documents, Downloads, Pictures, Music and Videos are the defaults. Add or remove folders and exclude private subfolders with native folder pickers. Removing every search folder leaves apps/settings searchable. It does not index file contents, save queries or upload results. Hidden items, symbolic links and common dependency/build folders are excluded. File queries need two characters; scans are limited to 25,000 entries, 16 nested levels and about 1.5 seconds of traversal, with up to 80 results per category. A visible notice indicates incomplete results. This is scoped filename search, not a whole-disk content index.
+
+Recent documents appear in Start’s **Recommended** section when desktop file history and **Show recently opened documents** are enabled. Suggestions use existing local desktop history, respect the same search folders/exclusions, and omit private entries, missing files, hidden paths and links. Turn suggestions off in **Search & Start** without deleting your desktop history. Recent-document context menus include **Open file location**.
+
+Right-click an app in Start (or focus it and press **Shift+F10**) for the actions supplied by its installed desktop entry. Search exposes those same actions beside the selected app. File Explorer includes working **New window** and **This PC** actions in Start and its native GNOME taskbar menu. App-specific recent-file jump lists remain future work.
+
 
 Explorer copy/paste now shows progress, transferred bytes, completed/skipped items, **Pause**, **Resume**, and **Cancel transfer**. Collisions offer **Replace the file**, **Keep both**, or **Skip**; matching folders offer **Merge folders** while retaining unrelated destination files. You can apply a choice to remaining file or folder conflicts. File/folder type mismatches and same-file copies cannot replace the original. Failed item operations offer **Retry** or **Skip**; preparation failures show their error.
 
@@ -117,7 +122,7 @@ The existing Xfce/X11 backend is retained. See [the complete Xfce guide](XFCE.md
 ```bash
 python3 -m unittest discover -s tests -v
 cd companion
-XDG_CURRENT_DESKTOP=XFCE python3 -m unittest -v test_model.py test_explorer.py test_file_preview.py test_file_transfer.py test_unified_search.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py test_session_actions.py
+XDG_CURRENT_DESKTOP=XFCE python3 -m unittest -v test_model.py test_explorer.py test_file_preview.py test_file_transfer.py test_unified_search.py test_start_preferences.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py test_session_actions.py
 # Frontend: use the pinned lockfile, then rebuild committed dist/ assets.
 corepack pnpm install --frozen-lockfile
 node build.mjs
@@ -128,6 +133,7 @@ python3 tests/gnome_live.py
 python3 companion/test_session_actions_live.py
 python3 companion/test_theme_items_live.py
 python3 companion/test_search_transfer_live.py
+python3 companion/test_start_search_live.py
 # Optional network-dependent verification:
 ZORIN11_TEST_FEEDS=1 python3 tests/gnome_live.py
 ```

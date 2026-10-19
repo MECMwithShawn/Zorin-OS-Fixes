@@ -101,6 +101,11 @@
       "background",
       "Background",
       "personalization"
+    ],
+    [
+      "search-start",
+      "Search & Start",
+      "personalization"
     ]
   ],
   "terms": {
@@ -119,6 +124,7 @@
     "time": "date clock language timezone keyboard",
     "storage": "disk drive capacity space",
     "about": "processor ram memory device specifications version",
-    "notifications": "do not disturb dnd banners alerts"
+    "notifications": "do not disturb dnd banners alerts",
+    "search-start": "recommended recent documents privacy excluded folders search locations app shortcuts"
   }
 }

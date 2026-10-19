@@ -20,6 +20,7 @@ from gi.repository import Gtk,WebKit2,GLib,Gdk
 from app import Hub
 import explorer
 import file_transfer
+from start_preferences import Preferences
 
 workspace=tempfile.TemporaryDirectory();base=Path(workspace.name)
 source=base/'source';destination=base/'destination';source.mkdir();destination.mkdir()
@@ -57,6 +58,7 @@ def load_folder(s,path,hidden=False):
     send(dict(type='state',data=dict(s.file_state,mode='explorer')))
 surface=SimpleNamespace(mode='start',location=str(source),send=send,file_state=None)
 hub=SimpleNamespace(apps={a['id']:a for a in apps},app_info=lambda ident:apps[0],background=background,
+    start_preferences=Preferences(base/'preferences.json',[str(source)]),
     surfaces={'start':surface},copied_files=([],False,''),start=SimpleNamespace(hide=lambda:None),
     load_folder=load_folder,launch=lambda ident:opened.append(('app',ident)),
     open_settings=lambda page:opened.append(('setting',page)),open_explorer=lambda path:opened.append(('path',path)))

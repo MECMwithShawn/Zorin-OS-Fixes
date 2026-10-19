@@ -10,9 +10,10 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Taskbar: Snap Group cards with live layout previews; restore grouped positions and minimized members together; remove stale/closed members.
 - [x] Window switching: native GTK Alt+Tab chooser with individual windows and Snap Groups, live mosaics, combined MRU, forward/reverse cycling, release-to-select and Escape. Xfce shortcuts work on Xfwm and Compiz; verified 2026-10-18.
 - [x] Start: app folders with drag/drop creation, persistent ordering, rename, keyboard-accessible move controls and ungrouping. Shared GNOME/Xfce interface; verified 2026-10-19.
-- [ ] Start: optional recommended/recent documents, with local-only indexing and privacy exclusions.
+- [x] Start: optional recommended/recent documents from existing local desktop history, respecting search scopes, private entries and exclusions. Verified 2026-10-19.
 - [x] Search: unified apps, scoped local filenames/folders and settings search with previews, filters and keyboard navigation. Verified 2026-10-19.
-- [ ] Search: configurable scopes and optional content indexing beyond the bounded standard-folder scan.
+- [x] Search: configurable folders and exclusions through Search & Start settings. Verified 2026-10-19.
+- [ ] Search: optional content indexing beyond bounded filename search.
 - [ ] Perform Windows 11 screenshot-based visual comparisons at matched scale for taskbar, Start, flyouts and window chrome.
 
 ## P1 — Window management and Explorer
@@ -26,7 +27,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Explorer: read-only image/text preview pane with allowlisted content, file/pixel limits, timed decoding and stale-selection rejection. Verified 2026-10-19.
 - [x] Explorer: Windows-style context menus, Rename, Properties, Copy as path and drive details.
 - [x] Explorer: copy/move progress, pause/resume/cancel, Replace/Skip/Keep both, folder merge, apply-to-remaining choices and per-item error/retry dialogs. Verified 2026-10-19.
-- [ ] Add Start/taskbar jump lists and recent-item actions where supported.
+- [x] Start/search: real installed desktop-entry actions; Explorer New window/This PC also appear in the native GNOME taskbar menu.
+- [ ] Expand app-specific recent-file jump lists where supported.
 
 ## P2 — System appearance and utilities
 - [ ] Match corner radii, caption spacing, shadows, controls and hover states across supported window managers.
@@ -35,7 +37,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Improve notification actions/grouping and animations while respecting DND and logging preferences.
 - [ ] Add supported battery-saver, airplane-mode and connected-device controls to Quick Settings.
 - [ ] Build a Windows-inspired clock/avatar lock screen while preserving native GNOME/GDM and Xfce authentication.
-- [x] GNOME Task Manager: Mission Center, expandable application groups, program icons, merged usage and supported GPU graphs. Intel telemetry verified; NVIDIA driver installed locally with post-reboot telemetry verification pending.
+- [x] GNOME Task Manager: Mission Center, expandable application groups, program icons, merged usage and supported GPU graphs. Intel and NVIDIA RTX 4090 laptop telemetry verified in Mission Center after the local NVIDIA driver reboot.
 - [ ] Windows-inspired Device Manager, Disk Management and Event Viewer equivalents; Task Manager includes Mission Center's Services view.
 - [ ] Polish cursor, emoji input, scaling, accessibility, keyboard navigation and reduced-motion behavior.
 - [ ] Evaluate per-monitor taskbars, wallpapers, snapping and mixed-DPI layouts.

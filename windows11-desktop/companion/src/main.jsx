@@ -80,12 +80,13 @@ function App(){
  const folders=data.startFolders||[],folderById=Object.fromEntries(folders.map(f=>[f.id,{...f,kind:'start-folder'}]));
  const pinnedApps=new Set([...(data.pins||[]),...folders.flatMap(f=>f.apps)]);
  const currentFolder=folderById[startFolder];
+ const recommended=[...(data.documents||[]).slice(0,data.recent?.length?3:6),...(data.recent||[]).map(id=>byId[id]).filter(Boolean)].slice(0,6);
  const categoryFor=app=>{const kinds=app.categories||[];return [['Accessibility','Accessibility'],['Graphics','Creativity'],['Development','Developer Tools'],['AudioVideo','Entertainment'],['Game','Games'],['Office','Productivity'],['Network','Internet'],['Education','Education'],['Settings','System Tools'],['System','System Tools'],['Utility','Utilities']].find(([key])=>kinds.includes(key))?.[1]||'Other';};
  const categories=[...new Set(apps.map(categoryFor))].sort().map(name=>({name,apps:apps.filter(a=>categoryFor(a)===name)}));
  const visibleApps=page==='category'?apps.filter(a=>categoryFor(a)===category):page==='recent'?data.recent.map(id=>byId[id]).filter(Boolean):apps;
  const matches=visibleApps.filter(a=>(a.name+' '+a.description).toLowerCase().includes(query.trim().toLowerCase()));
  const pin=(app,value)=>{send('pin',{id:app.id,value});setContext(null);};
- const open=item=>{if(item.kind==='start-folder'){setStartFolder(item.id);setFolderName(item.name);}else send(item.kind==='path'?'open-path':'launch',item.kind==='path'?{path:item.path}:{id:item.id});setContext(null);};
+ const open=item=>{if(item.kind==='start-folder'){setStartFolder(item.id);setFolderName(item.name);}else send(item.kind==='document'?'recent-open':item.kind==='path'?'open-path':'launch',item.kind==='path'?{path:item.path}:{id:item.id});setContext(null);};
  const menu=(e,item,group,folder)=>{e.preventDefault();e.stopPropagation();const rect=e.currentTarget.getBoundingClientRect();setContext({x:Math.max(6,Math.min(e.clientX||rect.left,innerWidth-242)),y:Math.max(6,Math.min(e.clientY||rect.bottom,innerHeight-260)),item,group,folder});};
  const icon=item=><img className="app-icon" src={item.icon} alt="" draggable="false" onError={e=>{e.currentTarget.src='zorin11://icon/file';}}/>;
  const dropMode=(e,app,folder)=>{const r=e.currentTarget.getBoundingClientRect(),x=(e.clientX-r.left)/r.width;return !folder&&byId[drag.current]&&app.id!==drag.current&&x>.25&&x<.75?'folder':'reorder';};
@@ -102,13 +103,15 @@ function App(){
     {app.kind==='start-folder'?<span className="start-folder-icon">{app.apps.slice(0,4).map(id=>byId[id]&&<React.Fragment key={id}>{icon(byId[id])}</React.Fragment>)}</span>:icon(app)}<span>{app.name}</span></button>;
  const dialogKeys=e=>{if(e.key==='Tab'){const buttons=[...e.currentTarget.querySelectorAll('button:not(:disabled),input')];if(!buttons.length)return;const first=buttons[0],last=buttons[buttons.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}};
  const toastNode=toast&&<div role="alert" className="toast">{toast}</div>;
- const contextNode=context&&<div className="context-menu" role="menu" style={{left:Math.max(6,context.x),top:Math.max(6,context.y)}} onClick={e=>e.stopPropagation()}>
+ const contextNode=context&&<div className="context-menu" role="menu" style={{left:Math.max(6,context.x),top:Math.max(6,context.y),maxHeight:innerHeight-Math.max(6,context.y)-8}} onKeyDown={e=>{if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();const buttons=[...e.currentTarget.querySelectorAll('button')],i=buttons.indexOf(document.activeElement);buttons[e.key==='Home'?0:e.key==='End'?buttons.length-1:(i+(e.key==='ArrowUp'?-1:1)+buttons.length)%buttons.length]?.focus();}}} onClick={e=>e.stopPropagation()}>
   <button onClick={()=>open(context.item)}>Open</button>
+  {context.item.kind==='document'&&<button onClick={()=>{send('recent-location',{id:context.item.id});setContext(null);}}>Open file location</button>}
+  {(context.item.actions||[]).map(action=><button key={action.id} onClick={()=>{send('app-action',{id:context.item.id,shortcut:action.id});setContext(null);}}>{action.name}</button>)}
   {data.mode==='start'&&context.item.kind==='start-folder'?<>
    <button onClick={()=>open(context.item)}>Rename folder</button>
    <button onClick={()=>{send('reorder',{id:context.item.id,target:data.pins[0]});setContext(null);}}>Move to first</button>
    <button onClick={()=>{send('start-folder-remove',{folder:context.item.id});setContext(null);}}>Move all apps out of folder</button>
-  </>:data.mode==='start'&&context.item.kind!=='path'&&<>
+  </>:data.mode==='start'&&!['path','document'].includes(context.item.kind)&&<>
    <button onClick={()=>pin(context.item,!pinnedApps.has(context.item.id))}>{pinnedApps.has(context.item.id)?'Unpin from Start':'Pin to Start'}</button>
    {context.folder&&<><button onClick={()=>pin(context.item,true)}>Move to Start</button><button onClick={()=>{send('start-folder-reorder',{folder:context.folder,id:context.item.id,target:folderById[context.folder].apps[0]});setContext(null);}}>Move to first in folder</button></>}
    {data.pins.includes(context.item.id)&&data.pins[0]!==context.item.id&&<button onClick={()=>{send('reorder',{id:context.item.id,target:data.pins[0]});setContext(null);}}>Move to first</button>}
@@ -177,8 +180,8 @@ function App(){
    </>:<>
     <div className="section-heading"><h2>Pinned</h2><button className="small-button" onClick={()=>setPage('all')}>All apps <Symbol name="arrow" size={13}/></button></div>
     <div className="pins" aria-label="Pinned apps">{data.pins.map(id=>(byId[id]||folderById[id])&&tile(byId[id]||folderById[id],{pinned:true}))}{!data.pins.length&&<p className="empty">Open All apps and use the pin button to add your favorites.</p>}</div>
-    <div className="section-heading recommended-heading"><h2>{data.recent.length?'Recent':'Quick access'}</h2>{data.recent.length>0&&<button className="small-button text-button" onClick={()=>setPage('recent')}>Show all <Symbol name="arrow" size={13}/></button>}</div>
-    <div className="recommended">{data.recent.length?data.recent.slice(0,6).map(id=>byId[id]&&<button className="recommended-item" key={id} onClick={()=>open(byId[id])}>{icon(byId[id])}<span>{byId[id].name}<small>Opened from Start</small></span></button>):data.places.map(p=><button className="recommended-item" key={p.id} onClick={()=>open(p)}>{icon(p)}<span>{p.name}<small>Open folder</small></span></button>)}</div>
+    <div className="section-heading recommended-heading"><h2>{recommended.length?'Recommended':'Quick access'}</h2><div className="recommended-actions">{data.recent.length>0&&<button className="small-button text-button" onClick={()=>setPage('recent')}>Recent apps <Symbol name="arrow" size={13}/></button>}<button className="small-button text-button" aria-label="Search and Start settings" onClick={()=>send('settings',{page:'search-start'})}><Symbol name="settings" size={16}/></button></div></div>
+    <div className="recommended">{(recommended.length?recommended:data.places).map(item=><button className="recommended-item" key={item.id} title={item.name} onClick={()=>open(item)} onContextMenu={e=>menu(e,item)} onKeyDown={e=>{if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10'))menu(e,item);}}>{icon(item)}<span>{item.name}<small>{item.kind==='document'?'Recently opened':item.kind==='path'?'Open folder':'Opened from Start'}</small></span></button>)}</div>
     <section className="start-all-section" aria-label="All applications by category">
      <div className="section-heading"><h2>All</h2><label className="app-view">View: <select aria-label="App view" value={appView} onChange={e=>setAppView(e.target.value)}><option>Category</option><option>Grid</option><option>List</option></select></label></div>
      {appView==='Category'?<div className="app-categories">{categories.map(c=><button className="app-category" key={c.name} aria-label={'Open '+c.name+' apps'} onClick={()=>{setCategory(c.name);setPage('category');}}><span className="category-preview">{c.apps.slice(0,4).map(app=><span key={app.id}>{icon(app)}</span>)}</span><span>{c.name}</span></button>)}</div>:appView==='Grid'?<div className="all-app-grid">{apps.map(app=>tile(app))}</div>:<div className="all-app-list">{apps.map(app=><button className="app-launch" key={app.id} onClick={()=>open(app)} onContextMenu={e=>menu(e,app)}>{icon(app)}<span>{app.name}</span></button>)}</div>}

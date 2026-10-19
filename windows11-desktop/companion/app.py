@@ -20,6 +20,7 @@ from platform_ui import panel_button, desktop_status
 import explorer
 import file_preview
 import unified_search
+import start_preferences
 import file_transfer
 import threading
 import settings_backend
@@ -291,6 +292,9 @@ class Hub(Gtk.Application):
         self.status_pending = False
         self.backdrops = {}
         self.copied_files = ([], False, '')
+        self.recent_documents = []
+        self.recent_generation = 0
+        self.recent_timer = 0
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
@@ -303,6 +307,12 @@ class Hub(Gtk.Application):
         self.apps = {}
         self.refresh_apps()
         self.store = Store(CONFIG/'layout.json', self.apps, Path.home())
+        self.start_preferences = start_preferences.Preferences(CONFIG/'search-start.json', [p['path'] for p in explorer.place_paths()])
+        self.recent_manager = Gtk.RecentManager.get_default()
+        self.recent_manager.connect('changed', lambda *_: self.refresh_recent_documents())
+        self.privacy = Gio.Settings.new('org.gnome.desktop.privacy')
+        self.privacy.connect('changed::remember-recent-files', lambda *_: self.refresh_recent_documents())
+        Gtk.Settings.get_default().connect('notify::gtk-recent-files-enabled', lambda *_: self.refresh_recent_documents())
         self.context = WebKit2.WebContext.new_ephemeral()
         self.context.register_uri_scheme('zorin11', self.resource)
         self.context.get_security_manager().register_uri_scheme_as_local('zorin11')
@@ -442,6 +452,8 @@ class Hub(Gtk.Application):
             return self.icon_cache[cache_key]
         if key.startswith('theme:'):
             icon = Gio.ThemedIcon.new(key[6:])
+        elif key.startswith('mime:'):
+            icon = Gio.content_type_get_icon(key[5:])
         elif key in ('thunar.desktop', 'zorin11-explorer.desktop'):
             icon = Gio.ThemedIcon.new('system-file-manager') if (CONFIG/'reference-icons/48/system-file-manager.png').exists() else Gio.FileIcon.new(Gio.File.new_for_path(str(BASE/'explorer.svg')))
         elif key in self.apps:
@@ -467,6 +479,7 @@ class Hub(Gtk.Application):
             return None
         return {'id': app_id, 'name': LABELS.get(app_id, app.get_display_name()),
             'description': app.get_description() or '',
+            'actions': [{'id': action, 'name': app.get_action_name(action)} for action in app.list_actions()] if hasattr(app,'list_actions') else [],
             'categories': (app.get_categories() or '').split(';') if hasattr(app, 'get_categories') else [], 'icon': 'zorin11://icon/' + quote(app_id, safe='')}
 
     def path_info(self, path):
@@ -505,6 +518,7 @@ class Hub(Gtk.Application):
             'pins': [i for i in state['pins'] if i in self.apps or i in state['start_folders']],
             'startFolders': [dict(folder,id=ident) for ident,folder in state['start_folders'].items()],
             'recent': [i for i in state['recent'] if i in self.apps],
+            'documents': self.recent_documents,
             'groups': [self.group_info(g) for g in state['groups']], 'groupsVisible': state['groups_visible'],
             'user': self.presentation.get('displayName') or (GLib.get_real_name() if GLib.get_real_name() not in ('Unknown', '') else GLib.get_user_name()),
             'avatar': 'zorin11://profile/avatar' if (CONFIG/'reference-avatar.jpg').exists() else None,
@@ -547,6 +561,7 @@ class Hub(Gtk.Application):
             self.show_start()
 
     def show_start(self, page='home'):
+        self.refresh_recent_documents()
         self.notifications.hide()
         self.quick.hide()
         anchor = None if is_gnome() else panel_button('Start')
@@ -689,6 +704,62 @@ class Hub(Gtk.Application):
         self.start.hide()
         self.broadcast()
 
+    def launch_app_action(self, app_id, action):
+        app = self.apps.get(app_id)
+        if not app or not hasattr(app, 'list_actions') or action not in app.list_actions():
+            raise ValueError('This application shortcut is no longer available.')
+        context = Gdk.Display.get_default().get_app_launch_context()
+        context.set_timestamp(Gdk.CURRENT_TIME)
+        app.launch_action(action, context)
+        self.store.used(app_id)
+        self.start.hide()
+        self.broadcast()
+
+    def recent_history_allowed(self):
+        return self.privacy.get_boolean('remember-recent-files') and Gtk.Settings.get_default().get_property('gtk-recent-files-enabled')
+
+    def refresh_recent_documents(self, invalidate=False):
+        self.recent_generation += 1
+        generation = self.recent_generation
+        if self.recent_timer: GLib.source_remove(self.recent_timer)
+        self.recent_timer = 0
+        preferences = self.start_preferences.snapshot()
+        allowed = preferences['recentDocuments'] and self.recent_history_allowed()
+        if invalidate or not allowed:
+            self.recent_documents = []
+            if hasattr(self, 'start'): self.start.update()
+        if not allowed: return
+        def collect():
+            self.recent_timer = 0
+            items = sorted(self.recent_manager.get_items(), key=lambda i:i.get_modified(), reverse=True)[:512]
+            records = [dict(uri=i.get_uri(), private=i.get_private_hint(), modified=i.get_modified(), mime=i.get_mime_type() or 'application/octet-stream') for i in items if i.is_local()]
+            def done(documents):
+                if generation == self.recent_generation:
+                    self.recent_documents = documents
+                    self.start.update()
+            self.background(lambda:start_preferences.documents(records,preferences), done, lambda _:done([]))
+            return False
+        self.recent_timer = GLib.timeout_add(120, collect)
+
+    def open_recent_document(self, ident, location=False):
+        item = next((i for i in self.recent_documents if i['id'] == ident), None)
+        if not item or not self.recent_history_allowed():
+            raise ValueError('This recent document is no longer available.')
+        preferences = self.start_preferences.snapshot()
+        def validate():
+            if not start_preferences.documents([dict(uri=ident,modified=item['modified'])],preferences):
+                raise ValueError('This recent document is no longer available.')
+            return item
+        def opened(item):
+            if preferences != self.start_preferences.snapshot() or not self.recent_history_allowed(): return
+            try:
+                if location: self.open_explorer(str(Path(item['path']).parent))
+                else: Gio.AppInfo.launch_default_for_uri(ident, Gdk.Display.get_default().get_app_launch_context())
+                self.start.hide()
+            except Exception as error:
+                self.start.send(dict(type='error',message=str(error)))
+        self.background(validate, opened, lambda error:self.start.send(dict(type='error',message=error)))
+
     def open_path(self, path):
         allowed = {p['path'] for p in self.payload()['places']}
         for group in self.store.state['groups']:
@@ -739,6 +810,10 @@ class Hub(Gtk.Application):
                 surface.pending_page = None
         elif action == 'launch':
             self.launch(message['id'])
+        elif action == 'app-action':
+            self.launch_app_action(message.get('id'), message.get('shortcut'))
+        elif action in ('recent-open', 'recent-location') and surface.mode == 'start':
+            self.open_recent_document(message.get('id'), action == 'recent-location')
         elif action == 'pin':
             if message['id'] not in self.apps:
                 raise ValueError('Unknown application')
@@ -968,6 +1043,7 @@ class Hub(Gtk.Application):
     def settings_snapshot(self):
         result=settings_backend.snapshot()
         result.update(facts=settings_backend.facts(),wallpaper=wallpaper.status(),loading=False)
+        result.update(startPreferences=self.start_preferences.snapshot(), recentHistoryAllowed=self.recent_history_allowed())
         return result
 
     def update_settings_surface(self):
@@ -1021,6 +1097,20 @@ class Hub(Gtk.Application):
         elif action=='settings-set':
             name,value=message.get('name'),message.get('value')
             self.settings_change(lambda:settings_backend.apply(name,value))
+        elif action=='settings-start-preference':
+            if self.settings_busy: raise ValueError('Please wait for the current change to finish.')
+            operation, key, value = message.get('operation'), message.get('key'), message.get('value')
+            if operation == 'add':
+                if key not in ('roots','exclusions'): raise ValueError('Unknown folder list.')
+                chosen = self.pick(surface, folder=True)
+                if not chosen: return
+                value = chosen[0]
+            self.start_preferences.change(operation,key,value)
+            self.settings_generation += 1
+            self.search_action(self.start,dict(action='search-cancel'))
+            self.refresh_recent_documents(invalidate=True)
+            self.settings_data.update(startPreferences=self.start_preferences.snapshot(),recentHistoryAllowed=self.recent_history_allowed())
+            self.update_settings_surface()
         elif action=='settings-tool':settings_backend.launch(message.get('tool'))
         elif action=='settings-refresh':self.refresh_settings()
         elif action=='settings-effects':
@@ -1162,8 +1252,10 @@ class Hub(Gtk.Application):
         if not request:return
         surface.search_busy=True;cancel=threading.Event();surface.search_cancel=cancel
         apps=[self.app_info(ident) for ident in self.apps]
-        roots=[p['path'] for p in explorer.place_paths()]
+        preferences=self.start_preferences.snapshot()
+        roots=preferences['roots']
         immediate=unified_search.search(request['query'],apps,[],cancel)
+        immediate['scope']=roots
         surface.search_results={item['key']:item for item in immediate['results']}
         surface.send(dict(type='search-results',id=request['id'],searching=True,**immediate))
         def done(result):
@@ -1172,7 +1264,7 @@ class Hub(Gtk.Application):
                 surface.search_results={item['key']:item for item in result['results']}
                 surface.send(dict(type='search-results',id=request['id'],**result))
             if surface.search_waiting:self.start_search(surface)
-        self.background(lambda:unified_search.search(request['query'],apps,roots,cancel),done,
+        self.background(lambda:unified_search.search(request['query'],apps,roots,cancel,exclusions=preferences['exclusions']),done,
                         lambda error:done(dict(results=[],limited=False,scope=roots,error=error)))
 
     def start_transfer(self,surface,paths,destination,cut):

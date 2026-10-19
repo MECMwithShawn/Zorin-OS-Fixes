@@ -45,3 +45,5 @@ body{font-family:"Segoe UI Variable","Segoe UI",Selawik,sans-serif}
 .app-tile .start-folder-icon{display:grid;grid-template-columns:repeat(2,1fr);gap:3px;width:44px;height:44px;max-height:44px;padding:5px;border-radius:8px;background:#ffffff14;box-shadow:inset 0 0 0 1px #ffffff10}
 .start-folder-icon .app-icon{width:15px;height:15px}
 .start-folder-dialog{max-width:470px;gap:14px}.start-folder-name{display:flex;gap:8px}.start-folder-name input{flex:1;padding:8px;min-width:0}.start-folder-apps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:84px;gap:5px;overflow-y:auto;min-height:170px;max-height:350px}.start-folder-dialog .section-heading,.start-folder-picker .section-heading{margin-bottom:0}.start-folder-dialog .hint{margin:0;font-size:12px;color:#aaa;line-height:1.5}.start-folder-picker{max-width:470px;gap:16px}.start-folder-picker h3{font-size:13px;margin:0}.start-folder-picker .group-choices{max-height:140px;overflow-y:auto}.start-folder-picker .picker-apps{max-height:360px;overflow-y:auto}
+
+.recommended-actions{display:flex;align-items:center;gap:8px}

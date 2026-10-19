@@ -40,8 +40,9 @@ export function UnifiedSearch({query,input}){
    <Icon item={result}/><span><strong>{result.name}</strong><small>{labels[result.kind]}{['file','folder'].includes(result.kind)?' · '+result.description:''}</small></span>
   </button>)}</div>
   {item&&<section className="search-detail" aria-label="Selected result"><div className="search-detail-heading"><Icon item={item}/><h2>{item.name}</h2><p>{item.description||labels[item.kind]}</p></div><div className="search-result-actions"><button onClick={()=>open(item)}>Open</button>{item.path&&<button onClick={()=>open(item,true)}>Open file location</button>}</div>
+  {item.kind==='app'&&<div className="search-app-actions">{(item.actions||[]).map(action=><button key={action.id} onClick={()=>send('app-action',{id:item.id,shortcut:action.id})}>{action.name}</button>)}</div>}
   {item.kind==='file'&&<FilePreview item={item} location={query} actionPrefix="search"/>}
   </section>}</div>
-  <p className="search-scope">Files: Desktop, Documents, Downloads, Pictures, Music and Videos. Hidden items and links are excluded.{response?.filesNeedMore?' Type at least two characters to search files.':''}{response?.limited?' Search was limited; some files may be missing.':''}</p>
+  <p className="search-scope">Files: {response?.scope?.length??0} search folders. Hidden items, links and excluded folders stay private. <button onClick={()=>send('settings',{page:'search-start'})}>Choose folders</button>{response?.filesNeedMore?' Type at least two characters to search files.':''}{response?.limited?' Search was limited; some files may be missing.':''}</p>
  </section>;
 }

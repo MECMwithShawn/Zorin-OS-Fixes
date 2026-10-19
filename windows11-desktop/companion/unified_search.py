@@ -5,9 +5,10 @@ import os
 from pathlib import Path
 import time
 import unicodedata
+from start_preferences import EXCLUDED_NAMES, excluded, visible
 
 CATALOG = json.loads(Path(__file__).with_name('settings_catalog.json').read_text())
-EXCLUDED = {'node_modules','__pycache__','venv','env','target','build','dist','$RECYCLE.BIN','System Volume Information'}
+EXCLUDED = EXCLUDED_NAMES
 
 
 def normalized(value):
@@ -20,7 +21,7 @@ def score(name, terms, query):
     return 0 if name == query else 1 if name.startswith(query) else 2 if query in name else 3
 
 
-def search(query, apps, roots, cancelled, *, max_entries=25000, seconds=1.5, limit=80):
+def search(query, apps, roots, cancelled, *, exclusions=(), max_entries=25000, seconds=1.5, limit=80):
     query = normalized(query.strip()[:160])
     matches=[]
     def add(item, terms=''):
@@ -37,6 +38,7 @@ def search(query, apps, roots, cancelled, *, max_entries=25000, seconds=1.5, lim
     while queue and len(query)>=2 and not cancelled.is_set():
         directory,depth=queue.popleft()
         try:
+            if not visible(directory,roots,exclusions):continue
             real=directory.resolve()
             if real in seen:continue
             seen.add(real)
@@ -46,7 +48,7 @@ def search(query, apps, roots, cancelled, *, max_entries=25000, seconds=1.5, lim
                     count+=1
                     if count>max_entries or time.monotonic()>deadline:
                         limited=True;queue.clear();break
-                    if entry.name.startswith('.') or entry.name in EXCLUDED or entry.is_symlink():continue
+                    if entry.name.startswith('.') or entry.name in EXCLUDED or entry.is_symlink() or excluded(Path(entry.path),exclusions):continue
                     folder=entry.is_dir(follow_symlinks=False)
                     if not folder and not entry.is_file(follow_symlinks=False):continue
                     if score(entry.name,'',query) is not None:

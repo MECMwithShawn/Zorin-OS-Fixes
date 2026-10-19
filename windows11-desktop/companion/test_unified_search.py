@@ -4,6 +4,7 @@ import threading
 import unittest
 from types import SimpleNamespace
 import unified_search
+from start_preferences import Preferences
 
 
 class SearchTests(unittest.TestCase):
@@ -52,6 +53,7 @@ class SearchTests(unittest.TestCase):
         pending=[];messages=[]
         surface=SimpleNamespace(location='::home',send=messages.append)
         hub=SimpleNamespace(apps={},background=lambda task,done,fail:pending.append(done))
+        hub.start_preferences=Preferences(self.root/'preferences.json',[str(self.root)])
         hub.start_search=lambda s:Hub.start_search(hub,s)
         for i in (1,2,3):Hub.search_action(hub,surface,dict(action='search-query',query=str(i),id=i))
         self.assertEqual(len(pending),1)
@@ -62,6 +64,14 @@ class SearchTests(unittest.TestCase):
         with self.assertRaises(ValueError):Hub.search_action(hub,surface,dict(action='search-open',key='path:/etc/passwd'))
         Hub.search_action(hub,surface,dict(action='search-cancel'))
         self.assertEqual(surface.search_results,{})
+
+    def test_configured_exclusions_and_symlink_roots(self):
+        private=self.root/'private';private.mkdir();(private/'notes.txt').touch()
+        (self.root/'notes.txt').touch()
+        self.assertEqual([r['path'] for r in self.search('notes',exclusions=[str(private)])['results'] if r.get('path')], [str(self.root/'notes.txt')])
+        self.assertFalse(any(r.get('path') for r in self.search('notes',exclusions=[str(self.root)])['results']))
+        link=self.root/'link';link.symlink_to(private,target_is_directory=True)
+        self.assertEqual(unified_search.search('notes',[],[link],threading.Event())['results'],[])
 
 
 if __name__=='__main__':unittest.main()

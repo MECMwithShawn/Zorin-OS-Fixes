@@ -68,6 +68,10 @@ def install():
         ('notifications','Notifications and calendar','--notifications','preferences-system-notifications','Zorin11-hub'),
     ]:files[apps/f'zorin11-{ident}.desktop']=desktop(name,args,icon,wm)
     files[apps/'zorin11-explorer.desktop']+=b'MimeType=inode/directory;\nKeywords=Files;Folders;File Manager;Explorer;\n'
+    launcher=f'/usr/bin/env GDK_BACKEND=x11 /usr/bin/python3 "{DEST / "app.py"}"'
+    files[apps/'zorin11-explorer.desktop']+=(f'Actions=new-window;this-pc;\n\n'
+        f'[Desktop Action new-window]\nName=New window\nExec={launcher} --explorer\n\n'
+        f'[Desktop Action this-pc]\nName=This PC\nExec={launcher} --explorer ::computer\n').encode()
     # Zorin's desktop-specific defaults take precedence over generic defaults.
     mimeapps=HOME/'.config/zorin-mimeapps.list'
     files[mimeapps]=folder_defaults(mimeapps.read_text() if mimeapps.exists() else '')
