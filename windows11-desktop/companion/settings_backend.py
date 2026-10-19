@@ -7,6 +7,7 @@ import platform
 import shutil
 import subprocess
 import dbus
+import hardware_controls
 from platform_ui import desktop_status
 from gnome_bridge import active as is_gnome
 from gi.repository import Gio
@@ -99,7 +100,7 @@ def bluetooth_objects():
     bus=dbus.SystemBus(private=True)
     try:
         manager=dbus.Interface(bus.get_object('org.bluez','/'),'org.freedesktop.DBus.ObjectManager')
-        return manager.GetManagedObjects()
+        return manager.GetManagedObjects(timeout=3)
     except dbus.DBusException:return {}
     finally:bus.close()
 
@@ -145,6 +146,8 @@ def snapshot():
     result['screenTimeout']=int(power.get('/xfce4-power-manager/blank-on-ac',0))
     result['batteryTimeout']=int(power.get('/xfce4-power-manager/blank-on-battery',0))
     result['batteries']=[]
+    result.update(hardware_controls.power_snapshot())
+    result.update(hardware_controls.airplane_snapshot())
     for battery in Path('/sys/class/power_supply').glob('*'):
         try:
             if (battery/'type').read_text().strip()=='Battery':
@@ -154,9 +157,7 @@ def snapshot():
     adapters=[v['org.bluez.Adapter1'] for v in objects.values() if 'org.bluez.Adapter1' in v]
     result['bluetoothAvailable']=bool(adapters)
     result['bluetooth']=any(bool(a.get('Powered',False)) for a in adapters)
-    result['devices']=[{'name':str(v['org.bluez.Device1'].get('Alias','Bluetooth device')),
-                        'connected':bool(v['org.bluez.Device1'].get('Connected',False))}
-                       for v in objects.values() if 'org.bluez.Device1' in v and v['org.bluez.Device1'].get('Paired')]
+    result['devices']=hardware_controls.bluetooth_snapshot(objects)
     try:result['wifiAvailable']='wifi' in run(['nmcli','-t','-f','TYPE','device']).splitlines()
     except (OSError,subprocess.SubprocessError):result['wifiAvailable']=False
     usage=shutil.disk_usage('/')
@@ -165,7 +166,11 @@ def snapshot():
 
 
 def apply(name,value):
-    if name in ('desktopAnimations','desktopAnimationDuration'):
+    if name in ('batterySaver','powerProfile'):
+        hardware_controls.set_power(name,value)
+    elif name=='airplane':
+        hardware_controls.set_airplane(value)
+    elif name in ('desktopAnimations','desktopAnimationDuration'):
         from desktop_motion import configure
         configure(name,value)
     elif name in BOOL_SETTINGS:

@@ -28,7 +28,7 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 | Start | Opens on the primary monitor; shared Windows-style pinned apps, ordering, search, All apps, categories, recent documents/apps, desktop-entry actions, local folders and session actions |
 | Explorer / This PC | Tabs, sidebar, system drive first as Local Disk (C:), persistent display letters for other mounted drives, capacity, details view, create/rename/copy/cut/paste/trash; advanced locations open the system file manager |
 | Settings | Windows-style categories with actual device information and GNOME settings controls; advanced pages open the native tools |
-| Quick Settings | Network, Bluetooth, volume/output, Do Not Disturb, accessibility, supported backlights and battery information |
+| Quick Settings | Eight editable tiles, Wi-Fi, airplane mode, battery saver, paired Bluetooth devices with connect/disconnect and battery, volume/output, DND, accessibility and supported backlights |
 | Notifications | GNOME's current session notifications, read/dismiss/clear and calendar; native notification banners remain managed by GNOME |
 | Task Manager | Mission Center provides expandable application/process groups, actual application icons, combined resource usage, and CPU, memory, disk, network and supported GPU graphs |
 | Backgrounds | Windows Spotlight, Bing daily/UHD images, local photos, history, original-background restore **and the installed Zorin wallpaper collection** |
@@ -37,6 +37,10 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 | Terminal | Pinned PowerShell 7.6.7 and WezTerm, PowerShell/Bash profiles, Cascadia Mono, tabs and split panes |
 
 The installer replaces the pinned GNOME Files shortcut with File Explorer and makes it the default for local folders. Network and Trash views remain available through the native file manager.
+
+Open **Quick Settings** with **Win+A**. Battery saver uses the installed power-profile service and restores the previous mode when switched off; **Settings → System → Power & battery** also lets you choose an available power mode. Airplane mode controls wireless radios through GNOME; a physical radio switch must be released on the device. Wired networking remains available. These controls show as unavailable when their services or hardware are missing. Airplane mode requires GNOME’s radio service; Xfce keeps its Wi-Fi/Bluetooth controls.
+
+Click the arrow beside **Bluetooth** for connected and paired devices, reported battery levels, and **Connect/Disconnect**. Only previously paired devices can be controlled here; **Add and manage devices** opens native Bluetooth settings for pairing and removal. Devices can refuse a connection or omit battery information. The same controls appear under **Settings → Bluetooth & devices**. Use the pencil button to choose tiles; upgrades preserve your existing tile selection, with new controls available in the editor.
 
 In Start, click your profile for Account settings, Lock, Switch user and Sign out. The power button offers Sleep, Shut down and Restart. GNOME confirms Sign out, Shut down and Restart through its native session dialogs and retains application inhibitors.
 
@@ -122,7 +126,7 @@ The existing Xfce/X11 backend is retained. See [the complete Xfce guide](XFCE.md
 ```bash
 python3 -m unittest discover -s tests -v
 cd companion
-XDG_CURRENT_DESKTOP=XFCE python3 -m unittest -v test_model.py test_explorer.py test_file_preview.py test_file_transfer.py test_unified_search.py test_start_preferences.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py test_session_actions.py
+XDG_CURRENT_DESKTOP=XFCE python3 -m unittest -v test_model.py test_explorer.py test_file_preview.py test_file_transfer.py test_unified_search.py test_start_preferences.py test_hardware_controls.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py test_session_actions.py
 # Frontend: use the pinned lockfile, then rebuild committed dist/ assets.
 corepack pnpm install --frozen-lockfile
 node build.mjs
@@ -134,6 +138,8 @@ python3 companion/test_session_actions_live.py
 python3 companion/test_theme_items_live.py
 python3 companion/test_search_transfer_live.py
 python3 companion/test_start_search_live.py
+# Power/radio/device services are isolated; this does not change host hardware.
+python3 companion/test_quick_hardware_live.py
 # Optional network-dependent verification:
 ZORIN11_TEST_FEEDS=1 python3 tests/gnome_live.py
 ```

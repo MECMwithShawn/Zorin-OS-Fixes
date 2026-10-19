@@ -5,7 +5,7 @@ import dbus
 import settings_backend
 
 BACKLIGHT=Path('/sys/class/backlight')
-TILES=('wifi','bluetooth','dnd','accessibility','screenshot','display')
+TILES=('wifi','bluetooth','airplane','batterySaver','dnd','accessibility','screenshot','display')
 
 def validate_tiles(value):
     if not isinstance(value,list) or not value or len(value)>len(TILES) or any(type(i) is not str or i not in TILES for i in value) or len(set(value))!=len(value):

@@ -5,3 +5,5 @@
 @media(max-height:650px){.calendar-date{padding-top:10px;padding-bottom:5px}.calendar-date>div{gap:1px}.calendar-date>div>button{font-size:18px}.calendar-month{padding-top:2px;padding-bottom:2px}.calendar-grid button{height:28px;width:28px}.calendar-grid{gap:1px}.calendar-pane{padding-bottom:10px}.notification-heading{padding-top:10px;min-height:44px}.notification-toolbar{padding-bottom:5px}}
 @media(prefers-reduced-motion:reduce){.control-flyout *,.notification-flyout *{transition:none!important}}
 .notification-app-icon:has(img){background:transparent}.notification-app-icon img{width:20px;height:20px;object-fit:contain}
+
+.flyout-tile-detail{display:block;color:#bcbcbc;font-size:10px;line-height:14px;margin-top:3px}.flyout-tiles{row-gap:16px}.control-flyout .bluetooth-device{gap:10px;padding:13px 8px}.control-flyout .bluetooth-device button{padding:7px;font-size:11px}

@@ -23,6 +23,9 @@ class SearchTests(unittest.TestCase):
         self.assertEqual(result[0]['kind'],'app')
         self.assertEqual(self.search('volume')['results'][0]['id'],'sound')
         self.assertEqual(self.search('monitor')['results'][0]['id'],'display')
+        self.assertEqual(self.search('battery saver')['results'][0]['id'],'power')
+        self.assertEqual(self.search('airplane')['results'][0]['id'],'network')
+        self.assertEqual(self.search('paired')['results'][0]['id'],'devices')
         self.assertEqual(self.search('indexed')['results'],[])
 
     def test_excludes_hidden_dependencies_links_and_special_files(self):

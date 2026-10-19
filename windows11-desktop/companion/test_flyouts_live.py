@@ -15,7 +15,7 @@ if '--session' not in sys.argv:
                 server.terminate();server.wait();log.flush();print((root/'session.log').read_text()[-4500:])
     sys.exit()
 import dbus
-import settings_backend,notifications
+import settings_backend,notifications,quick_controls
 from app import Hub,GLib,WebKit2,Gdk
 wm=subprocess.Popen(['xfwm4','--replace'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 def pump(seconds=.08):
@@ -66,7 +66,7 @@ try:
     until(lambda:not notifications.snapshot()['entries']);assert notifications.snapshot()['available']
     hub.show_quick();quick=hub.quick;until(lambda:quick.ready and 'outputs' in hub.status);pump(.4)
     # Real audio and radio state is read, never changed by this test.
-    assert js(quick,"document.querySelectorAll('.flyout-tile-wrap').length")==6
+    assert js(quick,"document.querySelectorAll('.flyout-tile-wrap').length")==len(quick_controls.TILES)
     js(quick,"(document.querySelector('[aria-label=\"Select sound output\"]').click(),true)");pump(.1)
     assert js(quick,"document.querySelector('.flyout-subheading h2').textContent")=='Sound output'
     js(quick,"(document.querySelector('[aria-label=\"Back to Quick Settings\"]').click(),true)");pump(.1)

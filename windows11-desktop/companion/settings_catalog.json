@@ -111,12 +111,12 @@
   "terms": {
     "background": "wallpaper spotlight bing picture rotation history",
     "sound": "audio speaker volume microphone mute",
-    "power": "battery screen timeout sleep",
+    "power": "battery screen timeout sleep saver efficiency performance balanced power mode",
     "accessibility": "sticky slow bounce mouse keys animations motion",
     "personalization": "theme colors taskbar start wobble effects desktop animation",
     "privacy": "firewall screen lock",
     "updates": "software drivers repositories update",
-    "network": "wifi wi-fi vpn ethernet",
+    "network": "wifi wi-fi vpn ethernet airplane radio",
     "apps": "installed default startup applications",
     "display": "monitor resolution scale",
     "multitasking": "desktop switching animation speed virtual desktops snap layouts",
@@ -125,6 +125,7 @@
     "storage": "disk drive capacity space",
     "about": "processor ram memory device specifications version",
     "notifications": "do not disturb dnd banners alerts",
-    "search-start": "recommended recent documents privacy excluded folders search locations app shortcuts"
+    "search-start": "recommended recent documents privacy excluded folders search locations app shortcuts",
+    "devices": "bluetooth paired connect disconnect headphones keyboard battery"
   }
 }

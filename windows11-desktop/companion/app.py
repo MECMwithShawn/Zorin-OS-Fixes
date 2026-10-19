@@ -947,7 +947,8 @@ class Hub(Gtk.Application):
     def show_quick(self):
         self.start.hide();self.notifications.hide()
         if self.quick.get_visible():self.quick.hide();return
-        self.show_flyout(self.quick,368,490 if quick_controls.backlights() else 430)
+        count=len(self.store.state.get('quick_tiles',quick_controls.TILES))
+        self.show_flyout(self.quick,368,(490 if quick_controls.backlights() else 430)+max(0,(count+2)//3-2)*84)
         if self.quick.ready:self.quick.send({'type':'show','page':'home'})
         self.refresh_status()
 
@@ -972,14 +973,19 @@ class Hub(Gtk.Application):
             surface.hide();settings_backend.launch(tool)
         elif action=='quick-set':
             name,value=message.get('name'),message.get('value')
-            if name not in ('volume','muted','wifi','bluetooth','dnd','output','stickyKeys','slowKeys','bounceKeys','mouseKeys'):
+            if name not in ('volume','muted','wifi','bluetooth','airplane','batterySaver','dnd','output','stickyKeys','slowKeys','bounceKeys','mouseKeys'):
                 raise ValueError('Unknown Quick Settings control.')
             self.quick_change(lambda:settings_backend.apply(name,value))
+        elif action=='quick-device':
+            self.quick_change(lambda:settings_backend.hardware_controls.connect_bluetooth(message.get('id'),message.get('connected')))
         elif action=='quick-brightness':
             self.quick_change(lambda:quick_controls.brightness(message.get('id'),message.get('value')))
         elif action=='quick-tiles':
             self.store.state['quick_tiles']=quick_controls.validate_tiles(message.get('tiles'))
             self.store.save();surface.update()
+            if surface.get_visible():
+                count=len(self.store.state['quick_tiles'])
+                self.show_flyout(surface,368,(490 if quick_controls.backlights() else 430)+max(0,(count+2)//3-2)*84)
         else:raise ValueError('Unknown Quick Settings action.')
 
     def refresh_notifications(self):
@@ -1112,6 +1118,8 @@ class Hub(Gtk.Application):
             self.settings_data.update(startPreferences=self.start_preferences.snapshot(),recentHistoryAllowed=self.recent_history_allowed())
             self.update_settings_surface()
         elif action=='settings-tool':settings_backend.launch(message.get('tool'))
+        elif action=='settings-device':
+            self.settings_change(lambda:settings_backend.hardware_controls.connect_bluetooth(message.get('id'),message.get('connected')))
         elif action=='settings-refresh':self.refresh_settings()
         elif action=='settings-effects':
             if is_gnome():subprocess.Popen(['gnome-extensions','prefs','zorin-window-move-effect@zorinos.com'])

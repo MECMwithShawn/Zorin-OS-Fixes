@@ -35,7 +35,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Acrylic/Mica-inspired translucent surfaces with solid/reduced-effects fallback and reasonable GPU use.
 - [ ] Validate GTK3, GTK4/libadwaita, Qt, Electron and Flatpak differences; avoid fragile global overrides.
 - [ ] Improve notification actions/grouping and animations while respecting DND and logging preferences.
-- [ ] Add supported battery-saver, airplane-mode and connected-device controls to Quick Settings.
+- [x] Quick Settings: supported battery saver with previous-mode restoration, GNOME airplane mode, connected/paired Bluetooth controls and reported device battery. Shared Settings controls and unavailable/hardware-lock states; verified 2026-10-19. Physical paired-device testing remains pending.
 - [ ] Build a Windows-inspired clock/avatar lock screen while preserving native GNOME/GDM and Xfce authentication.
 - [x] GNOME Task Manager: Mission Center, expandable application groups, program icons, merged usage and supported GPU graphs. Intel and NVIDIA RTX 4090 laptop telemetry verified in Mission Center after the local NVIDIA driver reboot.
 - [ ] Windows-inspired Device Manager, Disk Management and Event Viewer equivalents; Task Manager includes Mission Center's Services view.
