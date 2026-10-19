@@ -2,6 +2,7 @@ import React,{useState,useEffect,useRef} from 'react';
 import fluentPaths from './fluent-paths.js';
 import {WindowEdges} from './window-chrome.jsx';
 import {FilePreview} from './file-preview.jsx';
+import {TransferDialog} from './transfer-dialog.jsx';
 const send=(action,payload={})=>window.webkit.messageHandlers.desktop.postMessage(JSON.stringify({action,...payload}));
 export function Glyph({name,size=18}){
  if(fluentPaths[name])return <svg width={size} height={size} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">{fluentPaths[name].map((d,i)=><path key={i} d={d}/>)}</svg>;
@@ -29,14 +30,15 @@ export function Explorer({data,toast}){
  const [tabs,setTabs]=useState([{id:1,path:'::home',title:'Home',history:['::home'],index:0}]),[active,setActive]=useState(1);
  const [selected,setSelected]=useState([]),[query,setQuery]=useState(''),[view,setView]=useState('details'),[sort,setSort]=useState('name'),[hidden,setHidden]=useState(false);
  const [details,setDetails]=useState(false);
+ const [transfer,setTransfer]=useState(null);
  const [preview,setPreview]=useState(false);
  const [address,setAddress]=useState(null),[menu,setMenu]=useState(null),[dialog,setDialog]=useState(null),[value,setValue]=useState(''),[busy,setBusy]=useState(false);
- const key=useRef(1),anchor=useRef(null),previous=useRef('');
+ const key=useRef(1),anchor=useRef(null),previous=useRef(''),shell=useRef(null);
  useEffect(()=>{if(menu?.kind==='context')document.querySelector('.context-menu button:not(:disabled)')?.focus();},[menu]);
- useEffect(()=>{setBusy(false);setTabs(ts=>ts.map(t=>t.id===active?{...t,path:data.path,title:data.title,history:t.history.map((p,i)=>i===t.index?data.path:p)}:t));if(previous.current!==data.path){setSelected([]);setQuery('');previous.current=data.path;}},[data]);
- useEffect(()=>{const handler=e=>{if(e.detail.type==='file-loading')setBusy(true);if(['error','file-loaded'].includes(e.detail.type))setBusy(false);};window.addEventListener('desktop-message',handler);return()=>window.removeEventListener('desktop-message',handler);},[]);
+ useEffect(()=>{setBusy(false);setTabs(ts=>ts.map(t=>t.id===active?{...t,path:data.path,title:data.title,history:t.history.map((p,i)=>i===t.index?data.path:p)}:t));if(previous.current!==data.path){setSelected([]);setQuery('');previous.current=data.path;shell.current?.focus();}},[data]);
+ useEffect(()=>{const handler=e=>{if(e.detail.type==='file-transfer')setTransfer(e.detail.transfer);if(e.detail.type==='file-loading')setBusy(true);if(['error','file-loaded'].includes(e.detail.type))setBusy(false);};window.addEventListener('desktop-message',handler);return()=>window.removeEventListener('desktop-message',handler);},[]);
  const tab=tabs.find(t=>t.id===active)||tabs[0];
- const navigate=(path,history=true)=>{if(history)setTabs(ts=>ts.map(t=>t.id===active?{...t,path,history:[...t.history.slice(0,t.index+1),path],index:t.index+1}:t));setMenu(null);setAddress(null);send('file-navigate',{path,hidden});};
+ const navigate=(path,history=true)=>{if(history)setTabs(ts=>ts.map(t=>t.id===active?{...t,path,history:[...t.history.slice(0,t.index+1),path],index:t.index+1}:t));setMenu(null);setAddress(null);requestAnimationFrame(()=>shell.current?.focus());send('file-navigate',{path,hidden});};
  const travel=direction=>{const index=tab.index+direction;if(index<0||index>=tab.history.length)return;setTabs(ts=>ts.map(t=>t.id===active?{...t,index}:t));navigate(tab.history[index],false);};
  const newTab=path=>{const id=++key.current;setTabs(ts=>[...ts,{id,path,title:'Home',history:[path],index:0}]);setActive(id);send('file-navigate',{path,hidden});};
  const closeTab=(e,id)=>{e.stopPropagation();if(tabs.length===1){send('close');return;}const rest=tabs.filter(t=>t.id!==id);setTabs(rest);if(active===id){const next=rest[rest.length-1];setActive(next.id);send('file-navigate',{path:next.path,hidden});}};
@@ -50,7 +52,8 @@ export function Explorer({data,toast}){
  const toolbar=(name,label,fn,disabled=false)=> <button title={label} aria-label={label} disabled={disabled} onMouseEnter={()=>{if(name==='max'||name==='restore')send('snap-hover',{enter:true});}} onMouseLeave={()=>{if(name==='max'||name==='restore')send('snap-hover',{enter:false});}} onClick={()=>{if(name==='max'||name==='restore')send('snap-hover',{enter:false});fn();}}><Glyph name={name}/></button>;
  const parent=data.path.startsWith('::')?null:data.path.replace(/\/?[^/]+\/?$/,'')||'/';
  const crumbs=data.path.startsWith('::')?[{name:data.title,path:data.path}]:[{name:'This PC',path:'::computer'},...data.path.split('/').filter(Boolean).map((name,i,parts)=>({name,path:'/'+parts.slice(0,i+1).join('/')}))];
- return <main className={'explorer-shell'+(data.maximized?' maximized':'')+(data.focused===false?' inactive':'')} tabIndex={0} onClick={()=>setMenu(null)} onKeyDown={e=>{
+ return <main ref={shell} className={'explorer-shell'+(data.maximized?' maximized':'')+(data.focused===false?' inactive':'')} tabIndex={0} onClick={()=>setMenu(null)} onKeyDown={e=>{
+  if(transfer)return;
   if(dialog){if(e.key==='Escape'){e.preventDefault();setDialog(null);}return;}
   if(e.target.matches('input'))return;
   const ctrl=e.ctrlKey;let handled=true;
@@ -107,6 +110,7 @@ export function Explorer({data,toast}){
  {dialog&&<div className="file-modal"><form role="dialog" aria-modal="true" aria-label={dialog==='properties'?'Properties':dialog.startsWith('rename')?'Rename':'New folder'} onSubmit={e=>{e.preventDefault();if(dialog==='properties'){setDialog(null);return;}send('file-'+dialog,{name:value,path:selected[0]});setDialog(null);}}><h2>{dialog==='new-folder'?'New folder':dialog==='properties'?'Properties':'Rename'}</h2>
  {dialog==='properties'?<div className="properties">{chosen.map(item=><section key={item.path}><div className="properties-heading"><FileIcon item={item} size={40}/><strong>{item.name}</strong></div><div className="properties-tab">General</div><dl><dt>Type</dt><dd>{item.type}</dd>{item.filesystem&&<><dt>File system</dt><dd>{item.filesystem.toUpperCase()}</dd></>}{item.total!=null?<><dt>Used space</dt><dd>{human(item.total-item.free)}</dd><dt>Free space</dt><dd>{human(item.free)}</dd><dt>Capacity</dt><dd>{human(item.total)}</dd></>:!item.folder&&<><dt>Size</dt><dd>{human(item.size)}</dd></>}<dt>Location</dt><dd>{item.path}</dd>{item.date&&item.symbol!=='drive'&&<><dt>Modified</dt><dd>{item.date}</dd></>}</dl>{item.total!=null&&<progress aria-label="Drive storage used" max={item.total} value={item.total-item.free}/>}</section>)}</div>:<><input aria-label="Name" autoFocus maxLength={dialog==='rename-drive'?64:undefined} value={value} onChange={e=>setValue(e.target.value)} onFocus={e=>e.target.select()}/>{dialog==='rename-drive'&&<p className="rename-note">Change this drive’s display name in File Explorer.</p>}</>}
  <div className="dialog-buttons">{dialog!=='properties'&&<button type="button" onClick={()=>setDialog(null)}>Cancel</button>}<button className="primary" type="submit">{dialog==='properties'?'OK':'Save'}</button></div></form></div>}
+ {transfer&&<TransferDialog job={transfer} onDismiss={()=>{setTransfer(null);requestAnimationFrame(()=>shell.current?.focus());}}/>}
  {!data.maximized&&<WindowEdges/>}
  {toast&&<div className="file-toast" role="alert">{toast}</div>}
  </main>;

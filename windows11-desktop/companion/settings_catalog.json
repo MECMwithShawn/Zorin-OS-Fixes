@@ -1,0 +1,124 @@
+{
+  "sections": [
+    [
+      "home",
+      "Home",
+      "home"
+    ],
+    [
+      "system",
+      "System",
+      "desktop"
+    ],
+    [
+      "devices",
+      "Bluetooth & devices",
+      "bluetooth"
+    ],
+    [
+      "network",
+      "Network & internet",
+      "wifi"
+    ],
+    [
+      "personalization",
+      "Personalization",
+      "image"
+    ],
+    [
+      "apps",
+      "Apps",
+      "apps"
+    ],
+    [
+      "accounts",
+      "Accounts",
+      "person"
+    ],
+    [
+      "time",
+      "Time & language",
+      "calendar"
+    ],
+    [
+      "gaming",
+      "Gaming",
+      "game"
+    ],
+    [
+      "accessibility",
+      "Accessibility",
+      "access"
+    ],
+    [
+      "privacy",
+      "Privacy & security",
+      "shield"
+    ],
+    [
+      "updates",
+      "Software Update",
+      "refresh"
+    ]
+  ],
+  "subpages": [
+    [
+      "display",
+      "Display",
+      "system"
+    ],
+    [
+      "sound",
+      "Sound",
+      "system"
+    ],
+    [
+      "notifications",
+      "Notifications",
+      "system"
+    ],
+    [
+      "power",
+      "Power & battery",
+      "system"
+    ],
+    [
+      "storage",
+      "Storage",
+      "system"
+    ],
+    [
+      "multitasking",
+      "Multitasking",
+      "system"
+    ],
+    [
+      "about",
+      "About",
+      "system"
+    ],
+    [
+      "background",
+      "Background",
+      "personalization"
+    ]
+  ],
+  "terms": {
+    "background": "wallpaper spotlight bing picture rotation history",
+    "sound": "audio speaker volume microphone mute",
+    "power": "battery screen timeout sleep",
+    "accessibility": "sticky slow bounce mouse keys animations motion",
+    "personalization": "theme colors taskbar start wobble effects desktop animation",
+    "privacy": "firewall screen lock",
+    "updates": "software drivers repositories update",
+    "network": "wifi wi-fi vpn ethernet",
+    "apps": "installed default startup applications",
+    "display": "monitor resolution scale",
+    "multitasking": "desktop switching animation speed virtual desktops snap layouts",
+    "accounts": "user profile login password sign in",
+    "time": "date clock language timezone keyboard",
+    "storage": "disk drive capacity space",
+    "about": "processor ram memory device specifications version",
+    "notifications": "do not disturb dnd banners alerts"
+  }
+}

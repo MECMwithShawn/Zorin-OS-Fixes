@@ -44,6 +44,14 @@ Organize pinned apps by dragging an app onto the **center** of another app to cr
 
 Explorer's **Preview** button or **Alt+P** opens a read-only preview pane. Supported raster images are decoded to a bounded PNG preview; supported text/code files render as plain text, including HTML. Text files are limited to 1 MB with at most 65,536 characters/1,000 lines shown; images are limited to 10 MB and 25 megapixels, resized to 1,024 px. Animated images show their first frame. Unsupported formats, PDFs and Office documents retain their normal **Open** action. Decoding runs in a timed worker, and changing selection discards stale previews. Preview content is not saved or uploaded.
 
+Start and taskbar Search now combine **Apps, Files, Folders, and Settings**. Apps and settings appear immediately while local filename search runs. Use the category buttons, arrow keys and Enter, or select a result and choose **Open** / **Open file location**. Supported files show the same bounded image/text preview as Explorer. Settings results open the actual page (for example, “volume” → Sound).
+
+File search reads names on demand in your configured Desktop, Documents, Downloads, Pictures, Music and Videos folders. It does not index file contents, save queries or upload results. Hidden items, symbolic links and common dependency/build folders are excluded. File queries need two characters; scans are limited to 25,000 entries, 16 nested levels and about 1.5 seconds of traversal, with up to 80 results per category. A visible notice indicates incomplete results. This is scoped filename search, not a whole-disk content index.
+
+Explorer copy/paste now shows progress, transferred bytes, completed/skipped items, **Pause**, **Resume**, and **Cancel transfer**. Collisions offer **Replace the file**, **Keep both**, or **Skip**; matching folders offer **Merge folders** while retaining unrelated destination files. You can apply a choice to remaining file or folder conflicts. File/folder type mismatches and same-file copies cannot replace the original. Failed item operations offer **Retry** or **Skip**; preparation failures show their error.
+
+Each file is staged in the destination filesystem before publication. Cancelling removes its unfinished staging file; completed items remain. Cut/paste removes source files only after their completed copies, and skipped or unfinished sources remain available. Closing the Explorer window cancels its transfer. Transfers support local/mounted filesystems; network and Trash locations still use native tools. Merging keeps existing folder permissions. Keyboard focus returns to Explorer after folder navigation and closing transfer dialogs, so Ctrl+C/Ctrl+X/Ctrl+V continue working.
+
 Task Manager opens [Mission Center](https://missioncenter.io/) in its Apps view with parent/child resource totals merged. The System Monitor launcher and taskbar pin are redirected through recoverable per-user settings, with one visible Task Manager app entry. Extra process-detection metadata lets ChatGPT's known pass-through launcher group under the ChatGPT name and icon. This metadata is excluded from desktop menus and file associations; the actual ChatGPT launcher is preserved. Performance includes GPU graphs supported by the active driver. NVIDIA monitoring requires the NVIDIA driver and NVML; Nouveau does not provide Mission Center's NVIDIA telemetry. Intel GPU metrics vary by driver and permissions. The installer does not change GPU drivers.
 
 Drive menus include Rename, Copy as path and Properties with filesystem, capacity and free-space details. Drive Rename changes the label shown in Explorer; it does not relabel or remount the filesystem.
@@ -109,7 +117,7 @@ The existing Xfce/X11 backend is retained. See [the complete Xfce guide](XFCE.md
 ```bash
 python3 -m unittest discover -s tests -v
 cd companion
-XDG_CURRENT_DESKTOP=XFCE python3 -m unittest -v test_model.py test_explorer.py test_file_preview.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py test_session_actions.py
+XDG_CURRENT_DESKTOP=XFCE python3 -m unittest -v test_model.py test_explorer.py test_file_preview.py test_file_transfer.py test_unified_search.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py test_session_actions.py
 # Frontend: use the pinned lockfile, then rebuild committed dist/ assets.
 corepack pnpm install --frozen-lockfile
 node build.mjs
@@ -119,6 +127,7 @@ python3 tests/gnome_live.py
 # the receiving test services cannot lock or end the host session.
 python3 companion/test_session_actions_live.py
 python3 companion/test_theme_items_live.py
+python3 companion/test_search_transfer_live.py
 # Optional network-dependent verification:
 ZORIN11_TEST_FEEDS=1 python3 tests/gnome_live.py
 ```

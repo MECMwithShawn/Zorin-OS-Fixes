@@ -2,6 +2,7 @@ import React, {useState, useEffect, useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 import './style.css';
 import {Explorer} from './explorer.jsx';
+import {UnifiedSearch} from './unified-search.jsx';
 import './explorer.css';
 import {Settings} from './settings.jsx';
 import {QuickSettings,NotificationCenter} from './flyouts.jsx';
@@ -142,12 +143,12 @@ function App(){
 
  return <main className="start-shell" style={data.backdrop?{'--panel-backdrop':`url("${data.backdrop}")`}:undefined} ref={root} onClick={()=>{setContext(null);setFooterMenu(null);}}>
   <div className="menu-main">
-   <div className="search-box"><Symbol name="search" size={18}/><input ref={search} aria-label="Search apps" placeholder="Search your apps" value={query} onChange={e=>{setQuery(e.target.value);setPage('home');}}
-    onKeyDown={e=>{if(e.key==='Enter'&&query.trim()&&matches[0])open(matches[0]);if(e.key==='ArrowDown'){e.preventDefault();document.querySelector('.app-list button,.pins .app-tile')?.focus();}}}/>
+   <div className="search-box"><Symbol name="search" size={18}/><input ref={search} aria-label="Search apps, files and settings" placeholder="Search apps, files and settings" value={query} onChange={e=>{setQuery(e.target.value);setPage('home');}}
+    onKeyDown={e=>{if(query.trim())return;if(e.key==='ArrowDown'){e.preventDefault();document.querySelector('.app-list button,.pins .app-tile')?.focus();}}}/>
     {query&&<button aria-label="Clear search" className="icon-button" onClick={()=>{setQuery('');search.current.focus();}}><Symbol name="close" size={15}/></button>}
    </div>
    <div className="start-body">
-   {query.trim()||['all','category','recent'].includes(page)?<>
+   {query.trim()?<UnifiedSearch query={query} input={search}/>:['all','category','recent'].includes(page)?<>
     <div className="section-heading"><h2>{query.trim()?'Search results':page==='category'?category:page==='recent'?'Recent':'All apps'}</h2><button className="small-button" onClick={()=>{setQuery('');setPage('home');}}><Symbol name="back" size={13}/> Back</button></div>
     <div className="app-list" aria-label="All applications">{matches.map(app=><div className="app-row" key={app.id} onContextMenu={e=>menu(e,app)}>
      <button className="app-launch" onClick={()=>open(app)}>{icon(app)}<span>{app.name}</span></button>

@@ -11,7 +11,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Window switching: native GTK Alt+Tab chooser with individual windows and Snap Groups, live mosaics, combined MRU, forward/reverse cycling, release-to-select and Escape. Xfce shortcuts work on Xfwm and Compiz; verified 2026-10-18.
 - [x] Start: app folders with drag/drop creation, persistent ordering, rename, keyboard-accessible move controls and ungrouping. Shared GNOME/Xfce interface; verified 2026-10-19.
 - [ ] Start: optional recommended/recent documents, with local-only indexing and privacy exclusions.
-- [ ] Search: unified apps, local files and settings search with previews and keyboard navigation.
+- [x] Search: unified apps, scoped local filenames/folders and settings search with previews, filters and keyboard navigation. Verified 2026-10-19.
+- [ ] Search: configurable scopes and optional content indexing beyond the bounded standard-folder scan.
 - [ ] Perform Windows 11 screenshot-based visual comparisons at matched scale for taskbar, Start, flyouts and window chrome.
 
 ## P1 — Window management and Explorer
@@ -24,7 +25,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Task View: display Snap Groups and per-workspace previews. Includes drag/Move to, cross-desktop search and Win+Ctrl desktop shortcuts; verified on Xfwm and Compiz.
 - [x] Explorer: read-only image/text preview pane with allowlisted content, file/pixel limits, timed decoding and stale-selection rejection. Verified 2026-10-19.
 - [x] Explorer: Windows-style context menus, Rename, Properties, Copy as path and drive details.
-- [ ] Explorer: transfer/conflict dialogs and richer operation progress/errors.
+- [x] Explorer: copy/move progress, pause/resume/cancel, Replace/Skip/Keep both, folder merge, apply-to-remaining choices and per-item error/retry dialogs. Verified 2026-10-19.
 - [ ] Add Start/taskbar jump lists and recent-item actions where supported.
 
 ## P2 — System appearance and utilities

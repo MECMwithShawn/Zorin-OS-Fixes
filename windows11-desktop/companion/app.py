@@ -19,6 +19,9 @@ from model import Store
 from platform_ui import panel_button, desktop_status
 import explorer
 import file_preview
+import unified_search
+import file_transfer
+import threading
 import settings_backend
 import wallpaper
 import notifications
@@ -187,6 +190,7 @@ class Surface(Gtk.ApplicationWindow):
             self.destroy()
             return True
         if self.mode == 'explorer':
+            if getattr(self,'transfer',None):self.transfer.cancel()
             self.request_id += 1
             if getattr(self,'monitor_refresh',0):
                 GLib.source_remove(self.monitor_refresh)
@@ -325,6 +329,7 @@ class Hub(Gtk.Application):
         from multitasking import Multitasking
         self.multitasking=Multitasking(self,CONFIG)
         self.connect('shutdown',lambda *_:self.multitasking.shutdown())
+        self.connect('shutdown',lambda *_:[s.transfer.cancel() for s in self.surfaces.values() if getattr(s,'transfer',None)])
 
     def refresh_apps(self):
         self.apps = {a.get_id(): a for a in Gio.AppInfo.get_all() if a.get_id() and a.should_show()}
@@ -718,6 +723,8 @@ class Hub(Gtk.Application):
             self.multitasking.show_tasks()
         elif action.startswith('settings-') and surface.mode=='settings':
             self.settings_action(surface,message)
+        elif action.startswith('search-') and surface.mode=='start':
+            self.search_action(surface,message)
         elif action.startswith('file-') and surface.mode=='explorer':
             self.file_action(surface, message)
         elif action.startswith('notification-') and surface.mode=='notifications':
@@ -1113,16 +1120,92 @@ class Hub(Gtk.Application):
         surface.preview_busy = True
         def done(result):
             surface.preview_busy = False
-            if str(id(surface)) not in self.surfaces:return
+            if surface not in self.surfaces.values():return
             if surface.preview_current == request and surface.location == request['location']:
                 surface.send({'type':'file-preview','id':request['id'],'result':result})
             if surface.preview_waiting:self.start_preview(surface)
         self.background(lambda:file_preview.read(request['path']),done,
                         lambda _:done(file_preview.unavailable('This file could not be previewed.')))
 
+    def search_action(self,surface,message):
+        action=message['action']
+        if action in ('search-query','search-cancel'):
+            if getattr(surface,'search_cancel',None):surface.search_cancel.set()
+            surface.search_results={};surface.preview_current=surface.preview_waiting=None
+            surface.search_waiting=None
+            if action=='search-cancel':return
+            query=message.get('query','')
+            if not isinstance(query,str):raise ValueError('Enter a search query.')
+            surface.search_waiting=dict(id=message.get('id'),query=query[:160])
+            if not getattr(surface,'search_busy',False):self.start_search(surface)
+        elif action=='search-preview-cancel':
+            surface.preview_current=surface.preview_waiting=None
+        else:
+            item=getattr(surface,'search_results',{}).get(message.get('key'))
+            if not item:raise ValueError('Search again to use this result.')
+            if action=='search-preview' and item['kind']=='file':
+                self.preview_file(surface,dict(path=item['path'],id=message.get('id'),location=surface.location))
+            elif action in ('search-open','search-location'):
+                if item['kind']=='app':self.launch(item['id'])
+                elif item['kind']=='setting':self.open_settings(item['id'])
+                else:
+                    path=Path(item['path'])
+                    if not path.exists() or path.is_symlink():raise ValueError('This search result is no longer available.')
+                    if action=='search-location':self.open_explorer(str(path.parent))
+                    elif path.is_dir():self.open_explorer(str(path))
+                    else:Gio.AppInfo.launch_default_for_uri(path.as_uri(),Gdk.Display.get_default().get_app_launch_context())
+                    self.start.hide()
+            else:raise ValueError('Unknown search action.')
+
+    def start_search(self,surface):
+        request=surface.search_waiting;surface.search_waiting=None
+        if not request:return
+        surface.search_busy=True;cancel=threading.Event();surface.search_cancel=cancel
+        apps=[self.app_info(ident) for ident in self.apps]
+        roots=[p['path'] for p in explorer.place_paths()]
+        immediate=unified_search.search(request['query'],apps,[],cancel)
+        surface.search_results={item['key']:item for item in immediate['results']}
+        surface.send(dict(type='search-results',id=request['id'],searching=True,**immediate))
+        def done(result):
+            surface.search_busy=False
+            if not cancel.is_set():
+                surface.search_results={item['key']:item for item in result['results']}
+                surface.send(dict(type='search-results',id=request['id'],**result))
+            if surface.search_waiting:self.start_search(surface)
+        self.background(lambda:unified_search.search(request['query'],apps,roots,cancel),done,
+                        lambda error:done(dict(results=[],limited=False,scope=roots,error=error)))
+
+    def start_transfer(self,surface,paths,destination,cut):
+        if getattr(surface,'transfer',None) and surface.transfer.active:
+            raise ValueError('Finish or cancel the current transfer before pasting again.')
+        if sum(bool(getattr(s,'transfer',None) and s.transfer.active) for s in self.surfaces.values())>=2:
+            raise ValueError('Two transfers are already active. Finish one before starting another.')
+        clipboard_before=self.copied_files
+        def update(data):
+            def deliver():
+                if data['active'] is False and cut and self.copied_files==clipboard_before:
+                    remaining=[p for p in paths if os.path.lexists(p)]
+                    self.copied_files=(remaining,bool(remaining),'\n'.join(Path(p).as_uri() for p in remaining))
+                if surface not in self.surfaces.values() or getattr(surface,'transfer',None) is not job:return False
+                surface.send(dict(type='file-transfer',transfer=data))
+                if not data['active']:
+                    self.load_folder(surface,surface.location,bool((surface.file_state or {}).get('hidden')))
+                return False
+            GLib.idle_add(deliver)
+        job=file_transfer.Transfer(paths,destination,cut,update);surface.transfer=job;job.start()
+
     def file_action(self, surface, message):
         action = message['action']
-        if action == 'file-preview-cancel':
+        if action.startswith('file-transfer-'):
+            job=getattr(surface,'transfer',None)
+            if not job or message.get('id')!=job.id:raise ValueError('This transfer is no longer available.')
+            operation=action.removeprefix('file-transfer-')
+            if operation=='cancel':job.cancel()
+            elif operation=='pause':job.pause(message.get('value'))
+            elif operation=='answer':job.respond(message.get('question'),message.get('choice'),message.get('all',False))
+            elif operation=='dismiss' and not job.active:surface.transfer=None
+            else:raise ValueError('Unknown transfer action.')
+        elif action == 'file-preview-cancel':
             surface.preview_current = surface.preview_waiting = None
         elif action == 'file-preview':
             path=message.get('path')
@@ -1195,12 +1278,12 @@ class Hub(Gtk.Application):
                 if not text or clipboard.wait_for_text()!=text:
                     paths,cut=explorer.clipboard_read(clipboard)
                 if not paths:raise ValueError('Copy files before pasting.')
-                task=lambda: explorer.paste(paths,destination,cut)
+                self.start_transfer(surface,paths,destination,cut)
+                return
             else:
                 raise ValueError('Unknown file action')
             surface.send({'type':'notice','message':'Working…'})
             def done(result):
-                if action=='file-paste' and cut:self.copied_files=([],False,'')
                 if str(id(surface)) not in self.surfaces:return
                 surface.send({'type':'notice','message':'Done'})
                 self.load_folder(surface,surface.location, bool((surface.file_state or {}).get('hidden')))

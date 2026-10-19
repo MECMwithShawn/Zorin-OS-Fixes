@@ -1,13 +1,13 @@
 import React,{useState,useEffect,useRef} from 'react';
 import {Glyph} from './explorer.jsx';
 import './settings.css';
+import catalog from '../settings_catalog.json';
 import {WindowEdges} from './window-chrome.jsx';
 const send=(action,payload={})=>window.webkit.messageHandlers.desktop.postMessage(JSON.stringify({action,...payload}));
-const sections=[['home','Home','home'],['system','System','desktop'],['devices','Bluetooth & devices','bluetooth'],['network','Network & internet','wifi'],['personalization','Personalization','image'],['apps','Apps','apps'],['accounts','Accounts','person'],['time','Time & language','calendar'],['gaming','Gaming','game'],['accessibility','Accessibility','access'],['privacy','Privacy & security','shield'],['updates','Software Update','refresh']];
-const subpages=[['display','Display','system'],['sound','Sound','system'],['notifications','Notifications','system'],['power','Power & battery','system'],['storage','Storage','system'],['multitasking','Multitasking','system'],['about','About','system'],['background','Background','personalization']];
+const {sections,subpages,terms}=catalog;
 const labels=Object.fromEntries([...sections,...subpages].map(([id,name])=>[id,name]));
 const parents=Object.fromEntries(subpages.map(([id,,parent])=>[id,parent]));
-const searchItems=[...sections,...subpages].map(([id,title])=>({id,title,terms:({background:'wallpaper spotlight bing picture rotation history',sound:'audio speaker volume microphone mute',power:'battery screen timeout sleep',accessibility:'sticky slow bounce mouse keys animations motion',personalization:'theme colors taskbar start wobble effects desktop animation',privacy:'firewall screen lock',updates:'software drivers repositories',network:'wifi wi-fi vpn ethernet',apps:'installed default startup applications',display:'monitor resolution scale',multitasking:'desktop switching animation speed virtual desktops snap layouts'}[id]||'')}));
+const searchItems=[...sections,...subpages].map(([id,title])=>({id,title,terms:terms[id]||''}));
 const gb=n=>n==null?'—':(n/1073741824).toFixed(1)+' GB';
 function Icon({name,size=22}){
  const paths={person:<><circle cx="12" cy="8" r="4"/><path d="M4 22v-2a8 8 0 0 1 16 0v2"/></>,apps:<><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,calendar:<><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M7 14h3m4 0h3m-10 4h3"/></>,game:<><path d="M7 7h10c4 0 6 11 3 12-2 1-4-4-5-4H9c-1 0-3 5-5 4C1 18 3 7 7 7Z"/><path d="M6 10v5m-2-2h4m8-2h1m2 3h1"/></>,access:<><circle cx="12" cy="4" r="2"/><path d="m3 9 9 2 9-2M12 11v6m0 0-5 5m5-5 5 5"/></>,shield:<><path d="m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6Z"/><path d="m8 12 3 3 5-6"/></>,battery:<><rect x="2" y="6" width="18" height="12" rx="2"/><path d="M22 10v4M5 9h9v6H5Z"/></>};
