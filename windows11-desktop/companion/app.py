@@ -744,7 +744,7 @@ class Hub(Gtk.Application):
         elif action in ('session-action','lock','power') and surface.mode=='start':
             command = {'lock':'lock','power':'shutdown'}.get(action,message.get('command'))
             gnome = is_gnome()
-            session_actions.command(command,gnome)
+            session_actions.validate(command)
             self.start.hide()
             def failed(error):
                 self.show_start()

@@ -102,9 +102,12 @@ def check():
         if not Path(path).is_dir():
             raise RuntimeError(f'Missing standard Zorin theme: {path}')
     import gi,importlib.util,shutil
-    for name,version in [('Gtk','3.0'),('WebKit2','4.1'),('Wnck','3.0'),('Atspi','2.0')]:gi.require_version(name,version)
+    for name,version in [('Gtk','3.0'),('WebKit2','4.1'),('Wnck','3.0'),('Atspi','2.0'),('Gdm','1.0')]:gi.require_version(name,version)
     missing=[name for name in ('dbus','cairo','PIL') if importlib.util.find_spec(name) is None]
-    missing += [name for name in ('glib-compile-schemas','update-desktop-database','git','pactl','nmcli','Xwayland') if not shutil.which(name)]
+    missing += [name for name in ('glib-compile-schemas','update-desktop-database','git','flatpak','pactl','nmcli','Xwayland') if not shutil.which(name)]
+    import subprocess
+    if shutil.which('flatpak') and subprocess.run(['flatpak','info','io.missioncenter.MissionCenter'],capture_output=True).returncode:
+        missing.append('Mission Center (Flatpak)')
     if missing:raise RuntimeError('Missing dependencies: '+', '.join(missing)+'. Run ./install-system-deps.sh')
     changes=appearance(monitor_ids())
     # Preserve settings for disconnected monitors, while overriding connected ones.

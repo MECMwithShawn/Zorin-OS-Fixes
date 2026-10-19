@@ -34,8 +34,9 @@ def desktop(name,args,icon,wmclass='Zorin11-hub',categories='Utility;'):
 
 
 def explorer_favorites(favorites):
-    return list(dict.fromkeys('zorin11-explorer.desktop' if item=='org.gnome.Nautilus.desktop' else item
-                             for item in favorites))
+    replacements={'org.gnome.Nautilus.desktop':'zorin11-explorer.desktop',
+                  'org.gnome.SystemMonitor.desktop':'io.missioncenter.MissionCenter.desktop'}
+    return list(dict.fromkeys(replacements.get(item,item) for item in favorites))
 
 
 def folder_defaults(content):
@@ -77,6 +78,9 @@ def install():
         files[HOME/'.config/wezterm/wezterm.lua']=(ROOT/'companion/wezterm.lua').read_bytes()
     import sys
     sys.path.insert(0,str(ROOT/'companion'))
+    import task_manager
+    task_manager.configure()
+    files.update(task_manager.app_entries(apps))
     import window_style
     css=HOME/'.config/gtk-3.0/gtk.css'
     files[css]=window_style.css(css.read_text() if css.exists() else '',DEST).encode()
@@ -122,6 +126,8 @@ def restore():
     sys.path.insert(0,str(ROOT/'companion'))
     import wallpaper
     wallpaper.restore()
+    import task_manager
+    task_manager.restore()
     if FILES.exists():
         remaining=[]
         for record in json.loads(FILES.read_text()):

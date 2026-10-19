@@ -30,6 +30,7 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 | Settings | Windows-style categories with actual device information and GNOME settings controls; advanced pages open the native tools |
 | Quick Settings | Network, Bluetooth, volume/output, Do Not Disturb, accessibility, supported backlights and battery information |
 | Notifications | GNOME's current session notifications, read/dismiss/clear and calendar; native notification banners remain managed by GNOME |
+| Task Manager | Mission Center provides expandable application/process groups, actual application icons, combined resource usage, and CPU, memory, disk, network and supported GPU graphs |
 | Backgrounds | Windows Spotlight, Bing daily/UHD images, local photos, history, original-background restore **and the installed Zorin wallpaper collection** |
 | Desktop Groups | Shared movable shortcut groups and folder portals; original files stay in place |
 | Multitasking | Snap Layouts/Assist, Task View, desktop create/rename/reorder/close, per-desktop backgrounds, saved app/layout recipes and Alt+Tab Snap Groups |
@@ -38,6 +39,8 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 The installer replaces the pinned GNOME Files shortcut with File Explorer and makes it the default for local folders. Network and Trash views remain available through the native file manager.
 
 In Start, click your profile for Account settings, Lock, Switch user and Sign out. The power button offers Sleep, Shut down and Restart. GNOME confirms Sign out, Shut down and Restart through its native session dialogs and retains application inhibitors.
+
+Task Manager opens [Mission Center](https://missioncenter.io/) in its Apps view with parent/child resource totals merged. The System Monitor launcher and taskbar pin are redirected through recoverable per-user settings, with one visible Task Manager app entry. Extra process-detection metadata lets ChatGPT's known pass-through launcher group under the ChatGPT name and icon. This metadata is excluded from desktop menus and file associations; the actual ChatGPT launcher is preserved. Performance includes GPU graphs supported by the active driver. NVIDIA monitoring requires the NVIDIA driver and NVML; Nouveau does not provide Mission Center's NVIDIA telemetry. Intel GPU metrics vary by driver and permissions. The installer does not change GPU drivers.
 
 Drive menus include Rename, Copy as path and Properties with filesystem, capacity and free-space details. Drive Rename changes the label shown in Explorer; it does not relabel or remount the filesystem.
 
@@ -108,6 +111,9 @@ corepack pnpm install --frozen-lockfile
 node build.mjs
 cd ..
 python3 tests/gnome_live.py
+# Real WebKit-to-session-service routing on a private Xvfb display and D-Bus;
+# the receiving test services cannot lock or end the host session.
+python3 companion/test_session_actions_live.py
 # Optional network-dependent verification:
 ZORIN11_TEST_FEEDS=1 python3 tests/gnome_live.py
 ```

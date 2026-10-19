@@ -4,9 +4,11 @@ desktop_session=${XDG_CURRENT_DESKTOP:-}
 if [[ "${desktop_session^^}" == *GNOME* ]]; then
   sudo apt-get update
   sudo apt-get install --no-install-recommends python3-gi python3-gi-cairo python3-dbus python3-pil \
-    gir1.2-gtk-3.0 gir1.2-webkit2-4.1 gir1.2-atspi-2.0 gir1.2-wnck-3.0 \
-    git xwayland pulseaudio-utils desktop-file-utils libgtk-3-bin fontconfig \
+    gir1.2-gtk-3.0 gir1.2-webkit2-4.1 gir1.2-atspi-2.0 gir1.2-wnck-3.0 gir1.2-gdm-1.0 \
+    git flatpak xwayland pulseaudio-utils desktop-file-utils libgtk-3-bin fontconfig \
     libicu74 libssl3t64 libunwind8 libgl1 libegl1 libxkbcommon0 libxcb-xkb1 libxcb-cursor0
+  flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+  flatpak install --noninteractive -y flathub io.missioncenter.MissionCenter
   exit 0
 fi
 sudo apt-get update

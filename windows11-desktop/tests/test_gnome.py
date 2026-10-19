@@ -15,6 +15,8 @@ class GnomeTests(unittest.TestCase):
         self.assertEqual(gnome_install.explorer_favorites(['browser.desktop','org.gnome.Nautilus.desktop','other.desktop','zorin11-explorer.desktop']),
                          ['browser.desktop','zorin11-explorer.desktop','other.desktop'])
         self.assertEqual(gnome_install.explorer_favorites(['browser.desktop']),['browser.desktop'])
+        self.assertEqual(gnome_install.explorer_favorites(['org.gnome.SystemMonitor.desktop','browser.desktop','io.missioncenter.MissionCenter.desktop']),
+                         ['io.missioncenter.MissionCenter.desktop','browser.desktop'])
     def test_folder_defaults_preserve_unrelated_associations(self):
         text='[Default Applications]\ninode/directory=org.gnome.Nautilus.desktop;\nx-scheme-handler/codex=chatgpt.desktop;\n'
         result=gnome_install.folder_defaults(text).decode()
