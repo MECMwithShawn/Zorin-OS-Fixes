@@ -66,8 +66,8 @@ class TaskView:
         header.pack_end(label('Win + Tab','z11-muted'),False,False,0);self.box.pack_start(header,False,False,0)
         self.search=Gtk.SearchEntry();self.search.set_placeholder_text('Search windows across your desktops')
         self.search.set_text(query);self.box.pack_start(self.search,False,False,0)
-        groups=[[(x,r) for x,r in g if self.m.windows.get(x)] for g in self.m.groups]
-        groups=[g for g in groups if len(g)>1]
+        self.m.snap_groups.prune()
+        groups=[g for g in self.m.groups if self.m.snap_groups.desktop(g) is not None]
         self.group_widgets=[];self.groups_box=None
         if groups:
             row=Gtk.Box(spacing=8);self.groups_box=row;row.pack_start(label('Snap groups','z11-muted'),False,False,0)

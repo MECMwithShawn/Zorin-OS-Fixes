@@ -27,7 +27,7 @@ if '--session' not in sys.argv:
     try:
      time.sleep(.7)
      env=dict(os.environ,DISPLAY=display,XDG_CONFIG_HOME=str(root/'config'),XDG_DATA_HOME=str(share),XDG_CACHE_HOME=str(root/'cache'),ZORIN11_CONFIG_DIR=str(root/'hub'),GSETTINGS_BACKEND='keyfile',GTK_CSD='0',LIBGL_ALWAYS_SOFTWARE='1')
-     result=subprocess.run(['dbus-run-session','--','/usr/bin/python3',__file__,'--session',wm],env=env,stdout=log,stderr=log,timeout=130)
+     result=subprocess.run(['dbus-run-session','--','/usr/bin/python3',__file__,'--session',wm],env=env,stdout=log,stderr=log,timeout=180)
     finally:
      server.terminate();server.wait();log.flush();print((root/'log').read_text()[-8500:],flush=True)
     if result.returncode:raise SystemExit(result.returncode)
@@ -95,7 +95,7 @@ def colors(color):
 subprocess.run(['xfconf-query','-c','xfce4-panel','-p','/configver','-n','-t','int','-s','2'],check=True)
 xf=dbus.Interface(dbus.SessionBus().get_object('org.xfce.Xfconf','/org/xfce/Xfconf'),'org.xfce.Xfconf')
 for key,val in {'/panels':dbus.Array([dbus.Int32(1,variant_level=1)],signature='v',variant_level=1),'/panels/panel-1/plugin-ids':dbus.Array([dbus.Int32(1,variant_level=1)],signature='v',variant_level=1),'/panels/panel-1/position':'p=10;x=800;y=980','/panels/panel-1/size':dbus.UInt32(48),'/panels/panel-1/length':dbus.Double(100),'/panels/panel-1/position-locked':True,'/plugins/plugin-1':'docklike'}.items():xf.SetProperty('xfce4-panel',key,val)
-panel=subprocess.Popen(['xfce4-panel']);pump(2);b=Windows();owned=[];paint=[(230,45,50)];close_attempts=[]
+panel=subprocess.Popen(['xfce4-panel']);pump(2);b=Windows();owned=[];paint=[(230,45,50)];close_attempts=[];m=None;hub=None
 def new(title,color=(40,120,190),blocked=False,wmclass='Z11PreviewTest'):
  w=Gtk.Window(title=title);w.set_wmclass(wmclass.lower(),wmclass);w.set_default_size(620,420);w.move(150,150);w.set_icon_name('applications-graphics')
  da=Gtk.DrawingArea();da.connect('draw',lambda _,cr:(cr.set_source_rgb(*(v/255 for v in color())),cr.paint(),False)[-1] if callable(color) else (cr.set_source_rgb(*(v/255 for v in color)),cr.paint(),False)[-1]);w.add(da)
@@ -151,6 +151,99 @@ try:
  until(lambda:find('Close Unregistered alpha'));until(lambda:find('Close Unregistered beta'))
  assert len(buttons)==3,'Unregistered app split into multiple taskbar icons'
  print('Windows without a desktop launcher share one preview group PASSED',flush=True)
+ # Real companion registry + real native panel + typed session bus. These are
+ # different app groups, so this also checks discovery through any member app.
+ from multitasking import Multitasking
+ from windowing import layouts,zone_rect
+ from concurrent.futures import ThreadPoolExecutor
+ class Hub:
+  surfaces={}
+  def __init__(self):self.workers=ThreadPoolExecutor(max_workers=3)
+  def work_area(self,x,y):return Gdk.Display.get_default().get_monitor_at_point(x,y).get_workarea()
+  def monitor_geometry(self):return self.work_area(100,100)
+  def background(self,task,success,failure):
+   def done(f):
+    try:v=f.result()
+    except Exception as e:GLib.idle_add(lambda error=e:(failure(error),False)[1]);return
+    GLib.idle_add(lambda:(success(v),False)[1])
+   self.workers.submit(task).add_done_callback(done)
+ hub=Hub();m=Multitasking(hub,Path(os.environ['ZORIN11_CONFIG_DIR']));pump(.3)
+ move(100,100);third,_=new('Different app',color=(220,130,35),wmclass='Z11Different');pump(.4)
+ members=[a,c,third];ids=[w.get_window().get_xid() for w in members]
+ area=m.area();zones=layouts()[3][1];placements=[(xid,zone_rect(area,zone)) for xid,zone in zip(ids,zones)]
+ def near(actual,wanted):return all(abs(x-y)<=(5 if wm_name=='compiz' else 3) for x,y in zip(actual,wanted))
+ for xid,r in placements:m.windows.place(xid,r)
+ until(lambda:all(near(m.windows.get(xid).get_geometry(),r) for xid,r in placements))
+ # Compiz can impose a 10px frame inset instead of the requested 6px.
+ # Record its actual settled rectangles and require the same ones on restore.
+ settled={xid:tuple(m.windows.get(xid).get_geometry()) for xid,_ in placements}
+ def restored():return all(not m.windows.get(xid).is_minimized() and all(abs(a-b)<=3 for a,b in zip(m.windows.get(xid).get_geometry(),rect)) for xid,rect in settled.items())
+ m.remember_group(placements);token=m.groups[0].token
+ def groupcard(count):
+  popup=find('Window previews')
+  return next((n for n in walk(popup) if n.get_role()==Atspi.Role.PUSH_BUTTON and n.get_name().startswith(f'Snap group · {count} windows.') and n.get_state_set().contains(Atspi.StateType.SHOWING)),None) if popup else None
+ def hover_member(title):
+  move(100,100);pump(.5)
+  buttons=[n for n in walk(Atspi.get_desktop(0)) if n.get_role()==Atspi.Role.PUSH_BUTTON and n.get_state_set().contains(Atspi.StateType.SHOWING) and rect(n).y>950]
+  for target in buttons:
+   r=rect(target);move(r.x+r.width//2,r.y+r.height//2);pump(.5)
+   if find('Close '+title):return
+  raise AssertionError('No taskbar app for '+title)
+ hover_member('Unregistered alpha');until(lambda:groupcard(3));pump(1.3)
+ until(lambda:colors((220,130,35))>1000)
+ if os.environ.get('ZORIN11_TEST_SCREENSHOTS'):pixels()[1].save(Path(os.environ['ZORIN11_TEST_SCREENSHOTS'])/f'taskbar-snap-groups-{wm_name}.png')
+ hover_member('Different app');until(lambda:groupcard(3))
+ move(100,100);pump(.5)
+ for xid,_ in placements:m.windows.place(xid,(180,130,550,370))
+ pump(.5)
+ for item in members:item.iconify()
+ until(lambda:all(m.windows.get(xid).is_minimized() for xid in ids))
+ hover_member('Different app');until(lambda:groupcard(3));pump(.7)
+ # Some WMs acknowledge unminimizing before restoring the RESIZE action.
+ # Exercise that ordering deterministically, through the native card click.
+ can_snap=m.windows.can_snap;allowed_at=[None];delayed=[]
+ def delayed_resize(w):
+  if allowed_at[0] is None:allowed_at[0]=time.monotonic()+.35
+  if time.monotonic()<allowed_at[0]:delayed.append(w.get_xid());return False
+  return can_snap(w)
+ m.windows.can_snap=delayed_resize
+ click(until(lambda:groupcard(3)))
+ until(restored)
+ m.windows.can_snap=can_snap;assert delayed,'Delayed resize capability was not exercised'
+ until(lambda:m.windows.screen.get_active_window().get_xid()==ids[2]);until(lambda:not find('Window previews'))
+ assert panel.poll() is None
+ print('Snap group on each member app; live mosaic; minimized layout restore and invoking-app focus PASSED',flush=True)
+ # A different desktop must be activated before applying the stored geometry.
+ done=[];errors=[];m.desktops.count(2,lambda:done.append(True),errors.append);until(lambda:done or errors);assert not errors,errors
+ m.desktops.switch(1);until(lambda:m.desktops.current()==1);pump(.8)
+ assert m.snap_groups.activate(token,ids[0])
+ until(lambda:m.desktops.current()==0 and restored())
+ until(lambda:m.windows.screen.get_active_window().get_xid()==ids[0]);pump(.8)
+ m.desktops.move(ids[2],1);until(lambda:m.desktops.desktop_for(m.windows.get(ids[2]))==1)
+ assert m.snap_groups.listing()==[] and not m.snap_groups.activate(token)
+ m.desktops.move(ids[2],0);until(lambda:m.desktops.desktop_for(m.windows.get(ids[2]))==0)
+ print('Cross-desktop restore; split desktop groups cannot scatter windows PASSED',flush=True)
+ # Keep a flyout open while a member closes: a 3-member group shrinks to 2;
+ # a singleton disappears. Old tokens must never activate a replacement app.
+ hover_member('Unregistered alpha');until(lambda:groupcard(3));third.destroy();until(lambda:groupcard(2))
+ assert token==m.groups[0].token
+ c.destroy();until(lambda:groupcard(2) is None);assert not m.snap_groups.activate(token)
+ assert m.windows.get(ids[0]) and not m.groups
+ replacement,_=new('Replacement',wmclass='Z11Unregistered');pump(.4)
+ assert not m.snap_groups.activate(token)
+ # Two disjoint groups in one app produce two choices; overlapping re-snaps
+ # replace the old layout, without changing unrelated group membership.
+ extra1,_=new('Second pair A',wmclass='Z11Unregistered');extra2,_=new('Second pair B',wmclass='Z11Unregistered');pump(.4)
+ pair1=[(a.get_window().get_xid(),zone_rect(area,layouts()[0][1][0])),(replacement.get_window().get_xid(),zone_rect(area,layouts()[0][1][1]))]
+ pair2=[(extra1.get_window().get_xid(),pair1[0][1]),(extra2.get_window().get_xid(),pair1[1][1])]
+ m.remember_group(pair1);old=m.groups[0].token;m.remember_group(pair2)
+ hover_member('Unregistered alpha');until(lambda:len([n for n in walk(find('Window previews')) if n.get_role()==Atspi.Role.PUSH_BUTTON and n.get_name().startswith('Snap group ·')])==2)
+ m.remember_group(pair1);assert len(m.groups)==2 and not m.snap_groups.activate(old)
+ m.shutdown();m=None;pump(.6);assert groupcard(2) is None
+ m=Multitasking(hub,Path(os.environ['ZORIN11_CONFIG_DIR']));pump(.3);assert not m.groups and not m.snap_groups.activate(old)
+ print('Closed members shrink/remove groups; overlapping re-snap; disjoint groups; service restart clears stale tokens PASSED',flush=True)
 finally:
+ if m:m.shutdown()
+ if hub:hub.workers.shutdown(wait=True,cancel_futures=True)
  for w in owned:w.destroy()
  pump(.2);b.close();panel.terminate();panel.wait(timeout=10);wm.terminate();wm.wait(timeout=10)

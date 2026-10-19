@@ -34,12 +34,15 @@ class Multitasking:
         except (OSError,ValueError):self.preferences={}
         from desktops import Desktops
         self.desktops=Desktops(self)
+        from snap_groups import SnapGroups
+        self.snap_groups=SnapGroups(self)
         from desktop_backgrounds import Backgrounds
         self.backgrounds=Backgrounds(self)
         self.css=Gtk.CssProvider();self.css.load_from_path(str(BASE/'multitasking.css'))
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(),self.css,650)
 
     def shutdown(self):
+        self.snap_groups.close()
         self.backgrounds.close()
         self.desktops.stopped=True
         if self.hover_timer:GLib.source_remove(self.hover_timer);self.hover_timer=0
@@ -168,6 +171,7 @@ class Multitasking:
         restore.grab_focus();self.clear_preview()
 
     def restore(self,xid):
+        self.snap_groups.forget({xid})
         self.close(False);self.windows.restore(xid)
 
     def customize(self,xid):
@@ -189,10 +193,7 @@ class Multitasking:
         self.windows.place(xid,rect,finished=lambda:self.assist(placements,remaining,area))
 
     def remember_group(self,placements):
-        if len(placements)<2:return
-        ids={i for i,_ in placements}
-        self.groups=[g for g in self.groups if not ids.intersection(i for i,_ in g)]
-        self.groups.insert(0,placements[:]);self.groups=self.groups[:8]
+        self.snap_groups.remember(placements)
 
     def assist(self,placements,remaining,area):
         self.remember_group(placements)
@@ -295,9 +296,7 @@ class Multitasking:
         if self.windows.get(w.get_xid()):self.windows.activate(w)
 
     def activate_group(self,group):
-        self.close(False)
-        for xid,rect in group:
-            if self.windows.get(xid):self.windows.place(xid,rect)
+        if hasattr(group,'token'):self.snap_groups.activate(group.token)
 
     def caption_hover(self,surface,enter):
         if self.hover_timer:GLib.source_remove(self.hover_timer);self.hover_timer=0

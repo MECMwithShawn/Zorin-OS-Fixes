@@ -21,7 +21,7 @@ def fingerprint():
     versions = subprocess.check_output(['dpkg-query', '-W', '-f=${Package} ${Version}\n',
         'libxfce4panel-2.0-4', 'libxfce4windowing-0-0', 'libgtk-3-0t64'], text=True)
     digest.update(versions.encode())
-    for name in ('docklike.patch', 'LivePreview.cpp', 'LivePreview.hpp'):
+    for name in ('docklike.patch', 'LivePreview.cpp', 'LivePreview.hpp', 'SnapGroups.cpp', 'SnapGroups.hpp'):
         digest.update((BASE/name).read_bytes())
     return digest.hexdigest()[:24]
 
@@ -53,7 +53,7 @@ def build():
             tar.extractall(temp, filter='data')
         source = temp/('xfce4-docklike-plugin-'+REVISION)
         subprocess.run(['patch', '-p1', '-i', str(BASE/'docklike.patch')], cwd=source, check=True)
-        for name in ('LivePreview.cpp', 'LivePreview.hpp'):
+        for name in ('LivePreview.cpp', 'LivePreview.hpp', 'SnapGroups.cpp', 'SnapGroups.hpp'):
             shutil.copy2(BASE/name, source/'src'/name)
         subprocess.run(['meson', 'setup', 'build', '--prefix=/usr', '--libdir=lib',
             '--buildtype=release', '-Dx11=enabled', '-Dwayland=disabled'], cwd=source, check=True)

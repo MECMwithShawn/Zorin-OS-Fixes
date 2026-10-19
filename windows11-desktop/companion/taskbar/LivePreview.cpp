@@ -3,6 +3,7 @@
 #include "LivePreview.hpp"
 #include <libxfce4windowing/xfw-x11.h>
 #include <string>
+#include <algorithm>
 
 namespace {
 unsigned active = 0;
@@ -10,6 +11,7 @@ struct Request {
     GWeakRef image;
     GSubprocess* child;
     guint timeout;
+    int width, height;
     gulong destroy;
     bool destroyed = false;
 };
@@ -29,7 +31,7 @@ void completed(GObject* object, GAsyncResult* result, gpointer data)
             g_bytes_get_size(bytes) > 0 && g_bytes_get_size(bytes) <= 1024*1024) {
             GInputStream* stream = g_memory_input_stream_new_from_bytes(bytes);
             int scale = gtk_widget_get_scale_factor(GTK_WIDGET(image));
-            GdkPixbuf* pix = gdk_pixbuf_new_from_stream_at_scale(stream, 256*scale, 144*scale, true, nullptr, nullptr);
+            GdkPixbuf* pix = gdk_pixbuf_new_from_stream_at_scale(stream, request->width*scale, request->height*scale, true, nullptr, nullptr);
             if (pix) {
                 auto* surface = gdk_cairo_surface_create_from_pixbuf(pix, scale, nullptr);
                 gtk_image_set_from_surface(image, surface);
@@ -51,11 +53,11 @@ void completed(GObject* object, GAsyncResult* result, gpointer data)
 }
 }
 
-void LivePreview::update(GtkImage* image, XfwWindow* window)
+void LivePreview::update(GtkImage* image, XfwWindow* window, int width, int height)
 {
     auto* widget = GTK_WIDGET(image);
     if (!g_object_get_data(G_OBJECT(image), "z11-cached")) {
-        auto* icon = xfw_window_get_icon(window, 64, gtk_widget_get_scale_factor(widget));
+        auto* icon = xfw_window_get_icon(window, std::min({64, width, height}), gtk_widget_get_scale_factor(widget));
         if (icon) {
             auto* surface = gdk_cairo_surface_create_from_pixbuf(icon, gtk_widget_get_scale_factor(widget), nullptr);
             gtk_image_set_from_surface(image, surface);
@@ -79,6 +81,7 @@ void LivePreview::update(GtkImage* image, XfwWindow* window)
     if (!child) return;
     auto* request = new Request;
     request->child = child;
+    request->width = width; request->height = height;
     g_weak_ref_init(&request->image, image);
     g_object_set_data(G_OBJECT(image), "z11-pending", GINT_TO_POINTER(1));
     request->destroy = g_signal_connect(widget, "destroy", G_CALLBACK(+[](GtkWidget*, gpointer data) {

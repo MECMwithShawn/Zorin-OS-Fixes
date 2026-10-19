@@ -122,7 +122,7 @@ Choose **Choose background…** from that desktop menu to select a JPEG/PNG pict
 
 The window area normally shows the desktop being previewed. Type in Search to find titles/app names across all desktops; Enter activates the first match on its desktop, and Down moves focus into the cards. Window previews are snapshots of composited app contents, captured while Task View is open. Up to 36 previews are retained in memory; none are written to disk. Hidden/minimized windows use their last available preview or app icon. Desktop thumbnails combine each desktop's wallpaper with window positions and those previews.
 
-Completed Snap Assist arrangements appear as **Snap groups** so their windows can be brought back together. Groups and restore positions last for the current companion process and are not saved across login/restart. Snap Assist now suggests windows on the current desktop only.
+Completed Snap Assist arrangements appear as **Snap groups** in Task View and the taskbar previews of every member app, so their windows can be brought back together. Groups and restore positions last for the current companion process and are not saved across login/restart. Snap Assist now suggests windows on the current desktop only.
 
 Desktop management uses native Xfwm workspaces, or horizontal viewports when the optional Compiz effects profile is active. No window-manager restart is needed. Existing two-dimensional Compiz layouts can be browsed and switched, but creation/removal/reordering requires a single row. Up to 32 desktops are supported. Desktops span the connected monitors.
 
@@ -140,11 +140,15 @@ Hover over a running app's taskbar icon for about a third of a second to see its
 
 Previews keep updating while the pointer is over the icon or panel, including for covered windows when the compositor can capture them. Minimized/unavailable windows show the last captured image or their app icon. Closing a card sends a normal window-close request, so an app can still ask to save work. Captures stay in memory, and sampling stops when the panel closes. Exact refresh speed depends on the app, compositor and display size.
 
+Create an arrangement with **Win+Z → choose a layout → choose the other windows in Snap Assist**. Hover over any member app on the taskbar, then click the **Snap group** card to restore the whole layout. Its miniature layout contains live previews of the member windows. Minimized members return to their saved positions, and the app whose taskbar icon you used receives focus. Individual window cards and Close buttons remain separate.
+
+Groups contain currently open windows and last only for this companion session. Closing a member updates the card; fewer than two members removes it. Re-snapping a member replaces its previous group. Multiple disjoint groups can appear under the same app. A group on another desktop returns to that desktop; windows moved apart onto different desktops are not gathered automatically. No applications are reopened after closure or logout.
+
 The setup builds a pinned, locally patched Docklike plugin once in your user cache. `install-system-deps.sh` includes its build dependencies. The library, descriptor and styling install per user, retain your Docklike pins and indicators, and participate in the existing restore mechanism. The distribution's plugin remains installed. See [native preview implementation and license](companion/taskbar/README.md).
 
 Alt+Tab stays with the native window manager. The optional Compiz profile uses a dark switcher with previews, minimized windows, forward/reverse cycling, and a shorter popup delay. No global Alt-key hook is installed. Wobble and existing edge/Win+arrow snapping remain available.
 
-Remaining differences: third-party custom maximize buttons use Win+Z; Snap Groups are not yet shown in Alt+Tab or Docklike hover previews. Some applications impose size increments, minimum sizes or edge constraints that can adjust the requested snap rectangle.
+Remaining differences: third-party custom maximize buttons use Win+Z; Snap Groups are not yet shown in Alt+Tab. Some applications impose size increments, minimum sizes or edge constraints that can adjust the requested snap rectangle.
 
 ## Settings and Windows Spotlight
 

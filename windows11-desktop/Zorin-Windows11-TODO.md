@@ -7,7 +7,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 ## P0 — Highest-impact desktop improvements
 - [x] Taskbar: live grouped hover thumbnails, per-window Close, minimized/icon fallbacks and scrollable overflow. Includes launcher-less app grouping; verified on Xfwm, Compiz and the installed desktop on 2026-10-18.
 - [ ] Taskbar: per-app badges and progress indicators when real application state is available.
-- [ ] Taskbar: expose Snap Groups in previews and switching, handling closed/minimized windows correctly.
+- [x] Taskbar: Snap Group cards with live layout previews; restore grouped positions and minimized members together; remove stale/closed members.
+- [ ] Window switching: expose Snap Groups in the native Alt+Tab switcher.
 - [ ] Start: app folders with drag/drop creation and persistent ordering.
 - [ ] Start: optional recommended/recent documents, with local-only indexing and privacy exclusions.
 - [ ] Search: unified apps, local files and settings search with previews and keyboard navigation.

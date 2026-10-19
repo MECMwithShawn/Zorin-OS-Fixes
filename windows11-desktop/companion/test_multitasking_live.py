@@ -128,6 +128,13 @@ try:
     assert len(m.flow.get_children())==2
     m.flow.get_children()[0].get_child().clicked()
     until(lambda:len(m.groups)==1);assert len(m.groups[0])==2
+    group=m.groups[0]
+    for member,_ in group:m.windows.get(member).minimize()
+    until(lambda:all(m.windows.get(member).is_minimized() for member,_ in group))
+    m.show_tasks();pump(.3)
+    m.task_view.group_widgets[0][0].clicked()
+    until(lambda:all(not m.windows.get(member).is_minimized() and near(m.windows.get(member).get_geometry(),rect) for member,rect in group))
+    # Reopening Task View must supersede delayed group activation/focus.
     m.show_tasks();pump(1.5)
     assert len(m.flow.get_children())==3
     capture('task-view')

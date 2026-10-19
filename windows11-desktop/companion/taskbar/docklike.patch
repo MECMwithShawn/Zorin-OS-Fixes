@@ -53,10 +53,17 @@ index e8160d9..ecb716f 100644
  		gtk_widget_show_all(mButton);
  	else
 diff --git a/src/GroupMenu.cpp b/src/GroupMenu.cpp
-index 82a4261..297c3cb 100644
+index 82a4261..41da3c0 100644
 --- a/src/GroupMenu.cpp
 +++ b/src/GroupMenu.cpp
-@@ -30,6 +30,11 @@ create_window()
+@@ -24,12 +24,18 @@
+ #include "GroupMenu.hpp"
+ #include "GroupMenuItem.hpp"
+ #include "Plugin.hpp"
++#include "SnapGroups.hpp"
+ 
+ static GtkWidget*
+ create_window()
  {
  	GtkWidget* window = gtk_window_new(GtkWindowType::GTK_WINDOW_POPUP);
  	gtk_widget_add_events(window, GDK_SCROLL_MASK);
@@ -68,7 +75,7 @@ index 82a4261..297c3cb 100644
  	gtk_window_set_default_size(GTK_WINDOW(window), 1, 1);
  #ifdef ENABLE_WAYLAND
  	if (gtk_layer_is_supported())
-@@ -53,7 +58,12 @@ GroupMenu::GroupMenu(Group* dockButton)
+@@ -53,7 +59,12 @@ GroupMenu::GroupMenu(Group* dockButton)
  	mBox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
  
  	Help::Gtk::cssClassAdd(mBox, "menu");
@@ -82,7 +89,7 @@ index 82a4261..297c3cb 100644
  	gtk_widget_show(mBox);
  
  	mPopupIdle.setup([this]() {
-@@ -94,12 +104,12 @@ GroupMenu::GroupMenu(Group* dockButton)
+@@ -94,12 +105,12 @@ GroupMenu::GroupMenu(Group* dockButton)
  
  	g_signal_connect(G_OBJECT(Plugin::mXfPlugin), "notify::scale-factor",
  		G_CALLBACK(+[](GtkWidget* widget, GParamSpec* pspec, GroupMenu* me) {
@@ -99,7 +106,15 @@ index 82a4261..297c3cb 100644
  		}),
  		this);
  }
-@@ -124,7 +134,7 @@ void GroupMenu::remove(GroupMenuItem* menuItem)
+@@ -107,6 +118,7 @@ GroupMenu::GroupMenu(Group* dockButton)
+ GroupMenu::~GroupMenu()
+ {
+ 	mPopupIdle.stop();
++    delete mSnapGroups;
+ 	gtk_widget_destroy(mWindow);
+ }
+ 
+@@ -124,7 +136,7 @@ void GroupMenu::remove(GroupMenuItem* menuItem)
  	gtk_window_resize(GTK_WINDOW(mWindow), 1, 1);
  
  	if (mGroup->mWindowsCount < (Settings::noWindowsListIfSingle ? 2 : 1))
@@ -108,8 +123,12 @@ index 82a4261..297c3cb 100644
  
  	if (mVisible)
  		mPopupIdle.start();
-@@ -138,6 +148,12 @@ void GroupMenu::popup()
+@@ -136,8 +148,16 @@ void GroupMenu::popup()
+ 	{
+ 		gint wx, wy;
  		mVisible = true;
++        if (!mSnapGroups) mSnapGroups = new SnapGroups(this);
++        mSnapGroups->show();
  
  		updateOrientation();
 +        GdkRectangle area;
@@ -121,7 +140,7 @@ index 82a4261..297c3cb 100644
  
  		// Update the previews before showing the window
  		if (Settings::showPreviews)
-@@ -148,9 +164,21 @@ void GroupMenu::popup()
+@@ -148,9 +168,21 @@ void GroupMenu::popup()
  			gtk_window_resize(GTK_WINDOW(mWindow), 1, 1);
  		}
  
@@ -143,7 +162,7 @@ index 82a4261..297c3cb 100644
  	}
  }
  
-@@ -210,13 +238,17 @@ void GroupMenu::updatePosition(gint wx, gint wy)
+@@ -210,18 +242,24 @@ void GroupMenu::updatePosition(gint wx, gint wy)
  	else
  #endif
  	{
@@ -157,20 +176,36 @@ index 82a4261..297c3cb 100644
  void GroupMenu::hide()
  {
  	mVisible = false;
++    if (mSnapGroups) mSnapGroups->hide();
 +    mMouseHover = false;
 +    mGroup->mWindows.forEach([](GroupWindow* w) { w->mGroupMenuItem->mPreviewTimeout.stop(); });
  	gtk_widget_hide(mWindow);
  }
  
+ void GroupMenu::showPreviewsChanged()
+ {
++    if (mSnapGroups) { mSnapGroups->hide(); if (mVisible) mSnapGroups->show(); }
+ 	mGroup->mWindows.forEach([](GroupWindow* w) -> void {
+ 		gtk_widget_set_visible(GTK_WIDGET(w->mGroupMenuItem->mPreview), Settings::showPreviews);
+ 		w->mGroupMenuItem->mPreviewTimeout.stop();
 diff --git a/src/GroupMenu.hpp b/src/GroupMenu.hpp
-index f798049..be5a6e3 100644
+index f798049..91dbf8d 100644
 --- a/src/GroupMenu.hpp
 +++ b/src/GroupMenu.hpp
-@@ -49,6 +49,7 @@ public:
+@@ -27,6 +27,7 @@
+ 
+ class Group;
+ class GroupMenuItem;
++class SnapGroups;
+ 
+ class GroupMenu
+ {
+@@ -49,6 +50,8 @@ public:
  
  	GtkWidget* mWindow;
  	GtkWidget* mBox;
 +	GtkWidget* mScroll;
++    SnapGroups* mSnapGroups = nullptr;
  
  	bool mVisible;
  	bool mMouseHover;
@@ -315,14 +350,15 @@ index 2913517..ca1b1bb 100644
 +    LivePreview::update(mPreview, mGroupWindow->mXfwWindow);
  }
 diff --git a/src/meson.build b/src/meson.build
-index 71d7cbf..8b8f527 100644
+index 71d7cbf..7e2b4ff 100644
 --- a/src/meson.build
 +++ b/src/meson.build
-@@ -8,6 +8,7 @@ plugin_sources = [
+@@ -8,6 +8,8 @@ plugin_sources = [
    'GroupMenu.cpp',
    'GroupMenu.hpp',
    'GroupMenuItem.cpp',
 +  'LivePreview.cpp',
++  'SnapGroups.cpp',
    'GroupMenuItem.hpp',
    'GroupWindow.cpp',
    'GroupWindow.hpp',

@@ -22,3 +22,20 @@
 #z11-taskbar-preview .z11-preview-close:active { background: #a52317; }
 #z11-taskbar-preview scrollbar { background: #242424; }
 #z11-taskbar-preview scrollbar slider { min-height: 4px; background: #777777; border-radius: 2px; }
+#z11-taskbar-preview .z11-snap-group {
+  background: #2a2d32;
+  color: #f5f5f5;
+  border: 1px solid #555c66;
+  border-radius: 5px;
+  padding: 5px 8px 9px;
+  margin: 1px 1px 1px 6px;
+  box-shadow: none;
+}
+#z11-taskbar-preview .z11-snap-group:hover,
+#z11-taskbar-preview .z11-snap-group:focus {
+  background: #353b44;
+  border-color: #60cdff;
+}
+#z11-taskbar-preview .z11-snap-group:active { background: #283e50; }
+#z11-taskbar-preview .z11-snap-mosaic { background: #16181c; border-radius: 4px; }
+#z11-taskbar-preview .z11-snap-tile { background: #30343b; border-radius: 2px; }
