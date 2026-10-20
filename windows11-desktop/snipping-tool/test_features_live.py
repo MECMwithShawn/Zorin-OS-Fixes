@@ -114,14 +114,14 @@ try:
     click('Pen');drag([canvas_point(50,400),canvas_point(300,400)]);assert pixel(copied(),150,400)!=(255,255,255)
     click('Eraser');x('mousemove',*canvas_point(150,400));x('click',1);pump();assert pixel(copied(),150,400)==(255,255,255)
     key('ctrl+z');assert pixel(copied(),150,400)!=(255,255,255);key('ctrl+z')
-    click('Color picker');x('mousemove',*canvas_point(700,400));x('click',1);pump();assert clipboard.wait_for_text()=='#FFFFFF'
+    click('More tools');click('Color picker');x('mousemove',*canvas_point(700,400));x('click',1);pump();assert clipboard.wait_for_text()=='#FFFFFF'
     click('Text actions');wait(lambda:node('Copy all text'),timeout=50);click('Copy all text');assert 'user@example.com' in clipboard.wait_for_text();assert '303-555-0142' in clipboard.wait_for_text()
     click('Quick redact');pump(.3);p=copied();assert pixel(p,250,150)==(0,0,0);assert pixel(p,250,240)==(0,0,0)
     save_dialog('Save snip',root/'redacted.png');assert Image.open(root/'redacted.png').getpixel((250,150))[:3]==(0,0,0)
-    click('Emoji');x('mousemove',*canvas_point(650,350));x('click',1);wait(lambda:node('Add emoji'));click('✅');click('Add');assert pixel(copied(),660,360)!=(255,255,255);key('ctrl+z')
+    click('More tools');click('Emoji');x('mousemove',*canvas_point(650,350));x('click',1);wait(lambda:node('Add emoji'));click('✅');click('Add');assert pixel(copied(),660,360)!=(255,255,255);key('ctrl+z')
     # The app chooser is local; cancel without launching or sending anything.
     click('⋯');click('Share / Open with');pump(.3);key('Escape');pump(.2)
-    click('Rotate');p=copied();assert(p.get_width(),p.get_height())==(500,900);key('ctrl+z')
+    click('More tools');click('Rotate');p=copied();assert(p.get_width(),p.get_height())==(500,900);key('ctrl+z')
     # Native print dialog opens but never submits a real print job.
     key('ctrl+p');wait(lambda:node('Print'));key('Escape');pump(.2)
     click('⋯');click('Settings');wait(lambda:node('Save settings'));click('Automatically save new screenshots');click('Save settings');assert 'autosave=false' in (root/'config/axentra-snipping/settings.ini').read_text()

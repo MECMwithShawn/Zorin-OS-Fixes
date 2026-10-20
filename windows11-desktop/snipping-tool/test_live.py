@@ -89,7 +89,15 @@ a.connect('draw',draw);fixture.show_all();pump()
 log=open(root/'app.log','w')
 proc=subprocess.Popen([str(binary)],stdout=log,stderr=log)
 try:
-    focus();wait(lambda:node('＋ New'))
+    idle=focus();wait(lambda:node('＋ New'));pump(.2)
+    geometry=dict(line.split('=',1) for line in x('getwindowgeometry','--shell',idle).splitlines() if '=' in line)
+    assert int(geometry['WIDTH'])<=700 and int(geometry['HEIGHT'])<=300,geometry
+    assert node('Pen') is None and node('Save as') is None
+    output=os.environ.get('ZORIN11_TEST_OUTPUT')
+    if output:
+        Path(output).mkdir(parents=True,exist_ok=True)
+        Gdk.pixbuf_get_from_window(Gdk.get_default_root_window(),int(geometry['X']),int(geometry['Y']),int(geometry['WIDTH']),int(geometry['HEIGHT'])).savev(str(Path(output)/'idle.png'),'png',[],[])
+    key('alt+m');wait(lambda:node('Window mode'));key('Escape')
     capture('rect');drag([(130,150),(300,230),(400,300)])
     p=copied();assert(p.get_width(),p.get_height())==(270,150)
     before=bytes(p.get_pixels())

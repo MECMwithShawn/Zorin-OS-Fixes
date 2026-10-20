@@ -2,6 +2,8 @@
 
 Reference: [Microsoft's Windows 11 Snipping Tool guide](https://support.microsoft.com/en-us/windows/apps/use-snipping-tool-to-capture-screenshots), checked 2026-10-20. Axentra is an independent Linux implementation in Rust/GTK; it does not bundle Microsoft binaries, assets or AI models.
 
+The window layout follows the [Windows 11 example on Computer Hope](https://www.computerhope.com/jargon/s/snipping.htm#win11), using the desktop's dark appearance: a compact initial window, left-aligned title, New / capture mode / delay command bar and centered shortcut hint. A video-mode button retains the newer recording workflow. Opening or capturing an image expands the window and reveals one icon toolbar with accessible names/tooltips. Shapes, emoji, manual redaction, image color picking and rotation are under **More tools**; ink color and thickness are under **Ink settings**. Save, Copy and Share remain directly available in the editor. **⋯ → Open image** and Ctrl+O open existing files.
+
 | Guide workflow | Axentra behavior |
 |---|---|
 | Rectangle, freeform, window, full-screen snips | All four on X11; Wayland delegates selection to the desktop screenshot portal. |
@@ -26,4 +28,4 @@ Capture, OCR and encoding stay local. Temporary OCR/recording/export files use p
 
 ## Validation
 
-Run `cargo test --locked` under Xvfb for raster/history/OCR-parser checks. `test_live.py` exercises native capture/edit/save/clipboard and the screenshot portal. `test_features_live.py` tests actual Tesseract, redaction pixels, erasing, emoji, color picker, settings, keyboard capture, native dialog cancellation, video overwrite protection and real FFmpeg video. `test_recording_portal.py` uses a private ScreenCast service, actual PipeWire/GStreamer video and virtual audio devices to verify consent requests, descriptor transfer, encoded video/audio, cleanup, compositor-side termination and denial. It tests the protocol and media path rather than a live Wayland compositor's picker.
+Run `cargo test --locked` under Xvfb for raster/history/OCR-parser checks. `test_live.py` exercises the compact initial window, contextual editing toolbar, mode menu, native capture/edit/save/clipboard and the screenshot portal. `test_features_live.py` tests actual Tesseract, redaction pixels, erasing, emoji, color picker, settings, keyboard capture, native dialog cancellation, video overwrite protection and real FFmpeg video, including tools selected from the new popover. `test_recording_portal.py` uses a private ScreenCast service, actual PipeWire/GStreamer video and virtual audio devices to verify consent requests, descriptor transfer, encoded video/audio, cleanup, compositor-side termination and denial. It tests the protocol and media path rather than a live Wayland compositor's picker.
