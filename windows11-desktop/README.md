@@ -2,6 +2,23 @@
 
 **GNOME is the primary desktop.** The same installer detects Zorin 18 GNOME or Zorin Lite/Xfce and installs the matching integration. The shared companion provides the Windows 11-style Start menu, File Explorer, Settings, Quick Settings, notification/calendar flyout, Desktop Groups and multitasking UI.
 
+
+## Fractional scaling on hybrid graphics
+
+On the tested Intel/NVIDIA laptop, GNOME X11 at laptop 125% / external 100% produces a cropped external display even though the reported native modes and screenshot look correct. Do not use a successful settings readback alone to confirm scaling: check all four edges on the physical screens. This matches the [X11 PRIME transform issue documented by NVIDIA](https://forums.developer.nvidia.com/t/450-75-with-reverse-prime-xrandr-scale-2x2-does-not-work-renders-only-1-4-of-screen-problem-with-nvidia-settings/142424).
+
+Test **Zorin Desktop on Wayland** from the login-screen session selector for independent scaling. Save work before signing out. This is a different session, not a theme reinstall; the package does not switch sessions automatically. Physical Wayland validation on this machine remains pending. Both screens at 100% is the fallback if staying on the current X11 session.
+
+## Device Manager (GNOME)
+
+Search **Device Manager** in Start to open a standalone dark hardware tree. Categories expand into PCI controllers, USB devices, cameras/Bluetooth adapters, physical disks and input endpoints, with icons and actual bound driver names. Search by device, driver, category or hardware ID. Select a device and choose **Properties**, double-click it, or use the context menu to view/copy its details. **Refresh** or F5 updates the inventory after connecting or disconnecting hardware; Ctrl+F focuses search and Escape clears it.
+
+The inventory is read-only. It reports driver bindings rather than claiming hardware is healthy, and offers no driver installation, device disable/reset or disk modification. Disk/input drivers can be bound at an ancestor device; Properties identifies that binding location. USB interfaces are combined under their parent, while separate devices with the same name retain distinct identities. Input endpoints can belong to an already-listed controller. Paired Bluetooth accessories remain in Bluetooth settings.
+
+Optional `lspci` provides descriptive PCI names; numeric IDs remain usable without it. Data comes from Linux sysfs ([PCI attributes](https://docs.kernel.org/PCI/sysfs-pci.html), [USB attributes](https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-bus-usb), [block attributes](https://www.kernel.org/doc/Documentation/ABI/stable/sysfs-block)). No administrator authentication is required.
+
+Checks: `/usr/bin/python3 -m unittest discover -s companion -p test_hardware_inventory.py` and `/usr/bin/python3 companion/test_device_manager_live.py` (native test requires Xvfb).
+
 ## Install on GNOME (default)
 
 Run as your desktop user from a Zorin OS 18 GNOME session:

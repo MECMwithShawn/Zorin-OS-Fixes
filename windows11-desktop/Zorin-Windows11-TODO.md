@@ -41,9 +41,10 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Quick Settings: supported battery saver with previous-mode restoration, GNOME airplane mode, connected/paired Bluetooth controls and reported device battery. Shared Settings controls and unavailable/hardware-lock states; verified 2026-10-19. AirPods stayed connected during live discovery/cleanup. Searchable pairing groups duplicate names, preserves address selection, handles confirmation/PINs and stops scanning after one minute; new physical pairing through this picker remains pending.
 - [ ] Build a Windows-inspired clock/avatar lock screen while preserving native GNOME/GDM and Xfce authentication.
 - [x] GNOME Task Manager: Mission Center, expandable application groups, program icons, merged usage and supported GPU graphs. Intel and NVIDIA RTX 4090 laptop telemetry verified in Mission Center after the local NVIDIA driver reboot.
-- [ ] Windows-inspired Device Manager, Disk Management and Event Viewer equivalents; Task Manager includes Mission Center's Services view.
+- [x] GNOME Device Manager: expandable hardware categories/icons, driver and ID search, Properties/copy details and manual refresh. Read-only PCI/USB, disks and input endpoints; verified locally on 2026-10-20.
+- [ ] Device driver-management actions, Disk Management and Event Viewer equivalents; Task Manager includes Mission Center's Services view.
 - [ ] Polish cursor, emoji input, scaling, accessibility, keyboard navigation and reduced-motion behavior.
-- [ ] Evaluate per-monitor taskbars, wallpapers, snapping and mixed-DPI layouts.
+- [ ] Evaluate per-monitor taskbars, wallpapers, snapping and mixed-DPI layouts. Confirm physical output on each screen: laptop 125% / Dell 100% fails with external cropping on the tested Intel/NVIDIA X11 output-sink configuration; Wayland verification is pending.
 - [ ] Retain and validate existing 4K Spotlight/Bing rotation rather than duplicate it.
 
 ## Premium Visual Fidelity — rendering and polish

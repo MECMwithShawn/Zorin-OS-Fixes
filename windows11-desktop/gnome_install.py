@@ -57,6 +57,15 @@ def personalization_entries(apps):
     return entries
 
 
+def device_manager_entry():
+    return (f'[Desktop Entry]\nType=Application\nName=Device Manager\n'
+            f'Comment=Hardware devices, drivers and properties\n'
+            f'Exec=/usr/bin/python3 "{DEST / "device_manager.py"}"\n'
+            'Icon=computer\nTerminal=false\nCategories=Settings;HardwareSettings;\n'
+            'Keywords=Hardware;Devices;Drivers;GPU;USB;PCI;\n'
+            'StartupWMClass=Zorin11-device-manager\nOnlyShowIn=GNOME;\n').encode()
+
+
 def install():
     import snipping_install
     import desktop_menu_install
@@ -85,6 +94,7 @@ def install():
         ('notifications','Notifications and calendar','--notifications','preferences-system-notifications','Zorin11-hub'),
     ]:files[apps/f'zorin11-{ident}.desktop']=desktop(name,args,icon,wm)
     files[apps/'gnome-sound-panel.desktop']=desktop('Sound','--settings sound','multimedia-volume-control','Zorin11-settings','Settings;HardwareSettings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\n'
+    files[apps/'zorin11-device-manager.desktop']=device_manager_entry()
     files[apps/'gnome-bluetooth-panel.desktop']=desktop('Bluetooth','--settings devices','bluetooth','Zorin11-settings','Settings;HardwareSettings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\n'
     files.update(personalization_entries(apps))
     files[apps/'zorin11-explorer.desktop']+=b'MimeType=inode/directory;\nKeywords=Files;Folders;File Manager;Explorer;\n'
