@@ -25,6 +25,12 @@ const fixture=JSON.parse(require('child_process').execFileSync('/usr/bin/python3
   await page.evaluate(()=>window.receive({type:'show',page:'sound'}));
   const select=page.getByRole('combobox',{name:'Audio preset'});
   assert.equal(await select.locator('option').count(),8);
+  assert(await page.evaluate(()=>window.messages.some(m=>m.action==='audio-spectrum'&&m.enabled)));
+  await page.evaluate(()=>window.receive({type:'audio-spectrum',available:true,levels:Array.from({length:16},(_,i)=>(i+1)/16)}));
+  await page.waitForFunction(()=>document.querySelectorAll('.audio-spectrum-bars i').length===16&&document.querySelector('.audio-spectrum-bars i').style.transform==='scaleY(0.0625)');
+  assert.equal(await page.locator('.audio-spectrum-caption').innerText(),'Bass\nLive playback\nTreble');
+  await page.evaluate(()=>window.receive({type:'audio-spectrum',available:true,levels:Array(16).fill(0)}));
+  await page.waitForFunction(()=>document.querySelector('.audio-spectrum-bars i').style.transform==='scaleY(0.015)');
   for(const p of fixture.presets){
    await select.selectOption(p.id);
    await page.waitForFunction(id=>document.querySelector('[aria-label="Audio preset"]').value===id && document.querySelectorAll('.audio-preset-bands dd').length===(id==='off'?0:6),p.id);

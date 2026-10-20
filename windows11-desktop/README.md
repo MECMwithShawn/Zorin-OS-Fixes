@@ -180,3 +180,7 @@ Open **Snipping Tool** from Start, use **Win+Shift+S**, or choose Screenshot in 
 The native Rust/GTK editor supports pen, highlighter, rectangle, ellipse, arrow, text, crop, undo/redo, image clipboard and explicit PNG/JPEG save. Ctrl+N/O/S/C/Z and Ctrl+Shift+Z provide the usual shortcuts. Unsaved changes prompt before replacement or closing; nothing is uploaded or automatically saved. Screen recording and OCR are not included.
 
 The GNOME installer builds the locked Rust project (Rust 1.75+, Cargo, pkg-config and GTK 3 development files) and installs per-user. To install only this tool, run `python3 snipping_install.py` from this directory. Existing Win+Shift+S custom bindings are preserved; managed shortcuts participate in desktop restoration and later user edits are retained.
+
+Sound settings and Quick Settings now show sixteen live frequency bars from the selected playback output. Monitoring stops when the controls are hidden; no microphone is opened and no audio is saved. Presets remain fixed choices rather than automatic track classification.
+
+Axentra Mini Media can expose the same persistent system EQ and live bars directly beneath its common player controls. See [the player integration](integrations/minitube/README.md); changes synchronize with Sound settings and affect system playback across player sources.
