@@ -3,7 +3,7 @@ set -euo pipefail
 desktop_session=${XDG_CURRENT_DESKTOP:-}
 if [[ "${desktop_session^^}" == *GNOME* ]]; then
   sudo apt-get update
-  sudo apt-get install --no-install-recommends python3-gi python3-gi-cairo python3-dbus python3-pil heif-gdk-pixbuf \
+  sudo apt-get install --no-install-recommends python3-gi python3-gi-cairo python3-dbus python3-pil python3-venv heif-gdk-pixbuf \
     gir1.2-gtk-3.0 gir1.2-webkit2-4.1 gir1.2-atspi-2.0 gir1.2-wnck-3.0 gir1.2-gdm-1.0 \
     git flatpak xwayland pulseaudio-utils desktop-file-utils libgtk-3-bin fontconfig \
     cargo rustc build-essential pkg-config libgtk-3-dev tesseract-ocr tesseract-ocr-eng ffmpeg \

@@ -299,3 +299,31 @@ The session test uses the installed operating system and packages with a clean t
 - Installed only the helper and desktop entry through the existing recovery mechanism. The installed window was visually checked on Zorin GNOME X11: built-in 2560×1600 at 165 Hz, 100% scale, reported 387×242 mm; external Dell 2560×1440 at 59.95 Hz. Intel and NVIDIA adapters are listed; Mesa Intel is explicitly labeled as the diagnostic client's renderer.
 - Wayland, mixed-scale physical panels and other display servers still need hardware validation. Missing optional tools or unavailable physical dimensions are reported rather than inferred.
 - Installed GTK controls were also exercised against the real two-monitor session: selecting each monitor rendered its resolution, Refresh retained selection, and Open display settings launched the native Settings window. All nine protected Explorer/shared-frontend source and runtime hashes remained unchanged.
+
+
+## Consolidated chat audit and desktop snapshots — 2026-10-20
+
+Reviewed all seven current Codex chats and all three archived Codex chats available at the time of this audit. Completed Windows-desktop fixes were compared against the installed runtime and consolidated into the master-bound history, including the separate taskbar progress, Advanced display, Device Manager and Event Viewer branches.
+
+| Source chat / work | Included outcome |
+| --- | --- |
+| Apply Windows 11 theme | Spotlight/Bing, original Zorin wallpaper catalog, GNOME desktop menu, SnippingTool, thumbnails/cache, search/copy dialogs, taskbar and hardware utilities |
+| Fix Windows 11 account photo sync | AccountsService photo lookup, local fallbacks, periodic refresh, cache invalidation and scaled PNG serving |
+| Add EQ to the system menu | System EQ tile, native output submenu, saved Custom curve, temporary live slider preview and restore on close/expiry |
+| Fix HEIC and AAE thumbnails | HEIC/HEIF frontend eligibility and newer private decoder, retained AAE original-photo behavior; hash-pinned dependency installer added |
+| Add YouTube mini player app | Shared system EQ catalog/persistence and player adapter retained; Custom selection checked with the matching native widget fixture. Newer player-specific visuals and ongoing Spotify account work remain in that app's project; the adapter now refuses to overwrite a different existing EQ implementation |
+| Locate Windows 11 Spotlight | Advice-only chat; existing tested Spotlight/Bing implementation retained |
+| Keep Zorin awake while coding | Current idle, power and screen-lock settings included in private snapshots; no new display or power changes applied |
+| Ensure apps run on Zorin Linux / Add Intel IMSM RAID 0 support / Import Edge favorites | Separate app/RAID/browser work reviewed for relevance; no unrelated app sources, disk changes, browser profiles or credentials copied into this desktop repository |
+
+Validation in this consolidation:
+
+- Three account-photo tests cover AccountsService precedence, refresh/cache invalidation, fallback behavior and bounded PNG delivery. No private photo is a test fixture.
+- Thirteen EQ unit tests passed. A private PipeWire session measured every processing preset including Custom within 0.001 dB of the expected response, then verified preview restoration, persistent Custom controls, output switching, stream routing and Off cleanup. The GTK Custom editor, real GNOME System EQ tile/submenu and all nine browser preset choices passed.
+- HEIF dependencies installed from the pinned wheel hashes into a disposable directory, then validated and reused with system Python. Real codec/thumbnail/cache tests passed; the WebKit Explorer test decoded a synthetic HEIC, exercised lazy scrolling, file invalidation and OneDrive navigation, and verified unchanged originals.
+- Twenty-eight desktop/installer/backup unit tests passed. Backup tests cover archive hashes, symlink handling, failed destination copy cleanup, prior snapshot preservation and OneDrive mount guarding. HEIF installer tests cover verified reuse and retaining the previous runtime on installation failure.
+- Eighteen wallpaper/settings tests passed. A legacy Xfce background test had lacked GNOME backend isolation; fixed both dispatch mocks and restored the live wallpaper from the verified snapshot. Future runs of this fixture cannot select the GNOME backend.
+- Advanced display, Device Manager and Event Viewer native GTK fixtures passed. The private GNOME desktop menu fixture passed hide/show, real desktop rendering, disable/enable and child supervision on retry after an initial hide/show timeout.
+- The rebuilt frontend matches the currently installed frontend byte-for-byte. Installed OneDrive remained mounted, signed in and readable; its service reported up to date. Desktop snapshots were verified locally in the configured OneDrive destination. The live wallpaper remained daily Spotlight, and the audio and thumbnail-cache services remained active.
+
+These snapshots provide selective recovery, not automatic repair after every OS update. Major GNOME upgrades still require compatibility testing; the newly installed desktop menu adapter activates at the next normal sign-in. No forced sign-out, reboot, monitor change or OneDrive reinstallation was performed.

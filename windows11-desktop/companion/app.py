@@ -420,8 +420,12 @@ class Hub(Gtk.Application):
                 content = path.read_bytes()
                 mime = mimetypes.guess_type(path.name)[0] or 'application/octet-stream'
             elif uri.netloc == 'profile' and uri.path == '/avatar':
-                content = (CONFIG/'reference-avatar.jpg').read_bytes()
-                mime = 'image/jpeg'
+                path = self.account_avatar()
+                if path is None:
+                    raise ValueError('No account photo configured')
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(str(path), 256, 256, True)
+                content = pixbuf.save_to_bufferv('png', [], [])[1]
+                mime = 'image/png'
             elif uri.netloc == 'backdrop':
                 content = self.backdrops.get(uri.path.lstrip('/'), b'')
                 mime = 'image/png'
@@ -514,6 +518,44 @@ class Hub(Gtk.Application):
             result['items'] = items
         return result
 
+    def account_avatar(self):
+        """Resolve the system account photo; periodically recheck account changes."""
+        now = time.monotonic()
+        if now >= getattr(self, '_avatar_checked_until', 0):
+            self._avatar_checked_until = now + 5
+            candidates = []
+            try:
+                bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+                user_path = bus.call_sync('org.freedesktop.Accounts',
+                    '/org/freedesktop/Accounts', 'org.freedesktop.Accounts',
+                    'FindUserById', GLib.Variant('(x)', (os.getuid(),)),
+                    GLib.VariantType.new('(o)'), Gio.DBusCallFlags.NONE, 1000, None).unpack()[0]
+                icon = bus.call_sync('org.freedesktop.Accounts', user_path,
+                    'org.freedesktop.DBus.Properties', 'Get',
+                    GLib.Variant('(ss)', ('org.freedesktop.Accounts.User', 'IconFile')),
+                    GLib.VariantType.new('(v)'), Gio.DBusCallFlags.NONE, 1000, None).unpack()[0]
+                if icon:
+                    candidates.append(Path(icon))
+            except GLib.Error:
+                pass
+            candidates.extend([Path.home()/'.face', Path.home()/'.face.icon', CONFIG/'reference-avatar.jpg'])
+            self._account_avatar_path = None
+            for path in candidates:
+                try:
+                    if path.is_file() and os.access(path, os.R_OK):
+                        self._account_avatar_path = path
+                        break
+                except OSError:
+                    continue
+        return self._account_avatar_path
+
+    def account_avatar_uri(self):
+        path = self.account_avatar()
+        try:
+            return 'zorin11://profile/avatar?v=' + str(path.stat().st_mtime_ns) if path else None
+        except OSError:
+            return None
+
     def payload(self, group_id=None):
         state = self.store.state
         if group_id:
@@ -525,7 +567,7 @@ class Hub(Gtk.Application):
             'documents': self.recent_documents,
             'groups': [self.group_info(g) for g in state['groups']], 'groupsVisible': state['groups_visible'],
             'user': self.presentation.get('displayName') or (GLib.get_real_name() if GLib.get_real_name() not in ('Unknown', '') else GLib.get_user_name()),
-            'avatar': 'zorin11://profile/avatar' if (CONFIG/'reference-avatar.jpg').exists() else None,
+            'avatar': self.account_avatar_uri(),
             'places': [self.path_info(p) for p in [Path.home(), Path.home()/'Documents', Path.home()/'Downloads'] if p.exists()]}
 
     def broadcast(self):

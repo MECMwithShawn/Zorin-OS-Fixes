@@ -2,6 +2,7 @@
 import fcntl
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -14,6 +15,7 @@ ROOT = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home()/'.config')))/'zori
 STATE = ROOT/'audio-effects.json'
 RUNTIME = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{os.getuid()}'))/'zorin11-audio'
 STATUS = RUNTIME/'status.json'
+PREVIEW = RUNTIME/'preview.json'
 SINK = 'zorin11.eq.input'
 PLAYBACK = 'zorin11.eq.output'
 UNIT = 'zorin11-audio-effects.service'
@@ -28,6 +30,7 @@ PRESETS = [
     dict(id='voice', name='Vocal clarity', detail='Less rumble and clearer voices for speech and calls.', gains=[-5, -3, 0, 3, 2, -1]),
     dict(id='movies', name='Movies', detail='Fuller bass with clearer dialogue.', gains=[4, 2, -1, 2, 1, 0]),
     dict(id='gaming', name='Gaming', detail='Less low-end masking and more upper-mid detail.', gains=[-3, -1, 0, 3, 3, 1]),
+    dict(id='custom', name='Custom', detail='Your saved six-band equalizer.', gains=[0]*6),
     dict(id='night', name='Night listening', detail='Reduced bass and treble for softer listening; no loudness compression.', gains=[-6, -3, 0, 1, -2, -4]),
 ]
 
@@ -36,7 +39,23 @@ def preset(ident):
     value = next((p for p in PRESETS if p['id'] == ident), None)
     if value is None:
         raise ValueError('Choose one of the available audio presets.')
+    if ident == 'custom':
+        return {**value, 'gains': custom_gains()}
     return value
+
+
+def validate_gains(gains):
+    if (not isinstance(gains, list) or len(gains) != len(FREQUENCIES)
+            or any(type(g) not in (int, float) or not math.isfinite(g) or not -12 <= g <= 12 for g in gains)):
+        raise ValueError('Choose six EQ gains between -12 and +12 dB.')
+    return list(gains)
+
+
+def custom_gains():
+    try:
+        return validate_gains(read_json(STATE, {}).get('custom_gains', [0]*6))
+    except ValueError:
+        return [0]*6
 
 
 def run(args, timeout=4):
@@ -64,6 +83,28 @@ def selection():
     return value if any(p['id'] == value for p in PRESETS) else 'off'
 
 
+def preview_gains():
+    value = read_json(PREVIEW, {})
+    try:
+        if (time.monotonic()-value['updated'] > 2
+                or value['saved_state'] != read_json(STATE, {})):
+            return None
+        os.kill(value['pid'], 0)
+        return validate_gains(value['gains'])
+    except (KeyError, TypeError, ValueError, OSError):
+        return None
+
+
+def write_preview(gains, token):
+    save(PREVIEW, dict(gains=validate_gains(gains), token=token, pid=os.getpid(),
+                      updated=time.monotonic(), saved_state=read_json(STATE, {})))
+
+
+def clear_preview(token=None):
+    if token is None or read_json(PREVIEW, {}).get('token') == token:
+        PREVIEW.unlink(missing_ok=True)
+
+
 def available():
     if not all(shutil.which(p) for p in ('pipewire', 'pw-cli', 'pw-dump', 'pactl', 'systemctl')):
         return False
@@ -80,19 +121,28 @@ def snapshot():
                   and time.time()-status.get('updated', 0) < 6)
     return dict(available=available(), preset=selected, active=active,
                 error=status.get('error', '') if selected != 'off' else '',
-                presets=PRESETS, frequencies=FREQUENCIES)
+                presets=[preset(p['id']) for p in PRESETS], frequencies=FREQUENCIES)
 
 
-def configure(ident):
+def configure(ident, gains=None):
     preset(ident)
+    if gains is not None:
+        if ident != 'custom':
+            raise ValueError('Band gains belong to the Custom preset.')
+        gains = validate_gains(gains)
     if ident != 'off' and not available():
         raise ValueError('Audio presets require PipeWire playback on this desktop.')
     ROOT.mkdir(mode=0o700, parents=True, exist_ok=True)
     with open(ROOT/'audio-effects.lock', 'a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        previous_state = read_json(STATE, {})
         previous = selection()
         previous_status = read_json(STATUS, {})
-        save(STATE, dict(preset=ident))
+        next_state = {**previous_state, 'preset': ident}
+        if gains is not None:
+            next_state['custom_gains'] = gains
+        clear_preview()
+        save(STATE, next_state)
         try:
             if ident == 'off':
                 run(['systemctl', '--user', 'disable', '--now', UNIT], timeout=12)
@@ -106,14 +156,14 @@ def configure(ident):
             while time.monotonic() < deadline:
                 status = read_json(STATUS, {})
                 if status.get('preset') == ident and time.time()-status.get('updated', 0) < 3:
-                    if status.get('active'):
+                    if status.get('active') and (ident != 'custom' or status.get('gains') == custom_gains()):
                         return
                     if status.get('error'):
                         raise RuntimeError(status['error'])
                 time.sleep(.1)
             raise RuntimeError('Audio processing did not start. Your original output remains available.')
         except Exception:
-            save(STATE, dict(preset=previous))
+            save(STATE, previous_state)
             if previous == 'off':
                 subprocess.run(['systemctl', '--user', 'disable', '--now', UNIT], capture_output=True, timeout=12)
             raise
@@ -124,16 +174,16 @@ def headroom(gains):
     return -sum(max(0, gain) for gain in gains)
 
 
-def controls(ident):
-    gains = preset(ident)['gains']
+def controls(ident, gains=None):
+    gains = preset(ident)['gains'] if gains is None else validate_gains(gains)
     return {'preamp:Gain 1': 10**(headroom(gains)/20),
             **{f'band{i}:Gain': float(gain) for i, gain in enumerate(gains)}}
 
 
-def graph(ident, target):
-    gains = preset(ident)['gains']
+def graph(ident, target, gains=None):
+    gains = preset(ident)['gains'] if gains is None else validate_gains(gains)
     nodes = [dict(type='builtin', name='preamp', label='mixer',
-                  control={'Gain 1': controls(ident)['preamp:Gain 1']})]
+                  control={'Gain 1': controls(ident, gains)['preamp:Gain 1']})]
     nodes += [dict(type='builtin', name=f'band{i}', label='bq_peaking',
                    control={'Freq': float(freq), 'Q': 1.0, 'Gain': float(gain)})
               for i, (freq, gain) in enumerate(zip(FREQUENCIES, gains))]
@@ -189,6 +239,7 @@ class Engine:
         self.target = None
         self.current = None
         self.node = None
+        self.current_controls = None
 
     def stop(self, destination=None):
         try:
@@ -214,11 +265,11 @@ class Engine:
             self.process = None
             self.target = self.current = self.node = None
 
-    def start(self, ident, target):
+    def start(self, ident, target, gains=None):
         self.stop(target)
         RUNTIME.mkdir(mode=0o700, parents=True, exist_ok=True)
         path = RUNTIME/'filter.conf'
-        save(path, graph(ident, target))
+        save(path, graph(ident, target, gains))
         self.target = target
         self.process = subprocess.Popen(['pipewire', '-c', str(path)], stdout=subprocess.DEVNULL)
         deadline = time.monotonic()+4
@@ -228,12 +279,13 @@ class Engine:
             if node and any(s['name'] == SINK for s in sinks()):
                 self.node = node['id']
                 self.current = ident
+                self.current_controls = controls(ident, gains)
                 return
             time.sleep(.08)
         self.stop()
         raise RuntimeError('PipeWire could not create the audio equalizer.')
 
-    def update(self, ident):
+    def update(self, ident, gains=None):
         outputs = sinks()
         default = run(['pactl', 'get-default-sink'])
         if default == SINK:
@@ -243,12 +295,14 @@ class Engine:
             self.stop()
             return False
         if self.target != target['name'] or not self.process or self.process.poll() is not None:
-            self.start(ident, target['name'])
+            self.start(ident, target['name'], gains)
             outputs = sinks()
-        elif self.current != ident:
-            params = [part for item in controls(ident).items() for part in item]
+        elif self.current != ident or self.current_controls != controls(ident, gains):
+            new_controls = controls(ident, gains)
+            params = [part for item in new_controls.items() for part in item]
             run(['pw-cli', 'set-param', str(self.node), 'Props', json.dumps({'params': params})])
             self.current = ident
+            self.current_controls = new_controls
         effect = next((s for s in outputs if s['name'] == SINK), None)
         if effect is None:
             raise RuntimeError('The audio equalizer disconnected.')
@@ -286,15 +340,17 @@ def main():
         try:
             while not stopped.is_set():
                 ident = selection()
+                preview = preview_gains()
                 try:
-                    active = engine.update(ident)
-                    error = '' if active or ident == 'off' else 'Connect an audio output to use this preset.'
+                    active = engine.update('custom' if preview is not None else ident, preview)
+                    error = '' if active or (ident == 'off' and preview is None) else 'Connect an audio output to use this preset.'
                 except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
                     engine.stop()
                     active, error = False, 'Audio processing is unavailable. Original playback has been restored.'
-                save(STATUS, dict(preset=ident, active=active, error=error,
-                                  updated=time.time(), version=ENGINE_VERSION))
-                stopped.wait(.5)
+                save(STATUS, dict(preset=ident, active=active, error=error, preview=preview is not None,
+                                  updated=time.time(), version=ENGINE_VERSION,
+                                  gains=[engine.current_controls.get(f'band{i}:Gain', 0) for i in range(6)] if active else []))
+                stopped.wait(.1 if preview is not None else .5)
         finally:
             engine.stop()
             save(STATUS, dict(preset=selection(), active=False, error='',

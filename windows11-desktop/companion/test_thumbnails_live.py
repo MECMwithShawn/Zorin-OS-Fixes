@@ -60,6 +60,7 @@ with tempfile.TemporaryDirectory(prefix='thumbnail-files-') as temp:
     (photos/'Broken.jpg').write_bytes(b'not an image')
     (photos/'Vector.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')
     (photos/'Movie.mov').write_bytes(b'not a movie')
+    (photos/'Apple.HEIC').write_bytes((Path(__file__).with_name('test-fixtures')/'portrait.heic').read_bytes())
     before = {p:p.read_bytes() for p in photos.iterdir()}
     manager = WebKit2.UserContentManager()
     manager.register_script_message_handler('desktop')
@@ -121,9 +122,10 @@ with tempfile.TemporaryDirectory(prefix='thumbnail-files-') as temp:
     web.load_uri('zorin11://ui/index.html')
     try:
         until(lambda:ready)
-        until(lambda:js('document.querySelectorAll(".file-item").length')==123)
+        until(lambda:js('document.querySelectorAll(".file-item").length')==124)
         js('document.querySelector("button[aria-label=\'Large icons\']").click()')
         until(lambda:js('[...document.querySelectorAll(".photo-thumbnail")].filter(i=>i.naturalWidth>0).length')>=10)
+        until(lambda:js('[...document.querySelectorAll(".file-item")].find(e=>e.title==="Apple.HEIC").querySelector(".photo-thumbnail")?.naturalWidth>0'))
         pump(.5)
         assert len(requested)<90, ('Offscreen files loaded eagerly',len(requested))
         assert js('document.querySelector(".photo-thumbnail").getBoundingClientRect().height')==80
@@ -138,7 +140,7 @@ with tempfile.TemporaryDirectory(prefix='thumbnail-files-') as temp:
         navigate(other)
         until(lambda:js('document.querySelectorAll(".file-item").length')==0)
         navigate(photos)
-        until(lambda:js('document.querySelectorAll(".file-item").length')==123)
+        until(lambda:js('document.querySelectorAll(".file-item").length')==124)
         js('document.querySelector(".explorer-files").scrollTop=0')
         until(lambda:js('[...document.querySelectorAll(".file-item")].find(e=>e.title==="Photo 000.jpg").querySelector(".photo-thumbnail")?.naturalWidth>0'))
         old = js('[...document.querySelectorAll(".file-item")].find(e=>e.title==="Photo 000.jpg").querySelector(".photo-thumbnail").src')

@@ -48,6 +48,7 @@ try:
     combo=wait(lambda:find('System EQ preset'))
     rect=combo.get_component_iface().get_extents(Atspi.CoordType.SCREEN)
     def pick(index):
+        wait(lambda:combo.get_state_set().contains(Atspi.StateType.SENSITIVE))
         subprocess.run(['xdotool','mousemove',str(rect.x+rect.width//2),str(rect.y+rect.height//2),'click','1'],check=True)
         key('Home',*(['Down']*index),'Return')
     pick(2);wait(lambda:chosen()=='music')
@@ -58,6 +59,8 @@ try:
     pick(6);wait(lambda:find('Test device unavailable'))
     assert chosen()=='bass'
     pick(2);wait(lambda:chosen()=='music')
+    pick(7);wait(lambda:chosen()=='custom')
+    assert combo.get_selection_iface().get_selected_child(0).get_name()=='Custom'
     wait(lambda:find('Bass                         Live playback                         Treble'))
     more=wait(lambda:find('⋯'));more.get_action_iface().do_action(0)
     wait(lambda:(Path(os.environ['ZORIN11_RUNTIME_DIR'])/'settings-opened').exists())

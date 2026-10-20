@@ -29,10 +29,11 @@ const XML=`<node><interface name="local.zorin11.AudioTest"><method name="Call"><
 export default class Test extends Base {
  enable(){super.enable();this._bus=Gio.DBusExportedObject.wrapJSObject(XML,this);this._bus.export(Gio.DBus.session,'/local/zorin11/AudioTest');this._owner=Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.AudioTest',Gio.BusNameOwnerFlags.NONE,null,null);}
  Call(text){const p=JSON.parse(text);this._sync();const entry=[...this._menus.values()][0];
- if(p.activate)entry.rows.get(p.activate).activate(null);
- if(p.show){const output=[...this._menus.keys()][0];output.visible=true;Main.panel.statusArea.quickSettings.menu.open();output.menu.open();entry.menu.menu.open();}
+ const tile=[...this._tiles.values()][0];
+ if(p.activate)tile.rows.get(p.activate).activate(null);
+ if(p.show){const output=[...this._menus.keys()][0];output.visible=true;Main.panel.statusArea.quickSettings.menu.open();tile.tile.menu.open();}
  if(p.photo){const stream=Gio.File.new_for_path(p.photo).replace(null,false,Gio.FileCreateFlags.NONE,null);const s=new Shell.Screenshot();s.screenshot(false,stream,(o,r)=>{o.screenshot_finish(r);stream.close(null);});}
- return JSON.stringify({busy:this._busy,menus:this._menus.size,label:entry?.menu.label.text,rows:entry?[...entry.rows.keys()]:[]});}
+ return JSON.stringify({tiles:this._tiles.size,subtitle:tile?.tile.subtitle,checked:tile?.tile.checked,busy:this._busy,menus:this._menus.size,label:entry?.menu.label.text,rows:entry?[...entry.rows.keys()]:[]});}
  disable(){this._bus?.unexport();if(this._owner)Gio.bus_unown_name(this._owner);super.disable();}
 }
 ''')
@@ -57,10 +58,11 @@ def wait(fn,seconds=15):
         time.sleep(.1)
     raise AssertionError('Native EQ test timed out')
 try:
-    state=wait(lambda:(s if (s:=call())['menus'] else None));assert state['menus']>=1 and len(state['rows'])==8,state
+    state=wait(lambda:(s if (s:=call())['menus'] else None));assert state['menus']>=1 and state['tiles']>=1 and len(state['rows'])==len(audio_effects.PRESETS),state
     for preset in audio_effects.PRESETS:
         call(activate=preset['id'])
         wait(lambda:not call()['busy'] and call()['label'].endswith(preset['name']))
+        tile_state=call();assert tile_state['subtitle']==preset['name'] and tile_state['checked']==(preset['id']!='off'),tile_state
         assert json.loads((temp/'config/zorin11-hub/audio-effects.json').read_text())['preset']==preset['id']
     call(show=True);time.sleep(.5)
     output=os.environ.get('ZORIN11_TEST_OUTPUT')
@@ -72,7 +74,7 @@ try:
             with Image.open(target) as picture:picture.load()
             return True
         call(photo=str(target));wait(complete_image)
-    print('PASS GNOME 46 native Sound output submenu, eight preset actions, persisted selection and checked state')
+    print('PASS GNOME 46 System EQ quick-settings tile and Sound submenu; all tile preset actions, persisted selection, subtitle and checked state')
     assert 'JS ERROR' not in (temp/'shell.log').read_text()
 finally:
     for p in (shell,stub):

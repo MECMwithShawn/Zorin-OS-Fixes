@@ -24,7 +24,7 @@ const fixture=JSON.parse(require('child_process').execFileSync('/usr/bin/python3
   await page.waitForSelector('.settings-shell');
   await page.evaluate(()=>window.receive({type:'show',page:'sound'}));
   const select=page.getByRole('combobox',{name:'Audio preset'});
-  assert.equal(await select.locator('option').count(),8);
+  assert.equal(await select.locator('option').count(),fixture.presets.length);
   assert(await page.evaluate(()=>window.messages.some(m=>m.action==='audio-spectrum'&&m.enabled)));
   await page.evaluate(()=>window.receive({type:'audio-spectrum',available:true,levels:Array.from({length:16},(_,i)=>(i+1)/16)}));
   await page.waitForFunction(()=>document.querySelectorAll('.audio-spectrum-bars i').length===16&&document.querySelector('.audio-spectrum-bars i').style.transform==='scaleY(0.0625)');

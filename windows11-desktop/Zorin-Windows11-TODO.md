@@ -46,7 +46,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Device driver-management actions and Disk Management; Task Manager includes Mission Center's Services view.
 - [ ] Polish cursor, emoji input, scaling, accessibility, keyboard navigation and reduced-motion behavior.
 - [ ] Evaluate per-monitor taskbars, wallpapers, snapping and mixed-DPI layouts. Confirm physical output on each screen: laptop 125% / Dell 100% fails with external cropping on the tested Intel/NVIDIA X11 output-sink configuration; Wayland verification is pending.
-- [ ] Retain and validate existing 4K Spotlight/Bing rotation rather than duplicate it.
+- [x] Retain existing 4K Spotlight/Bing rotation and Zorin wallpaper catalog; restore Personalize/Background entry points. Verified 2026-10-20.
 
 ## Premium Visual Fidelity — rendering and polish
 - [x] Extend the dark palette to native GTK3 controls/dialogs; match Explorer dialog footers, active/inactive borders and all-edge/corner resizing in Explorer/Settings. Other toolkits still need app-specific work.
@@ -75,3 +75,9 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 **Definition of done:** a stable, reversible, reproducible Windows 11-like Linux desktop. Exact third-party app parity and Windows API compatibility are out of scope.
 
 - [x] Playback EQ presets in Sound and Quick Settings with persistent PipeWire service, Off restoration and measured audio-response tests.
+
+
+## Update recovery and shared fixes — 2026-10-20
+- [x] Verified dated desktop snapshots in a user-selected destination, including current GNOME layout, wallpaper/EQ preferences, account photo and installed runtime; mount guarding and selective restore notes.
+- [x] Consolidate AccountsService account-photo refresh, Custom EQ/live preview, System EQ menu and modern HEIC decoder fixes from the related chats.
+- [ ] Automatic pre-update snapshots and post-update compatibility/repair workflow; current snapshots are manual and extensions still require major-version validation.

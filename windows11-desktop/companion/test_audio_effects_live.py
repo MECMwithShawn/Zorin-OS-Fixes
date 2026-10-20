@@ -30,7 +30,7 @@ if '--private' not in sys.argv:
                    XDG_STATE_HOME=str(root/'state'), XDG_CACHE_HOME=str(root/'cache'),
                    XDG_DATA_HOME=str(root/'data'), PIPEWIRE_REMOTE='pipewire-0',
                    PULSE_SERVER='unix:'+str(root/'runtime/pulse/native'), WIREPLUMBER_CONFIG_DIR=str(wp))
-        raise SystemExit(subprocess.run(['dbus-run-session', '--', '/usr/bin/python3', __file__, '--private',*sys.argv[1:]],
+        raise SystemExit(subprocess.run(['dbus-run-session', '--', '/usr/bin/python3', __file__, '--private'],
                                         env=env, timeout=110).returncode)
 
 import audio_effects as eq
@@ -84,7 +84,7 @@ try:
         samples.extend((value, value))
     tone.write_bytes(samples.tobytes())
 
-    def measure():
+    def measure(preview_gains=None):
         with tempfile.TemporaryFile() as captured, tone.open('rb') as source:
             record = subprocess.Popen(['parec', '--device=test-speakers.monitor', '--format=float32le',
                                        '--rate=48000', '--channels=2', '--latency-msec=20'], stdout=captured)
@@ -92,9 +92,9 @@ try:
             play = subprocess.Popen(['pacat', '--playback', '--device=test-speakers', '--format=float32le',
                                      '--rate=48000', '--channels=2', '--latency-msec=20'], stdin=source)
             try:
-                wait(lambda:any(not eq.owned_stream(s) for s in eq.streams()))
+                wait(lambda:any(str(s.get('properties', {}).get('application.process.id')) == str(play.pid) for s in eq.streams()))
                 if engine.current:
-                    engine.update(engine.current)
+                    engine.update(engine.current, preview_gains)
                 play.wait(timeout=8)
                 time.sleep(.1)
             finally:
@@ -116,7 +116,7 @@ try:
     baseline = measure()
     assert min(baseline)>.015, baseline
     node = None
-    for choice in (eq.PRESETS[1:] if '--spectrum-only' not in sys.argv else []):
+    for choice in eq.PRESETS[1:]:
         assert engine.update(choice['id'])
         if node is None:
             node = engine.node
@@ -129,6 +129,33 @@ try:
             deviations.append(abs(observed-expected(choice['gains'], frequency)))
         assert max(deviations)<.8, (choice['id'], deviations, measured)
         print('PASS real audio response:',choice['name'], 'maximum error',round(max(deviations),3),'dB',flush=True)
+
+    for gains in ([4, 2, -3, 1, 0, -2], [-2, 0, 3, -1, 2, 1]):
+        eq.save(eq.STATE, dict(preset='custom', custom_gains=gains))
+        assert engine.update('custom')
+        assert engine.node == node
+        measured = measure()
+        errors = [abs(20*math.log10(actual/original)-expected(gains, frequency))
+                  for frequency, original, actual in zip(eq.FREQUENCIES, baseline, measured)]
+        assert max(errors)<.8, errors
+    engine.stop()
+    assert engine.update(eq.selection())
+    assert engine.current_controls == eq.controls('custom')
+    print('PASS custom curve changes in live DSP and restores after engine restart', flush=True)
+
+    saved = eq.STATE.read_bytes()
+    preview = [1, -2, 3, 0, -1, 2]
+    eq.write_preview(preview, 'test-editor')
+    assert engine.update('custom', eq.preview_gains())
+    measured = measure(preview)
+    errors = [abs(20*math.log10(actual/original)-expected(preview, frequency))
+              for frequency, original, actual in zip(eq.FREQUENCIES, baseline, measured)]
+    assert max(errors)<.8, errors
+    assert eq.STATE.read_bytes() == saved
+    eq.clear_preview('test-editor')
+    assert engine.update(eq.selection())
+    assert engine.current_controls == eq.controls(eq.selection())
+    print('PASS audible preview response, unchanged saved default, and restoration', flush=True)
 
     # Existing/new streams follow physical output changes and return on Off.
     source = open('/dev/zero', 'rb')
@@ -153,21 +180,6 @@ try:
     player.wait()
     source.close()
     print('PASS output switching, existing/new streams, preserved hardware volume, and Off restoration',flush=True)
-    from audio_spectrum import Monitor
-    eq.run(['pactl','set-sink-volume','test-headphones','100%'])
-    visual=Monitor();visual.enable(True)
-    try:
-        with tone.open('rb') as signal:
-            playback=subprocess.Popen(['pacat','--playback','--device=test-headphones',
-                '--format=float32le','--rate=48000','--channels=2'],stdin=signal)
-            processes.append(playback)
-            wait(lambda:visual.data['available'] and max(visual.data['levels'])>.4)
-            playback.wait(timeout=8)
-        wait(lambda:max(visual.data['levels'])<.015)
-        visual.enable(False)
-        wait(lambda:json.loads(eq.run(['pactl','--format=json','list','source-outputs']))==[])
-        print('PASS real playback spectrum, silence decay and releasing monitor when hidden',flush=True)
-    finally:visual.close()
 finally:
     engine.stop()
     for process in reversed(processes):

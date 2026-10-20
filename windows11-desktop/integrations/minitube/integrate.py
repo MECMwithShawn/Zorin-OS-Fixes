@@ -6,6 +6,10 @@ import argparse
 def integrate(root):
     main=root/'src/main.rs';ui=root/'src/ui.rs'
     original_main=main.read_text();original_ui=ui.read_text()
+    module=Path(__file__).with_name('system_eq.rs').read_bytes()
+    destination=root/'src/system_eq.rs'
+    if destination.exists() and destination.read_bytes()!=module:
+        raise RuntimeError('Player has a different EQ implementation; preserve it and review integration manually.')
     updated_main=original_main
     if 'mod system_eq;' not in updated_main:updated_main='mod system_eq;\n'+updated_main
     updated_ui=original_ui
@@ -17,8 +21,7 @@ def integrate(root):
     # Refuse concurrent changes rather than overwriting another editor's work.
     if main.read_text()!=original_main or ui.read_text()!=original_ui:
         raise RuntimeError('Player source changed during integration; retry after reviewing it.')
-    module=Path(__file__).with_name('system_eq.rs').read_bytes()
-    (root/'src/system_eq.rs').write_bytes(module)
+    destination.write_bytes(module)
     main.write_text(updated_main);ui.write_text(updated_ui)
 
 if __name__=='__main__':

@@ -8,7 +8,7 @@ function enqueue(start){
  const ticket={start,started:false,done:false};waiting.push(ticket);pump();
  return()=>{if(ticket.done)return;ticket.done=true;if(ticket.started)active--;else{const i=waiting.indexOf(ticket);if(i>=0)waiting.splice(i,1);}pump();};
 }
-export function canThumbnail(item){return !item.folder&&/\.(jpe?g|png|webp|gif|bmp|tiff?)$/i.test(item.path||'');}
+export function canThumbnail(item){return !item.folder&&/\.(jpe?g|png|webp|gif|bmp|tiff?|heic|heif)$/i.test(item.path||'');}
 
 export function FileThumbnail({item,size,fallback}){
  const ref=useRef(null),release=useRef(()=>{}),[visible,setVisible]=useState(false),[ready,setReady]=useState(''),[failed,setFailed]=useState(''),[loaded,setLoaded]=useState('');

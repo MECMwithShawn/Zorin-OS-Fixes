@@ -86,12 +86,16 @@ def event_viewer_entry():
 def install():
     import snipping_install
     import desktop_menu_install
+    import heif_install
     snipping_binary=snipping_install.build()
+    heif_install.ensure(DEST/'heif-runtime')
     # Sources are managed runtime files; personal state lives under .config.
     DEST.mkdir(parents=True,exist_ok=True)
     shutil.copytree(ROOT/'companion',DEST,dirs_exist_ok=True,
         ignore=shutil.ignore_patterns('node_modules','__pycache__','test_*','.pnpm*','src','pnpm-lock.yaml','event_logs.py','event_viewer.py'))
-    for helper in ('gnome_setup.py','gnome_install.py','snipping_install.py','desktop_menu_install.py'):shutil.copy2(ROOT/helper,DEST/helper)
+    for helper in ('gnome_setup.py','gnome_install.py','snipping_install.py','desktop_menu_install.py',
+                   'desktop_backup.py','heif_install.py','heif-requirements.txt'):
+        shutil.copy2(ROOT/helper,DEST/helper)
     extension_files={EXTENSION/p.relative_to(ROOT/'gnome-extension'):p.read_bytes()
                      for p in (ROOT/'gnome-extension').rglob('*') if p.is_file() and p.name!='gschemas.compiled'}
     for icon in ('start.svg','search.svg','taskview.svg'):extension_files[EXTENSION/icon]=(ROOT/'companion'/icon).read_bytes()
