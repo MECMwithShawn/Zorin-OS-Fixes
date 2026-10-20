@@ -227,3 +227,9 @@ The session test uses the installed operating system and packages with a clean t
 
 - Eighteen focused image/preview tests cover case-insensitive AAE sibling matching, HEIC decoding, orphan explanations, link rejection and bounded lookup, plus existing thumbnail/preview limits. AAE contents are never decoded as an image or interpreted as commands/paths.
 - The native WebKit/Hub preview test rendered the matching original with its real filename, dimensions and visible warning that Apple edits are not applied. The existing Explorer browser test checks OneDrive navigation and file controls. No OneDrive backend code or original photo is changed.
+
+## Native Rust Snipping Tool — 2026-10-20
+
+- Release build and pixel/history unit tests passed. The private X11 desktop test exercised rectangle/freeform/window/full-desktop captures, pen, crop, undo/redo, PNG/JPEG save, overwrite cancellation, clipboard, delayed-capture cancellation and Escape. A private screenshot portal exercised interactive request/response and denial without replacing the prior image. This portal test is protocol coverage, not a live Wayland-session capture.
+- A private GSettings test verified install, repeat upgrade, restore, existing-shortcut conflicts and preserving later user edits. The installed Start entry and actual Win+Shift+S shortcut were checked on the running desktop. Testing caught Mutter constraining the overlay to the work area; the corrected X11 overlay covers the complete 5120×1600 desktop, including the taskbar, and Escape restores the editor.
+- Capture tests publish only generated fixtures. The source does not modify Explorer/OneDrive integration, change display settings or force a session restart.
