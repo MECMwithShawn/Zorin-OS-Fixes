@@ -47,6 +47,15 @@ def folder_defaults(content):
     return keyfile.to_data()[0].encode()
 
 
+def device_manager_entry():
+    return (f'[Desktop Entry]\nType=Application\nName=Device Manager\n'
+            f'Comment=Hardware devices, drivers and properties\n'
+            f'Exec=/usr/bin/python3 "{DEST / "device_manager.py"}"\n'
+            'Icon=computer\nTerminal=false\nCategories=Settings;HardwareSettings;\n'
+            'Keywords=Hardware;Devices;Drivers;GPU;USB;PCI;\n'
+            'StartupWMClass=Zorin11-device-manager\nOnlyShowIn=GNOME;\n').encode()
+
+
 def install():
     # Sources are managed runtime files; personal state lives under .config.
     DEST.mkdir(parents=True,exist_ok=True)
@@ -67,6 +76,7 @@ def install():
         ('quick','Quick Settings','--quick-settings','preferences-system','Zorin11-hub'),
         ('notifications','Notifications and calendar','--notifications','preferences-system-notifications','Zorin11-hub'),
     ]:files[apps/f'zorin11-{ident}.desktop']=desktop(name,args,icon,wm)
+    files[apps/'zorin11-device-manager.desktop']=device_manager_entry()
     files[apps/'gnome-bluetooth-panel.desktop']=desktop('Bluetooth','--settings devices','bluetooth','Zorin11-settings','Settings;HardwareSettings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\n'
     files[apps/'zorin11-explorer.desktop']+=b'MimeType=inode/directory;\nKeywords=Files;Folders;File Manager;Explorer;\n'
     launcher=f'/usr/bin/env GDK_BACKEND=x11 /usr/bin/python3 "{DEST / "app.py"}"'

@@ -1,5 +1,15 @@
 # Validation — 2026-10-17
 
+## GNOME Device Manager — 2026-10-20
+
+- Standalone GTK3 hardware tree and launcher; shared Explorer/OneDrive sources and bundle are untouched. PCI names use optional bounded `lspci`; identities, classes and bound drivers come from sysfs. USB interfaces are deduplicated under physical devices, partitions/virtual disks are excluded, and equal names retain separate identities. Input/disk driver ancestors are identified explicitly.
+- Seven inventory tests passed: driver/class/identity handling, USB deduplication, disk capacity/exclusions, missing/malformed data and unplug races, multi-term search, optional-tool failure, parent drivers and read-only behavior. Seventeen package tests passed.
+- Native GTK/private-D-Bus/Xvfb tests passed expandable/collapsible groups, filtered expansion, actionable Properties and keyboard context menu, copying details to the isolated clipboard, refresh selection retention, unplug cleanup, unavailable/retry and closing safely. The screenshot was inspected.
+- Installed only two new helpers and the desktop launcher through the recovery manifest. Existing recovery entries retained their contents. The real Start-searchable desktop entry launched a single instance. Real inventory showed 75 entries, both GPUs with i915/nvidia, both NVMe disks, Bluetooth and webcam drivers. Native icons, multi-term NVIDIA search, Properties and selection retention after Refresh passed.
+- Live window and Properties screenshots were checked during the laptop 125% / external 100% X11 configuration. GTK renders at global scale 2 and XRandR downsamples per output. This checks the new utility at that configuration, not all applications or Wayland fractional-scale behavior. Visual confirmation of the overall monitor layout remained pending at this milestone.
+- This is an on-demand inventory, not a hardware health test or driver-management tool. F5/Refresh is required after hotplug. No firmware, device enablement, drivers, mounts, partitions or user clipboard data were changed by the live test.
+
+
 Validated on Zorin OS 18.1 Lite, Xfce 4.20, X11, Ubuntu noble, x86-64.
 
 - Six persistence/model tests, five file-operation tests, and six portability tests passed.

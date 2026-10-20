@@ -2,6 +2,17 @@
 
 **GNOME is the primary desktop.** The same installer detects Zorin 18 GNOME or Zorin Lite/Xfce and installs the matching integration. The shared companion provides the Windows 11-style Start menu, File Explorer, Settings, Quick Settings, notification/calendar flyout, Desktop Groups and multitasking UI.
 
+
+## Device Manager (GNOME)
+
+Search **Device Manager** in Start to open a standalone dark hardware tree. Categories expand into PCI controllers, USB devices, cameras/Bluetooth adapters, physical disks and input endpoints, with icons and actual bound driver names. Search by device, driver, category or hardware ID. Select a device and choose **Properties**, double-click it, or use the context menu to view/copy its details. **Refresh** or F5 updates the inventory after connecting or disconnecting hardware; Ctrl+F focuses search and Escape clears it.
+
+The inventory is read-only. It reports driver bindings rather than claiming hardware is healthy, and offers no driver installation, device disable/reset or disk modification. Disk/input drivers can be bound at an ancestor device; Properties identifies that binding location. USB interfaces are combined under their parent, while separate devices with the same name retain distinct identities. Input endpoints can belong to an already-listed controller. Paired Bluetooth accessories remain in Bluetooth settings.
+
+Optional `lspci` provides descriptive PCI names; numeric IDs remain usable without it. Data comes from Linux sysfs ([PCI attributes](https://docs.kernel.org/PCI/sysfs-pci.html), [USB attributes](https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-bus-usb), [block attributes](https://www.kernel.org/doc/Documentation/ABI/stable/sysfs-block)). No administrator authentication is required.
+
+Checks: `/usr/bin/python3 -m unittest discover -s companion -p test_hardware_inventory.py` and `/usr/bin/python3 companion/test_device_manager_live.py` (native test requires Xvfb).
+
 ## Install on GNOME (default)
 
 Run as your desktop user from a Zorin OS 18 GNOME session:
