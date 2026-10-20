@@ -39,6 +39,18 @@ Gio.Settings.new_with_path(install.SCHEMA,other).set_string('binding','<Super><S
 media.set_strv('custom-keybindings',[other])
 install.shortcut()
 assert media.get_strv('custom-keybindings')==[other]
+install.RECORD_BACKUP=Path(sys.argv[2])/'record-backup.json'
+install.record_shortcut()
+record=Gio.Settings.new_with_path(install.SCHEMA,install.RECORD_SHORTCUT)
+assert record.get_string('binding')=='<Super><Shift>r'
+assert record.get_string('command').endswith('--record')
+install.record_shortcut()
+assert media.get_strv('custom-keybindings').count(install.RECORD_SHORTCUT)==1
+record.set_string('binding','<Super>F8')
+install.record_shortcut();assert record.get_string('binding')=='<Super>F8'
+install.restore_record_shortcut();assert record.get_string('binding')=='<Super>F8'
+record.set_string('binding','<Super><Shift>r');install.restore_record_shortcut()
+assert install.RECORD_SHORTCUT not in media.get_strv('custom-keybindings')
 '''
             result = subprocess.run(
                 [sys.executable,'-c',code,str(Path(__file__).resolve().parents[1]),directory],

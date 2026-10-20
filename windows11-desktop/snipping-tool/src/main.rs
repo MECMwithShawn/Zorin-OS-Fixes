@@ -1,5 +1,10 @@
+mod actions;
 mod capture;
 mod document;
+mod extras;
+mod icons;
+mod portal_record;
+mod recording;
 use capture::Mode;
 use document::{Document, Mark, Point, Tool};
 use gdk_pixbuf::Pixbuf;
@@ -25,9 +30,21 @@ struct Ui {
     generation: Cell<u64>,
     capturing: Cell<bool>,
     editing: gtk::Box,
+    toolbar: gtk::Box,
+    expanded: Cell<bool>,
     save: gtk::Button,
     copy: gtk::Button,
     cancel: gtk::Button,
+    prefs: RefCell<extras::Preferences>,
+    portal_session: RefCell<Option<portal_record::Session>>,
+    pending_portal: RefCell<Option<(gio::DBusConnection, String)>>,
+    record_mode: gtk::ToggleButton,
+    recording: RefCell<Option<recording::Recording>>,
+    clip: RefCell<Option<recording::Clip>>,
+    stop: gtk::Button,
+    play: gtk::Button,
+    shares: RefCell<Vec<extras::PrivateDir>>,
+    zoom: gtk::ComboBoxText,
 }
 fn button(label: &str, tip: &str) -> gtk::Button {
     let b = gtk::Button::with_label(label);
@@ -44,29 +61,54 @@ fn load_image(path: &Path) -> Result<Pixbuf, String> {
 impl Ui {
     fn new(app: &gtk::Application) -> Rc<Self> {
         let window = gtk::ApplicationWindow::new(app);
-        window.set_title("Snipping Tool");
-        window.set_default_size(1060, 760);
+        window.set_title("Axentra SnippingTool");
+        window.set_default_size(620, 220);
         window.set_position(gtk::WindowPosition::Center);
         window.set_icon_name(Some("zorin11-snipping-tool"));
         let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
         window.add(&root);
         let header = gtk::HeaderBar::new();
-        header.set_title(Some("Snipping Tool"));
+        header.set_title(Some("Axentra SnippingTool"));
         header.set_show_close_button(true);
+        header.set_decoration_layout(Some(":minimize,maximize,close"));
+        // A quiet, left-aligned title strip, separate from the capture commands.
+        header.set_custom_title(Some(&gtk::Label::new(None)));
+        let title = gtk::Box::new(gtk::Orientation::Horizontal, 9);
+        let logo = gdk_pixbuf::PixbufLoader::with_type("svg").expect("GTK SVG loader");
+        logo.set_size(20, 20);
+        let _ = logo.write(include_bytes!("../icon.svg"));
+        let _ = logo.close();
+        title.pack_start(
+            &gtk::Image::from_pixbuf(logo.pixbuf().as_ref()),
+            false,
+            false,
+            0,
+        );
+        title.pack_start(
+            &gtk::Label::new(Some("Axentra SnippingTool")),
+            false,
+            false,
+            0,
+        );
+        header.pack_start(&title);
         window.set_titlebar(Some(&header));
+        let commands = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        commands.style_context().add_class("capture-bar");
+        root.pack_start(&commands, false, false, 0);
         let new = button("＋ New", "New snip (Ctrl+N)");
-        new.style_context().add_class("suggested-action");
-        header.pack_start(&new);
+        new.style_context().add_class("new-snip");
+        commands.pack_start(&new, false, false, 0);
         let mode = gtk::ComboBoxText::new();
         for (id, name) in [
-            ("rect", "Rectangle"),
-            ("free", "Freeform"),
-            ("window", "Window"),
-            ("full", "Entire desktop"),
+            ("rect", "Rectangle mode"),
+            ("window", "Window mode"),
+            ("full", "Full-screen mode"),
+            ("free", "Free-form mode"),
         ] {
             mode.append(Some(id), name)
         }
         mode.set_active_id(Some("rect"));
+        mode.set_tooltip_text(Some("Capture mode (Alt+M)"));
         if is_wayland() {
             mode.remove_all();
             mode.append(Some("portal"), "GNOME picker");
@@ -76,9 +118,17 @@ impl Ui {
                 "Wayland uses the desktop permission-controlled capture picker",
             ));
         }
-        header.pack_start(&mode);
+        let mode_group = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        let mode_icon = icons::image("rect");
+        mode_group.pack_start(&mode_icon, false, false, 3);
+        mode_group.pack_start(&mode, false, false, 0);
+        commands.pack_start(&mode_group, false, false, 0);
+        mode.connect_changed(move |m| {
+            let i = icons::image(m.active_id().as_deref().unwrap_or("rect"));
+            mode_icon.set_from_pixbuf(i.pixbuf().as_ref());
+        });
         let delay = gtk::ComboBoxText::new();
-        for sec in [0, 3, 5, 10] {
+        for sec in [0, 1, 2, 3, 4, 5, 10] {
             delay.append(
                 Some(&sec.to_string()),
                 &if sec == 0 {
@@ -89,45 +139,157 @@ impl Ui {
             );
         }
         delay.set_active_id(Some("0"));
-        header.pack_start(&delay);
-        let open = button("Open", "Open an image (Ctrl+O)");
-        let save = button("Save as", "Save image (Ctrl+S)");
-        let copy = button("Copy", "Copy image (Ctrl+C)");
-        header.pack_end(&save);
-        header.pack_end(&copy);
-        header.pack_end(&open);
-        let editing = gtk::Box::new(gtk::Orientation::Horizontal, 5);
-        editing.style_context().add_class("tools");
-        root.pack_start(&editing, false, false, 0);
+        delay.set_tooltip_text(Some("Capture delay (Alt+D)"));
+        commands.pack_start(&icons::image("clock"), false, false, 0);
+        commands.pack_start(&delay, false, false, 0);
+        let record_mode = gtk::ToggleButton::new();
+        icons::decorate(&record_mode, "video", "Record", "Video mode (Win+Shift+R)");
+        commands.pack_start(&record_mode, false, false, 0);
+        let more = gtk::MenuButton::new();
+        icons::decorate(&more, "more", "⋯", "More options");
+        commands.pack_end(&more, false, false, 0);
+        let menu = gtk::Menu::new();
+        let open = gtk::MenuItem::with_label("Open image");
+        let share = gtk::MenuItem::with_label("Share / Open with");
+        let print = gtk::MenuItem::with_label("Print");
+        let prefs = gtk::MenuItem::with_label("Settings");
+        let screen_color = gtk::MenuItem::with_label("Pick screen color");
+        menu.append(&open);
+        menu.append(&screen_color);
+        menu.append(&share);
+        menu.append(&print);
+        menu.append(&gtk::SeparatorMenuItem::new());
+        menu.append(&prefs);
+        menu.show_all();
+        more.set_popup(Some(&menu));
+
+        // One contextual icon toolbar replaces the old two rows of text buttons.
+        let toolbar = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+        toolbar.style_context().add_class("tools");
+        root.pack_start(&toolbar, false, false, 0);
+        let editing = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+        toolbar.pack_start(&editing, false, false, 0);
         let mut toolbuttons = vec![];
-        let first = gtk::RadioButton::with_label("Pen");
+        let first = gtk::RadioButton::new();
+        first.set_mode(false);
+        icons::decorate(&first, "pen", "Pen", "Ballpoint pen");
         editing.pack_start(&first, false, false, 0);
         toolbuttons.push((Tool::Pen, first.clone()));
-        for (t, label) in [
-            (Tool::Highlight, "Highlight"),
-            (Tool::Rectangle, "Rectangle"),
-            (Tool::Ellipse, "Ellipse"),
-            (Tool::Arrow, "Arrow"),
-            (Tool::Text, "Text"),
-            (Tool::Crop, "Crop"),
+        for (t, icon, label) in [
+            (Tool::Highlight, "highlight", "Highlight"),
+            (Tool::Eraser, "erase", "Eraser"),
         ] {
-            let b = gtk::RadioButton::with_label_from_widget(&first, label);
+            let b = gtk::RadioButton::from_widget(&first);
             b.set_mode(false);
+            icons::decorate(&b, icon, label, label);
             editing.pack_start(&b, false, false, 0);
             toolbuttons.push((t, b));
         }
-        first.set_mode(false);
+        let shapes = gtk::MenuButton::new();
+        icons::decorate(&shapes, "shapes", "More tools", "Shapes and more tools");
+        let tools_popup = gtk::Popover::new(Some(&shapes));
+        let tools_grid = gtk::Grid::new();
+        tools_grid.set_row_spacing(4);
+        tools_grid.set_column_spacing(4);
+        tools_grid.set_margin_start(8);
+        tools_grid.set_margin_end(8);
+        tools_grid.set_margin_top(8);
+        tools_grid.set_margin_bottom(8);
+        for (i, (t, icon, label)) in [
+            (Tool::Rectangle, "rect", "Rectangle"),
+            (Tool::Ellipse, "ellipse", "Ellipse"),
+            (Tool::Arrow, "arrow", "Arrow"),
+            (Tool::Emoji, "emoji", "Emoji"),
+            (Tool::Redact, "redact", "Redact"),
+            (Tool::Picker, "picker", "Color picker"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let b = gtk::RadioButton::with_label_from_widget(&first, label);
+            b.set_mode(false);
+            b.set_image(Some(&icons::image(icon)));
+            b.set_always_show_image(true);
+            b.set_tooltip_text(Some(label));
+            b.set_halign(gtk::Align::Fill);
+            tools_grid.attach(&b, (i % 2) as i32, (i / 2) as i32, 1, 1);
+            let popup = tools_popup.clone();
+            b.connect_clicked(move |_| popup.popdown());
+            toolbuttons.push((t, b));
+        }
+        let rotate = button("Rotate", "Rotate clockwise");
+        rotate.set_image(Some(&icons::image("rotate")));
+        rotate.set_always_show_image(true);
+        tools_grid.attach(&rotate, 0, 3, 2, 1);
+        let popup = tools_popup.clone();
+        rotate.connect_clicked(move |_| popup.popdown());
+        tools_popup.add(&tools_grid);
+        tools_grid.show_all();
+        shapes.set_popover(Some(&tools_popup));
+        editing.pack_start(&shapes, false, false, 0);
+        for (t, icon, label) in [(Tool::Text, "text", "Text"), (Tool::Crop, "crop", "Crop")] {
+            let b = gtk::RadioButton::from_widget(&first);
+            b.set_mode(false);
+            icons::decorate(&b, icon, label, label);
+            editing.pack_start(&b, false, false, 0);
+            toolbuttons.push((t, b));
+        }
+        let text_actions = button("", "Extract and redact text locally");
+        icons::decorate(
+            &text_actions,
+            "ocr",
+            "Text actions",
+            "Text actions — copy or redact text",
+        );
+        editing.pack_start(&text_actions, false, false, 0);
+        editing.pack_start(
+            &gtk::Separator::new(gtk::Orientation::Vertical),
+            false,
+            false,
+            5,
+        );
+        let ink = gtk::MenuButton::new();
+        icons::decorate(&ink, "color", "Ink settings", "Ink color and stroke width");
+        let ink_popup = gtk::Popover::new(Some(&ink));
+        let ink_box = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+        ink_box.set_margin_start(12);
+        ink_box.set_margin_end(12);
+        ink_box.set_margin_top(12);
+        ink_box.set_margin_bottom(12);
         let color = gtk::ColorButton::with_rgba(&gdk::RGBA::new(1., 0.25, 0.25, 1.));
         color.set_title("Ink color");
-        editing.pack_start(&color, false, false, 4);
+        color.set_tooltip_text(Some("Ink color"));
+        ink_box.pack_start(&color, false, false, 0);
+        ink_box.pack_start(&gtk::Label::new(Some("Thickness")), false, false, 0);
         let width = gtk::SpinButton::with_range(1., 24., 1.);
         width.set_value(4.);
         width.set_tooltip_text(Some("Stroke width"));
-        editing.pack_start(&width, false, false, 0);
-        let undo = button("↶", "Undo (Ctrl+Z)");
-        let redo = button("↷", "Redo (Ctrl+Shift+Z)");
-        editing.pack_end(&redo, false, false, 0);
-        editing.pack_end(&undo, false, false, 0);
+        ink_box.pack_start(&width, false, false, 0);
+        ink_popup.add(&ink_box);
+        ink_box.show_all();
+        ink.set_popover(Some(&ink_popup));
+        editing.pack_start(&ink, false, false, 0);
+        let undo = button("", "Undo (Ctrl+Z)");
+        icons::decorate(&undo, "undo", "Undo", "Undo (Ctrl+Z)");
+        let redo = button("", "Redo (Ctrl+Shift+Z)");
+        icons::decorate(&redo, "redo", "Redo", "Redo (Ctrl+Shift+Z)");
+        editing.pack_start(&undo, false, false, 0);
+        editing.pack_start(&redo, false, false, 0);
+        let save = button("", "Save as (Ctrl+S)");
+        icons::decorate(&save, "save", "Save as", "Save as (Ctrl+S)");
+        let copy = button("", "Copy (Ctrl+C)");
+        icons::decorate(&copy, "copy", "Copy", "Copy (Ctrl+C)");
+        let share_button = button("", "Share / Open with");
+        icons::decorate(&share_button, "share", "Share", "Share / Open with");
+        toolbar.pack_end(&share_button, false, false, 0);
+        toolbar.pack_end(&copy, false, false, 0);
+        toolbar.pack_end(&save, false, false, 0);
+        let zoom = gtk::ComboBoxText::new();
+        for (id, label) in [("fit", "Fit"), ("1", "100%"), ("2", "200%"), ("4", "400%")] {
+            zoom.append(Some(id), label);
+        }
+        zoom.set_active_id(Some("fit"));
+        zoom.set_tooltip_text(Some("Image zoom"));
         let canvas = gtk::DrawingArea::new();
         canvas.set_hexpand(true);
         canvas.set_vexpand(true);
@@ -136,15 +298,25 @@ impl Ui {
                 | gdk::EventMask::BUTTON_RELEASE_MASK
                 | gdk::EventMask::POINTER_MOTION_MASK,
         );
-        root.pack_start(&canvas, true, true, 0);
+        let scroll = gtk::ScrolledWindow::new(gtk::Adjustment::NONE, gtk::Adjustment::NONE);
+        scroll.add(&canvas);
+        root.pack_start(&scroll, true, true, 0);
         let footer = gtk::Box::new(gtk::Orientation::Horizontal, 10);
         footer.style_context().add_class("footer");
-        let status = gtk::Label::new(Some("Capture a moment. Choose New or press Win+Shift+S."));
+        let status = gtk::Label::new(None);
         status.set_xalign(0.);
         status.set_line_wrap(true);
+        status.set_max_width_chars(70);
+        footer.pack_end(&zoom, false, false, 0);
+        let footer_visibility = footer.clone();
+        status.connect_label_notify(move |s| footer_visibility.set_visible(!s.text().is_empty()));
         footer.pack_start(&status, true, true, 0);
         let cancel = button("Cancel capture", "Cancel the capture delay");
         footer.pack_end(&cancel, false, false, 0);
+        let stop = button("■ Stop recording", "Stop and review the recording");
+        footer.pack_end(&stop, false, false, 0);
+        let play = button("▶ Play recording", "Open recording in your video player");
+        footer.pack_end(&play, false, false, 0);
         root.pack_end(&footer, false, false, 0);
         let ui = Rc::new(Self {
             window,
@@ -160,20 +332,114 @@ impl Ui {
             generation: Cell::new(0),
             capturing: Cell::new(false),
             editing,
+            toolbar,
+            expanded: Cell::new(false),
             save,
             copy,
             cancel,
+            prefs: RefCell::new(extras::Preferences::load()),
+            record_mode,
+            portal_session: RefCell::new(None),
+            pending_portal: RefCell::new(None),
+            recording: RefCell::new(None),
+            clip: RefCell::new(None),
+            stop,
+            play,
+            shares: RefCell::new(vec![]),
+            zoom,
+        });
+        let u = ui.clone();
+        prefs.connect_activate(move |_| u.preferences());
+        let u = ui.clone();
+        screen_color.connect_activate(move |_| {
+            if u.capturing.get() || u.recording.borrow().is_some() {
+                return;
+            }
+            u.capturing.set(true);
+            u.window.hide();
+            let current = u.clone();
+            if let Err(e) = capture::pick_color(move |r| {
+                current.capturing.set(false);
+                current.window.present();
+                match r {
+                    Ok((r, g, b)) => {
+                        let hex = format!(
+                            "#{:02X}{:02X}{:02X}",
+                            (r * 255.).round() as u8,
+                            (g * 255.).round() as u8,
+                            (b * 255.).round() as u8
+                        );
+                        gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD).set_text(&hex);
+                        current.color.set_rgba(&gdk::RGBA::new(r, g, b, 1.));
+                        current
+                            .status
+                            .set_text(&format!("{hex} copied to clipboard"));
+                    }
+                    Err(e) => current.status.set_text(&e),
+                }
+            }) {
+                u.capturing.set(false);
+                u.window.present();
+                u.status.set_text(&e);
+            }
+        });
+        let u = ui.clone();
+        text_actions.connect_clicked(move |_| u.text_actions());
+        let u = ui.clone();
+        share.connect_activate(move |_| u.share());
+        let u = ui.clone();
+        share_button.connect_clicked(move |_| u.share());
+        let u = ui.clone();
+        print.connect_activate(move |_| u.print_image());
+        let u = ui.clone();
+        rotate.connect_clicked(move |_| {
+            let result = u.doc.borrow_mut().as_mut().map(|d| d.rotate());
+            u.refresh();
+            if let Some(Err(e)) = result {
+                u.status.set_text(&e);
+            }
+        });
+        let u = ui.clone();
+        ui.zoom.connect_changed(move |_| u.refresh());
+        let u = ui.clone();
+        ui.stop.connect_clicked(move |_| u.stop_recording());
+        let u = ui.clone();
+        ui.play.connect_clicked(move |_| {
+            if let Some(c) = u.clip.borrow().as_ref() {
+                let _ = gio::AppInfo::launch_default_for_uri(
+                    gio::File::for_path(&c.path).uri().as_str(),
+                    gio::AppLaunchContext::NONE,
+                );
+            }
+        });
+        let u = ui.clone();
+        ui.record_mode.connect_toggled(move |b| {
+            u.mode.set_sensitive(!b.is_active() && !is_wayland());
+            if b.is_active() {
+                u.mode.set_active_id(Some("rect"));
+            }
+            u.canvas.queue_draw();
         });
         for (t, b) in toolbuttons {
             let u = ui.clone();
+            let shapes = shapes.clone();
             b.connect_toggled(move |b| {
                 if b.is_active() {
                     u.tool.set(t);
+                    if matches!(t, Tool::Rectangle | Tool::Ellipse | Tool::Arrow | Tool::Emoji | Tool::Redact | Tool::Picker) {
+                        shapes.style_context().add_class("active-tool");
+                    } else {
+                        shapes.style_context().remove_class("active-tool");
+                    }
                     u.status.set_text(match t {
                         Tool::Crop => {
                             "Drag across the image to crop. Undo restores the previous image."
                         }
                         Tool::Text => "Click the image to add text.",
+                        Tool::Emoji => "Click the image to place an emoji.",
+                        Tool::Eraser => "Click an annotation to remove it. Screenshot pixels are retained.",
+                        Tool::Picker => "Click an image pixel to copy its exact HEX color. Capture the screen first to sample it.",
+                        Tool::Redact => "Drag over private content to cover it. Save as exports flattened pixels.",
                         _ => "Drag across the image to annotate.",
                     });
                     if t == Tool::Highlight {
@@ -185,7 +451,7 @@ impl Ui {
         let u = ui.clone();
         new.connect_clicked(move |_| u.start_capture());
         let u = ui.clone();
-        open.connect_clicked(move |_| u.open());
+        open.connect_activate(move |_| u.open());
         let u = ui.clone();
         ui.save.connect_clicked(move |_| {
             u.save();
@@ -199,13 +465,32 @@ impl Ui {
         let u = ui.clone();
         ui.cancel.connect_clicked(move |_| {
             u.generation.set(u.generation.get() + 1);
+            if let Some((bus, path)) = u.pending_portal.borrow_mut().take() {
+                let _ = bus.call_sync(
+                    Some("org.freedesktop.portal.Desktop"),
+                    &path,
+                    "org.freedesktop.portal.Request",
+                    "Close",
+                    None,
+                    None,
+                    gio::DBusCallFlags::NONE,
+                    2000,
+                    gio::Cancellable::NONE,
+                );
+            }
+            u.portal_session.borrow_mut().take();
             u.cancel.hide();
             u.capturing.set(false);
             u.status.set_text("Capture cancelled.");
         });
         let u = ui.clone();
         ui.canvas.connect_draw(move |area, c| {
-            c.set_source_rgb(0.09, 0.09, 0.09);
+            let bg = if u.doc.borrow().is_some() {
+                0.105
+            } else {
+                0.125
+            };
+            c.set_source_rgb(bg, bg, bg);
             let _ = c.paint();
             if let Some(d) = u.doc.borrow().as_ref() {
                 let (s, x, y) = u.transform();
@@ -218,14 +503,23 @@ impl Ui {
                 }
                 let _ = c.restore();
             } else {
-                c.set_source_rgb(0.70, 0.72, 0.75);
+                c.set_source_rgb(0.78, 0.78, 0.78);
                 c.select_font_face("Sans", cairo::FontSlant::Normal, cairo::FontWeight::Normal);
-                c.set_font_size(24.);
-                c.move_to(
-                    (area.allocated_width() as f64 / 2. - 155.).max(20.),
-                    area.allocated_height() as f64 / 2.,
-                );
-                let _ = c.show_text("Ready when you are");
+                c.set_font_size(14.);
+                let text = if u.clip.borrow().is_some() {
+                    "Recording ready — Play or Save as"
+                } else if u.record_mode.is_active() {
+                    "Select New or press Win + Shift + R to record."
+                } else {
+                    "Press Win + Shift + S to start a snip."
+                };
+                if let Ok(ext) = c.text_extents(text) {
+                    c.move_to(
+                        (area.allocated_width() as f64 - ext.width()) / 2. - ext.x_bearing(),
+                        (area.allocated_height() as f64 - ext.height()) / 2. - ext.y_bearing(),
+                    );
+                    let _ = c.show_text(text);
+                }
             }
             glib::Propagation::Proceed
         });
@@ -237,6 +531,22 @@ impl Ui {
             let Some(p) = u.point(e.position()) else {
                 return glib::Propagation::Proceed;
             };
+            if u.tool.get() == Tool::Eraser {
+                if let Some(d) = u.doc.borrow_mut().as_mut() {
+                    d.erase(p);
+                }
+                u.refresh();
+                return glib::Propagation::Stop;
+            }
+            if u.tool.get() == Tool::Picker {
+                if let Some(d) = u.doc.borrow().as_ref() {
+                    if let Ok(hex) = d.pixel(p) {
+                        gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD).set_text(&hex);
+                        u.status.set_text(&format!("{hex} copied to clipboard"));
+                    }
+                }
+                return glib::Propagation::Stop;
+            }
             let color = u.color.rgba();
             let mut mark = Mark {
                 tool: u.tool.get(),
@@ -250,9 +560,13 @@ impl Ui {
                     }),
                 text: String::new(),
             };
-            if mark.tool == Tool::Text {
+            if matches!(mark.tool, Tool::Text | Tool::Emoji) {
                 let dialog = gtk::Dialog::with_buttons(
-                    Some("Add text"),
+                    Some(if mark.tool == Tool::Emoji {
+                        "Add emoji"
+                    } else {
+                        "Add text"
+                    }),
                     Some(&u.window),
                     gtk::DialogFlags::MODAL,
                     &[
@@ -262,6 +576,17 @@ impl Ui {
                 );
                 let entry = gtk::Entry::new();
                 entry.set_max_length(500);
+                if mark.tool == Tool::Emoji {
+                    entry.set_text("👍");
+                    let emojis = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+                    for text in ["👍", "✅", "❌", "⭐", "❤️", "⚠️", "😊"] {
+                        let b = gtk::Button::with_label(text);
+                        let e = entry.clone();
+                        b.connect_clicked(move |_| e.set_text(text));
+                        emojis.pack_start(&b, false, false, 0);
+                    }
+                    dialog.content_area().pack_start(&emojis, false, false, 4);
+                }
                 entry.set_activates_default(true);
                 dialog.set_default_response(gtk::ResponseType::Accept);
                 dialog.content_area().pack_start(&entry, true, true, 12);
@@ -302,6 +627,11 @@ impl Ui {
                         if let Some(d) = doc.as_mut() {
                             if m.tool == Tool::Crop {
                                 d.crop(m.points[0], *m.points.last().unwrap())
+                            } else if m.tool == Tool::Redact {
+                                let (w, h) = d.size();
+                                let (x, y, rw, rh) =
+                                    document::bounds(m.points[0], *m.points.last().unwrap(), w, h);
+                                d.redact(&[(x, y, rw, rh)])
                             } else {
                                 d.mark(m);
                                 Ok(())
@@ -320,6 +650,15 @@ impl Ui {
         });
         let u = ui.clone();
         ui.window.connect_key_press_event(move |_, e| {
+            if e.state().contains(gdk::ModifierType::MOD1_MASK) {
+                match e.keyval() {
+                    gdk::keys::constants::n | gdk::keys::constants::N => u.start_capture(),
+                    gdk::keys::constants::m | gdk::keys::constants::M => u.mode.popup(),
+                    gdk::keys::constants::d | gdk::keys::constants::D => u.delay.popup(),
+                    _ => return glib::Propagation::Proceed,
+                }
+                return glib::Propagation::Stop;
+            }
             if e.state().contains(gdk::ModifierType::CONTROL_MASK) {
                 match e.keyval() {
                     gdk::keys::constants::n | gdk::keys::constants::N => u.start_capture(),
@@ -332,6 +671,12 @@ impl Ui {
                         u.history(e.state().contains(gdk::ModifierType::SHIFT_MASK))
                     }
                     gdk::keys::constants::y | gdk::keys::constants::Y => u.history(true),
+                    gdk::keys::constants::r | gdk::keys::constants::R
+                        if e.state().contains(gdk::ModifierType::SHIFT_MASK) =>
+                    {
+                        u.stop_recording()
+                    }
+                    gdk::keys::constants::p | gdk::keys::constants::P => u.print_image(),
                     _ => return glib::Propagation::Proceed,
                 }
                 return glib::Propagation::Stop;
@@ -348,9 +693,18 @@ impl Ui {
                 glib::Propagation::Stop
             }
         });
+        ui.toolbar.show_all();
+        ui.toolbar.set_no_show_all(true);
+        ui.toolbar.hide();
+        footer.show_all();
+        footer.set_no_show_all(true);
+        footer.hide();
         ui.window.show_all();
         ui.cancel.hide();
+        ui.stop.hide();
+        ui.play.hide();
         ui.refresh();
+        footer.set_visible(false);
         ui
     }
     fn transform(&self) -> (f64, f64, f64) {
@@ -361,10 +715,16 @@ impl Ui {
             self.canvas.allocated_width() as f64,
             self.canvas.allocated_height() as f64,
         );
-        let s = ((w - 40.) / d.0 as f64)
-            .min((h - 40.) / d.1 as f64)
-            .min(1.)
-            .max(0.01);
+        let s = self
+            .zoom
+            .active_id()
+            .and_then(|s| s.parse::<f64>().ok())
+            .unwrap_or_else(|| {
+                ((w - 40.) / d.0 as f64)
+                    .min((h - 40.) / d.1 as f64)
+                    .min(1.)
+                    .max(0.01)
+            });
         (s, (w - d.0 as f64 * s) / 2., (h - d.1 as f64 * s) / 2.)
     }
     fn point(&self, p: Point) -> Option<Point> {
@@ -380,8 +740,24 @@ impl Ui {
     fn refresh(&self) {
         let doc = self.doc.borrow();
         let has = doc.is_some();
-        self.editing.set_sensitive(has);
-        self.save.set_sensitive(has);
+        if let Some(d) = doc.as_ref() {
+            if let Some(z) = self.zoom.active_id().and_then(|s| s.parse::<f64>().ok()) {
+                let (w, h) = d.size();
+                self.canvas
+                    .set_size_request((w as f64 * z) as i32 + 40, (h as f64 * z) as i32 + 40);
+            } else {
+                self.canvas.set_size_request(-1, -1);
+            }
+        }
+        let ready = has || self.clip.borrow().is_some();
+        self.toolbar.set_visible(ready);
+        self.editing.set_visible(has);
+        self.zoom.set_visible(has);
+        self.copy.set_visible(has);
+        if ready && !self.expanded.replace(true) {
+            self.window.resize(1060, 760);
+        }
+        self.save.set_sensitive(ready);
         self.copy.set_sensitive(has);
         if let Some(d) = doc.as_ref() {
             let (w, h) = d.size();
@@ -394,15 +770,18 @@ impl Ui {
                 }
             ));
             self.window.set_title(if d.dirty {
-                "Snipping Tool • Unsaved"
+                "Axentra SnippingTool • Unsaved"
             } else {
-                "Snipping Tool"
+                "Axentra SnippingTool"
             });
         }
         self.canvas.queue_draw();
     }
     fn set_image(&self, p: Pixbuf, dirty: bool) {
         self.capturing.set(false);
+        self.clip.borrow_mut().take();
+        self.play.hide();
+        self.zoom.set_active_id(Some("fit"));
         match Document::new(p, dirty) {
             Ok(d) => {
                 *self.doc.borrow_mut() = Some(d);
@@ -425,6 +804,32 @@ impl Ui {
         self.refresh();
     }
     fn replace_ok(&self) -> bool {
+        if self.recording.borrow().is_some() || self.capturing.get() {
+            self.status
+                .set_text("Finish or cancel the current capture first.");
+            return false;
+        }
+        if self.clip.borrow().as_ref().is_some_and(|c| !c.saved) {
+            let d = gtk::MessageDialog::new(
+                Some(&self.window),
+                gtk::DialogFlags::MODAL,
+                gtk::MessageType::Question,
+                gtk::ButtonsType::None,
+                "Save your recording before continuing?",
+            );
+            d.add_buttons(&[
+                ("Cancel", gtk::ResponseType::Cancel),
+                ("Discard", gtk::ResponseType::Reject),
+                ("Save", gtk::ResponseType::Accept),
+            ]);
+            let result = d.run();
+            d.close();
+            return match result {
+                gtk::ResponseType::Reject => true,
+                gtk::ResponseType::Accept => self.save(),
+                _ => false,
+            };
+        }
         if !self.doc.borrow().as_ref().is_some_and(|d| d.dirty) {
             return true;
         }
@@ -480,6 +885,15 @@ impl Ui {
         d.close();
     }
     fn save(&self) -> bool {
+        if self.clip.borrow().is_some() {
+            let result = self.save_recording();
+            if result {
+                if let Some(c) = self.clip.borrow_mut().as_mut() {
+                    c.saved = true;
+                }
+            }
+            return result;
+        }
         let image = match self.doc.borrow().as_ref().map(|d| d.render()) {
             Some(Ok(p)) => p,
             Some(Err(e)) => {
@@ -498,9 +912,7 @@ impl Ui {
             ("Save", gtk::ResponseType::Accept),
         ]);
         d.set_do_overwrite_confirmation(true);
-        let folder = glib::user_special_dir(glib::UserDirectory::Pictures)
-            .unwrap_or_else(glib::home_dir)
-            .join("Screenshots");
+        let folder = self.prefs.borrow().folder.clone();
         let _ = std::fs::create_dir_all(&folder);
         d.set_current_folder(&folder);
         d.set_current_name(&format!(
@@ -613,6 +1025,10 @@ impl Ui {
         }
     }
     fn start_capture(self: &Rc<Self>) {
+        if self.recording.borrow().is_some() {
+            self.stop_recording();
+            return;
+        }
         if self.capturing.get() {
             return;
         }
@@ -648,15 +1064,25 @@ impl Ui {
     }
     fn capture(self: &Rc<Self>) {
         if is_wayland() {
+            if self.record_mode.is_active() {
+                self.capturing.set(false);
+                self.window.present();
+                self.status
+                    .set_text("Wayland recording is being initialized through the desktop portal.");
+                self.record_wayland();
+                return;
+            }
             let u = self.clone();
             if let Err(e) = capture::portal(move |r| match r {
-                Ok(p) => u.set_image(p, true),
+                Ok(p) => u.capture_ready(p),
                 Err(e) => {
+                    u.capturing.set(false);
                     u.window.show();
                     u.window.present();
                     u.status.set_text(&e)
                 }
             }) {
+                self.capturing.set(false);
                 self.window.show();
                 self.status.set_text(&e)
             }
@@ -671,14 +1097,18 @@ impl Ui {
                 return;
             }
         };
-        let mode = match self.mode.active_id().as_deref() {
-            Some("free") => Mode::Freeform,
-            Some("window") => Mode::Window,
-            Some("full") => Mode::Fullscreen,
-            _ => Mode::Rectangle,
+        let mode = if self.record_mode.is_active() {
+            Mode::Rectangle
+        } else {
+            match self.mode.active_id().as_deref() {
+                Some("free") => Mode::Freeform,
+                Some("window") => Mode::Window,
+                Some("full") => Mode::Fullscreen,
+                _ => Mode::Rectangle,
+            }
         };
         if mode == Mode::Fullscreen {
-            self.set_image(image, true)
+            self.capture_ready(image)
         } else {
             self.overlay(image, mode)
         }
@@ -809,7 +1239,9 @@ impl Ui {
         let p = points.clone();
         let o = overlay.clone();
         let u = self.clone();
+        let selection_image = image.clone();
         area.connect_button_release_event(move |_, e| {
+            let image = &selection_image;
             if e.button() != 1 {
                 return glib::Propagation::Proceed;
             }
@@ -841,6 +1273,11 @@ impl Ui {
                 };
                 let (x, y, cw, ch) = document::bounds(a, b, w, h);
                 if cw >= 2 && ch >= 2 {
+                    if u.record_mode.is_active() {
+                        o.close();
+                        u.record_area(capture::Rect { x, y, w: cw, h: ch });
+                        return glib::Propagation::Stop;
+                    }
                     let result = if mode == Mode::Freeform {
                         (|| -> Result<Pixbuf, String> {
                             let s = cairo::ImageSurface::create(cairo::Format::ARgb32, cw, ch)
@@ -866,7 +1303,7 @@ impl Ui {
                     };
                     o.close();
                     match result {
-                        Ok(p) => u.set_image(p, true),
+                        Ok(p) => u.capture_ready(p),
                         Err(e) => {
                             u.window.show();
                             u.status.set_text(&e)
@@ -878,7 +1315,53 @@ impl Ui {
         });
         let o = overlay.clone();
         let u = self.clone();
+        let keyboard_points = points.clone();
+        let keyboard_area = area.clone();
+        let keyboard_image = image.clone();
         overlay.connect_key_press_event(move |_, e| {
+            let direction = match e.keyval() {
+                gdk::keys::constants::Left => Some((-1., 0.)),
+                gdk::keys::constants::Right => Some((1., 0.)),
+                gdk::keys::constants::Up => Some((0., -1.)),
+                gdk::keys::constants::Down => Some((0., 1.)),
+                _ => None,
+            };
+            if let Some((dx, dy)) = direction {
+                let mut pts = keyboard_points.borrow_mut();
+                if pts.len() < 2 {
+                    *pts = vec![
+                        (w as f64 / 2. - 50., h as f64 / 2. - 50.),
+                        (w as f64 / 2. + 50., h as f64 / 2. + 50.),
+                    ];
+                }
+                if e.state().contains(gdk::ModifierType::SHIFT_MASK) {
+                    let last = pts.last_mut().unwrap();
+                    last.0 = (last.0 + dx * 10.).clamp(0., w as f64);
+                    last.1 = (last.1 + dy * 10.).clamp(0., h as f64);
+                } else {
+                    for p in pts.iter_mut() {
+                        p.0 = (p.0 + dx).clamp(0., w as f64);
+                        p.1 = (p.1 + dy).clamp(0., h as f64);
+                    }
+                }
+                keyboard_area.queue_draw();
+                return glib::Propagation::Stop;
+            }
+            if e.keyval() == gdk::keys::constants::Return && mode == Mode::Rectangle {
+                let pts = keyboard_points.borrow();
+                if let Some((a, b)) = pts.first().zip(pts.last()) {
+                    let (x, y, cw, ch) = document::bounds(*a, *b, w, h);
+                    if cw >= 2 && ch >= 2 {
+                        o.close();
+                        if u.record_mode.is_active() {
+                            u.record_area(capture::Rect { x, y, w: cw, h: ch });
+                        } else if let Some(p) = keyboard_image.new_subpixbuf(x, y, cw, ch).copy() {
+                            u.capture_ready(p);
+                        }
+                    }
+                }
+                return glib::Propagation::Stop;
+            }
             if e.keyval() == gdk::keys::constants::Escape {
                 o.close();
                 u.window.show();
@@ -939,7 +1422,7 @@ fn is_wayland() -> bool {
 
 fn main() {
     if std::env::args().any(|a| a == "--help") {
-        println!("Snipping Tool\n  --capture               Start a snip immediately\n  --mode rect|free|window|full\n  --delay 0|3|5|10\n  --open FILE             Open an image for editing\nKeyboard: Ctrl+N new, Ctrl+O open, Ctrl+S save, Ctrl+C copy, Ctrl+Z undo, Ctrl+Shift+Z redo, Esc cancel selection");
+        println!("Axentra SnippingTool\n  --record                Record a region; invoke again to stop\n  --stop                  Stop recording\n  --capture               Start a snip immediately\n  --mode rect|free|window|full\n  --delay 0|1|2|3|4|5|10\n  --open FILE             Open an image for editing\nKeyboard: Ctrl+N new, Ctrl+O open, Ctrl+S save, Ctrl+C copy, Ctrl+Z undo, Ctrl+Shift+Z redo, Esc cancel selection");
         return;
     }
     let app = gtk::Application::new(
@@ -971,7 +1454,22 @@ fn main() {
         let mut iter = args.iter().skip(1);
         while let Some(arg) = iter.next() {
             match arg.to_string_lossy().as_ref() {
-                "--capture" => capture = true,
+                "--capture" => {
+                    u.record_mode.set_active(false);
+                    capture = true;
+                }
+                "--record" => {
+                    if u.recording.borrow().is_some() {
+                        u.stop_recording();
+                        return 0;
+                    }
+                    u.record_mode.set_active(true);
+                    capture = true;
+                }
+                "--stop" => {
+                    u.stop_recording();
+                    return 0;
+                }
                 "--mode" => {
                     if let Some(v) = iter.next() {
                         if !u.mode.set_active_id(Some(&v.to_string_lossy())) {
@@ -983,7 +1481,7 @@ fn main() {
                 "--delay" => {
                     if let Some(v) = iter.next() {
                         if !u.delay.set_active_id(Some(&v.to_string_lossy())) {
-                            eprint!("Delay must be 0, 3, 5 or 10\n");
+                            eprint!("Delay must be 0–5 or 10\n");
                             return 1;
                         }
                     }
@@ -1008,6 +1506,15 @@ fn main() {
             u.start_capture()
         }
         0
+    });
+    let shutdown_ui = ui.clone();
+    app.connect_shutdown(move |_| {
+        if let Some(u) = shutdown_ui.borrow().as_ref() {
+            u.recording.borrow_mut().take();
+            u.portal_session.borrow_mut().take();
+            u.clip.borrow_mut().take();
+            u.shares.borrow_mut().clear();
+        }
     });
     app.run();
 }

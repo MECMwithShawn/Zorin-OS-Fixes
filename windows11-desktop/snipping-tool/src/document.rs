@@ -12,6 +12,10 @@ pub enum Tool {
     Arrow,
     Text,
     Crop,
+    Eraser,
+    Redact,
+    Picker,
+    Emoji,
 }
 #[derive(Clone)]
 pub struct Mark {
@@ -100,6 +104,69 @@ impl Document {
         self.draw(&c);
         gdk::pixbuf_get_from_surface(&s, 0, 0, w, h).ok_or("Could not render the image.".into())
     }
+    pub fn erase(&mut self, p: Point) {
+        // Remove the last annotation under the pointer; leave screenshot pixels intact.
+        let hit = self.frame.marks.iter().rposition(|m| {
+            if m.tool == Tool::Redact {
+                return false;
+            }
+            let pad = m.width.max(12.);
+            let minx = m.points.iter().map(|p| p.0).fold(f64::INFINITY, f64::min) - pad;
+            let miny = m.points.iter().map(|p| p.1).fold(f64::INFINITY, f64::min) - pad;
+            let maxx = m.points.iter().map(|p| p.0).fold(0., f64::max)
+                + if matches!(m.tool, Tool::Text | Tool::Emoji) {
+                    m.text.len() as f64 * (16. + m.width * 2.)
+                } else {
+                    pad
+                };
+            let maxy = m.points.iter().map(|p| p.1).fold(0., f64::max) + pad;
+            p.0 >= minx && p.0 <= maxx && p.1 >= miny && p.1 <= maxy
+        });
+        if let Some(i) = hit {
+            self.remember();
+            self.frame.marks.remove(i);
+        }
+    }
+    pub fn redact(&mut self, boxes: &[(i32, i32, i32, i32)]) -> Result<(), String> {
+        let image = self.render()?;
+        let mut d = Document::new(image, true)?;
+        for &(x, y, w, h) in boxes {
+            d.mark(Mark {
+                tool: Tool::Redact,
+                points: vec![(x as f64, y as f64), ((x + w) as f64, (y + h) as f64)],
+                color: (0., 0., 0.),
+                width: 1.,
+                text: String::new(),
+            });
+        }
+        let flat = d.render()?;
+        self.remember();
+        self.frame = Frame {
+            base: flat,
+            marks: vec![],
+        };
+        Ok(())
+    }
+    pub fn rotate(&mut self) -> Result<(), String> {
+        let p = self
+            .render()?
+            .rotate_simple(gdk_pixbuf::PixbufRotation::Clockwise)
+            .ok_or("Could not rotate image")?;
+        self.remember();
+        self.frame = Frame {
+            base: p,
+            marks: vec![],
+        };
+        Ok(())
+    }
+    pub fn pixel(&self, p: Point) -> Result<String, String> {
+        let im = self.render()?;
+        let x = (p.0 as i32).clamp(0, im.width() - 1);
+        let y = (p.1 as i32).clamp(0, im.height() - 1);
+        let o = (y * im.rowstride() + x * im.n_channels()) as usize;
+        let b = im.read_pixel_bytes();
+        Ok(format!("#{:02X}{:02X}{:02X}", b[o], b[o + 1], b[o + 2]))
+    }
     pub fn crop(&mut self, a: Point, b: Point) -> Result<(), String> {
         let (w, h) = self.size();
         let (x, y, cw, ch) = bounds(a, b, w, h);
@@ -177,6 +244,28 @@ pub fn draw_mark(c: &Context, m: &Mark) {
             }
             let _ = c.stroke();
         }
+        Tool::Eraser | Tool::Picker => {}
+        Tool::Emoji => {
+            let layout = pangocairo::functions::create_layout(c);
+            let font = gtk::pango::FontDescription::from_string(&format!(
+                "Noto Color Emoji {}",
+                24. + m.width * 2.
+            ));
+            layout.set_font_description(Some(&font));
+            layout.set_text(&m.text);
+            c.move_to(a.0, a.1);
+            pangocairo::functions::show_layout(c, &layout);
+        }
+        Tool::Redact => {
+            c.set_source_rgb(0., 0., 0.);
+            c.rectangle(
+                a.0.min(b.0),
+                a.1.min(b.1),
+                (a.0 - b.0).abs(),
+                (a.1 - b.1).abs(),
+            );
+            let _ = c.fill();
+        }
         Tool::Text => {
             c.select_font_face("Sans", cairo::FontSlant::Normal, cairo::FontWeight::Normal);
             c.set_font_size(16. + m.width * 2.);
@@ -232,5 +321,21 @@ mod tests {
         assert!(p.read_pixel_bytes()[offset + 1] > 240);
         d.redo();
         assert!(d.render().unwrap().read_pixel_bytes()[offset + 1] < 10);
+        d.erase((50., 10.));
+        assert!(d.render().unwrap().read_pixel_bytes()[offset + 1] > 240);
+        d.undo();
+        assert!(d.render().unwrap().read_pixel_bytes()[offset + 1] < 10);
+        d.redact(&[(45, 5, 10, 10)]).unwrap();
+        assert_eq!(d.pixel((50., 10.)).unwrap(), "#000000");
+        let encoded = d.render().unwrap().save_to_bufferv("png", &[]).unwrap();
+        let loader = gdk_pixbuf::PixbufLoader::new();
+        loader.write(&encoded).unwrap();
+        loader.close().unwrap();
+        let flat = Document::new(loader.pixbuf().unwrap(), false).unwrap();
+        assert_eq!(flat.pixel((50., 10.)).unwrap(), "#000000");
+        d.rotate().unwrap();
+        assert_eq!(d.size(), (80, 100));
+        d.undo();
+        assert_eq!(d.size(), (100, 80));
     }
 }

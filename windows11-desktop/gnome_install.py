@@ -104,6 +104,7 @@ def install():
     write_files(files)
     snipping_install.BINARY.chmod(0o755)
     snipping_install.shortcut()
+    snipping_install.record_shortcut()
     subprocess.run(['systemctl','--user','daemon-reload'],check=True)
     # A running Python daemon keeps its old preset catalog after files are upgraded.
     subprocess.run(['systemctl','--user','try-restart','zorin11-audio-effects.service'],check=True)
@@ -140,6 +141,7 @@ def restore():
     if os.geteuid()==0:raise RuntimeError("Run as your desktop user, without sudo.")
     import snipping_install
     snipping_install.restore_shortcut()
+    snipping_install.restore_record_shortcut()
     subprocess.run(['systemctl','--user','disable','--now','zorin11-audio-effects.service'],capture_output=True)
     subprocess.run(['systemctl','--user','disable','--now','zorin11-thumbnail-cache.timer'],capture_output=True)
     subprocess.run(['systemctl','--user','stop','zorin11-thumbnail-cache.service'],capture_output=True)
