@@ -25,6 +25,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Desktop switching: native Compiz slides, individual-picture crossfades, three speeds and reduced-motion controls. Standard Xfwm retains instant switching. Verified 2026-10-18.
 - [x] Task View: display Snap Groups and per-workspace previews. Includes drag/Move to, cross-desktop search and Win+Ctrl desktop shortcuts; verified on Xfwm and Compiz.
 - [x] Explorer: read-only image/text preview pane with allowlisted content, file/pixel limits, timed decoding and stale-selection rejection. Verified 2026-10-19.
+- [x] Explorer: actual image thumbnails in Large icons and Details, lazy viewport loading, bounded decoding/cache, orientation correction and fallback icons. OneDrive navigation retained; verified 2026-10-20.
 - [x] Explorer: Windows-style context menus, Rename, Properties, Copy as path and drive details.
 - [x] Explorer: copy/move progress, pause/resume/cancel, Replace/Skip/Keep both, folder merge, apply-to-remaining choices and per-item error/retry dialogs. Verified 2026-10-19.
 - [x] Start/search: real installed desktop-entry actions; Explorer New window/This PC also appear in the native GNOME taskbar menu.

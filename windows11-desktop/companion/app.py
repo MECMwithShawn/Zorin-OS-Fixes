@@ -19,6 +19,7 @@ from model import Store
 from platform_ui import panel_button, desktop_status
 import explorer
 import file_preview
+import file_thumbnails
 import unified_search
 import start_preferences
 import file_transfer
@@ -427,6 +428,9 @@ class Hub(Gtk.Application):
             elif uri.netloc == 'wallpaper':
                 content = wallpaper.thumbnail(uri.path.lstrip('/'))
                 mime = 'image/jpeg'
+            elif uri.netloc == 'thumbnail':
+                file_thumbnails.serve(self, request, uri)
+                return
             elif uri.netloc == 'icon':
                 key = unquote(uri.path.lstrip('/'))
                 content = self.icon_bytes(key)

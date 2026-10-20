@@ -1,5 +1,19 @@
 # Validation — 2026-10-17
 
+## Explorer image thumbnails — 2026-10-20
+
+- Explorer's grid previously displayed type icons for every image. Added actual raster thumbnails in Large icons and Details, with an 80 px large-icon area, preserved aspect ratio, corrected EXIF orientation and lazy viewport loading. The separate Preview pane retains its existing behavior.
+- Six thumbnail tests passed: real subprocess decoding, dimensions/orientation and metadata stripping, supported formats and size limits, stale file versions, missing/corrupt/link/special-file fallback, cancellation/timeouts, cache eviction and requesting-window/current-listing authorization. The combined OneDrive/Explorer, Preview and thumbnail suite passed 19 tests.
+- A private Xvfb/D-Bus WebKit test exercised the actual URI handler and decoder against 120 disposable photos. It verified lazy scrolling, large/detail geometry, generic-icon fallback, folder changes, replacement-image invalidation, unchanged source bytes and no frontend errors. The same native test passed against the combined OneDrive frontend with its sidebar/navigation enabled. Existing Explorer/Quick Settings browser checks also passed, including OneDrive navigation; a React update wait removes a race from the drive-order assertion.
+- The original shared OneDrive source rebuilt to exactly the installed JavaScript/CSS before changes. The scoped thumbnail additions were applied on top of it, preserving the OneDrive backend. Deployment updated the Hub resource route, decoder and combined frontend, with a recovery backup. The desktop companion was reloaded after confirming no transfer/dialog was active, and Photos/Settings were reopened. The OneDrive sync process remained running.
+- Actual downloaded OneDrive photos produced thumbnails locally. Details-view thumbnails in Photos on the Dell were visually checked after deployment; the native fixture test covers the large-icon grid. Installed diagnostics reported no broken images or frontend errors. Real photos, private diagnostic output, screenshots and backups remain outside Git.
+- Frontend requests are limited to four and the dedicated pool to two decoders, with a bounded pending queue and 16 MiB/256-entry memory cache. Each decoder is limited to 32 MiB input, 64 megapixels, three seconds, two CPU seconds and 512 MiB address space. Only current listed files in the requesting Explorer window are served. Unsupported or unavailable files retain type icons; no remote download or sync operation is requested.
+- Physical fractional scaling/Wayland, cloud-only placeholders and video/HEIC/PDF/Office thumbnails are not claimed. The OneDrive check covers its existing navigation and running service; it did not create or upload a cloud test file.
+
+Reproduce with `/usr/bin/python3 -m unittest -v test_file_thumbnails.py test_file_preview.py test_explorer.py` and `/usr/bin/python3 test_thumbnails_live.py --onedrive` from `companion/`. The native test requires Xvfb and `dbus-run-session`; `ZORIN11_TEST_OUTPUT` optionally saves a fixture-only screenshot.
+
+## Original Xfce validation — 2026-10-17
+
 Validated on Zorin OS 18.1 Lite, Xfce 4.20, X11, Ubuntu noble, x86-64.
 
 - Six persistence/model tests, five file-operation tests, and six portability tests passed.

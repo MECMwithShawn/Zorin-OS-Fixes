@@ -39,6 +39,7 @@ const assert=require('assert/strict');const path=require('path');
   {path:'/media/os',name:'OS (D:)',driveLetter:'D',folder:true,symbol:'drive',total:5000,free:2000},
   {path:'/',name:'Local Disk (C:)',driveLetter:'C',folder:true,symbol:'drive',total:4000,free:3000}
  ]}}));
+ await page.waitForFunction(()=>document.querySelector('.file-item')?.title==='Local Disk (C:)');
  assert.deepEqual(await page.locator('.file-item').evaluateAll(items=>items.map(e=>e.title)),['Local Disk (C:)','OS (D:)','AXENTRA_OS (E:)']);
  await page.getByRole('button',{name:'Sort',exact:true}).click();await page.getByRole('button',{name:'Size',exact:true}).click();
  assert.equal(await page.locator('.file-item').first().getAttribute('title'),'Local Disk (C:)');
