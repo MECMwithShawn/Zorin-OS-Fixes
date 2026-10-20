@@ -89,6 +89,8 @@ def install():
     import window_style
     css=HOME/'.config/gtk-3.0/gtk.css'
     files[css]=window_style.css(css.read_text() if css.exists() else '',DEST).encode()
+    import audio_effects
+    files[HOME/'.config/systemd/user'/audio_effects.UNIT]=audio_effects.unit(DEST).encode()
     import thumbnail_cache
     files.update({HOME/'.config/systemd/user'/name:text.encode()
                   for name,text in thumbnail_cache.units(DEST).items()})
@@ -125,6 +127,7 @@ def install():
 
 def restore():
     if os.geteuid()==0:raise RuntimeError("Run as your desktop user, without sudo.")
+    subprocess.run(['systemctl','--user','disable','--now','zorin11-audio-effects.service'],capture_output=True)
     subprocess.run(['systemctl','--user','disable','--now','zorin11-thumbnail-cache.timer'],capture_output=True)
     subprocess.run(['systemctl','--user','stop','zorin11-thumbnail-cache.service'],capture_output=True)
     subprocess.run(['gnome-extensions','disable',UUID],capture_output=True)

@@ -70,3 +70,5 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Update PARITY.md, VALIDATION.md and README.md after each verified milestone.
 
 **Definition of done:** a stable, reversible, reproducible Windows 11-like Linux desktop. Exact third-party app parity and Windows API compatibility are out of scope.
+
+- [x] Playback EQ presets in Sound and Quick Settings with persistent PipeWire service, Off restoration and measured audio-response tests.
