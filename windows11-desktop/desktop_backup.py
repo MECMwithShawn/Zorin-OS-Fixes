@@ -251,16 +251,8 @@ def publish(destination, archive, manifest):
     return final
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--destination', type=Path, help='New backup destination; remembered after success')
-    parser.add_argument('--verify', type=Path, help='Verify an existing desktop-snapshot.tar.gz')
-    args = parser.parse_args()
-    if args.verify:
-        manifest = verify_archive(args.verify)
-        print('Verified', len(manifest['entries']), 'snapshot entries')
-        return
-    destination = args.destination or configured_destination()
+def create_snapshot(destination=None, retain=None, extra=None):
+    destination = destination or configured_destination()
     sources = collect()
     photo = account_photo()
     if photo:
@@ -270,14 +262,31 @@ def main():
     metadata = {'created':datetime.datetime.now().astimezone().isoformat(),
                 'scope':'Installed Windows-style desktop; selective restore only',
                 'gnome':subprocess.check_output(['gnome-shell', '--version'], text=True).strip()}
+    metadata.update(extra or {})
     with tempfile.TemporaryDirectory(prefix='axentra-desktop-backup-') as folder:
         archive = Path(folder)/'desktop-snapshot.tar.gz'
         manifest = build_archive(archive, sources, generated, metadata)
         final = publish(destination, archive, manifest)
+        if retain:
+            shutil.copyfile(archive, retain)
+            if digest(retain) != digest(archive):
+                raise RuntimeError('Local repair archive checksum mismatch')
+    return final
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--destination', type=Path, help='New backup destination; remembered after success')
+    parser.add_argument('--verify', type=Path, help='Verify an existing desktop-snapshot.tar.gz')
+    args = parser.parse_args()
+    if args.verify:
+        manifest = verify_archive(args.verify)
+        print('Verified', len(manifest['entries']), 'snapshot entries')
+        return
+    final = create_snapshot(args.destination)
     if args.destination:
-        remember_destination(destination)
+        remember_destination(args.destination)
     print('Verified backup:', final)
-    print('Entries:', len(manifest['entries']))
 
 
 if __name__ == '__main__':
