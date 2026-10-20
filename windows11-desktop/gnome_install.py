@@ -94,7 +94,8 @@ def install():
     shutil.copytree(ROOT/'companion',DEST,dirs_exist_ok=True,
         ignore=shutil.ignore_patterns('node_modules','__pycache__','test_*','.pnpm*','src','pnpm-lock.yaml','event_logs.py','event_viewer.py'))
     for helper in ('gnome_setup.py','gnome_install.py','snipping_install.py','desktop_menu_install.py',
-                   'desktop_backup.py','heif_install.py','heif-requirements.txt'):
+                   'desktop_backup.py','heif_install.py','heif-requirements.txt',
+                   'update_guard.py','update_guard_root.py','install_update_guard.py'):
         shutil.copy2(ROOT/helper,DEST/helper)
     extension_files={EXTENSION/p.relative_to(ROOT/'gnome-extension'):p.read_bytes()
                      for p in (ROOT/'gnome-extension').rglob('*') if p.is_file() and p.name!='gschemas.compiled'}

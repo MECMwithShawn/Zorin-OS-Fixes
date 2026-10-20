@@ -250,10 +250,45 @@ Create a verified snapshot before a major OS upgrade or after desktop customizat
 /usr/bin/python3 ~/.local/share/zorin11-hub/desktop_backup.py --verify /path/to/snapshot/desktop-snapshot.tar.gz
 ```
 
-Each dated folder contains the archive, SHA256SUMS, file inventory and restore notes. The tool verifies archive contents before publication and compares the OneDrive copy against the local archive. A remembered mount must be available; it will not silently fall back to an unmounted local directory. These are manual snapshots; no automatic restore or scheduled backup is enabled.
+Each dated folder contains the archive, SHA256SUMS, file inventory and restore notes. The tool verifies archive contents before publication and compares the OneDrive copy against the local archive. A remembered mount must be available; it will not silently fall back to an unmounted local directory. Manual snapshots remain available. Optional automatic APT protection is described below.
 
 Snapshots include installed companion code, extensions, icons, SnippingTool, managed launchers/user services, wallpaper history and choices, EQ defaults/custom curve, current GNOME layout settings, original recovery journals and the system account photo. Vendor extension copies and monitor configuration are reference material. OneDrive credentials, browser profiles, personal document trees and thumbnail caches are excluded. The destination stays in private local configuration. Snapshots can contain personal paths and the account photo; do not commit them to this repository. A verified local OneDrive write is not confirmation of cloud upload.
 
 Restore selected components from a staging directory after comparing versions and current files. Do not unpack the whole archive over the home directory: newer Explorer/OneDrive integration or user preferences could be overwritten. The original installation recovery journal undoes the theme; it does not restore the snapshot's current layout. Recheck compatibility after a GNOME/Zorin update before reapplying extensions. Per-user overlays normally survive package updates, but major Shell API changes may still require adaptation.
 
 Account images in Start and Settings now resolve AccountsService's current IconFile, then ~/.face, ~/.face.icon and the legacy imported avatar. The photo is rechecked every five seconds and its modification timestamp invalidates cached previews. Served images are scaled PNGs; no account photo is bundled in the repository.
+
+
+## Automatic backups before APT updates
+
+After selecting a backup destination with `desktop_backup.py`, enable protection:
+
+```bash
+/usr/bin/python3 install_update_guard.py
+pkexec /usr/bin/python3 "$PWD/install_update_guard.py" --system --user "$USER"
+```
+
+The second command opens administrator authentication. It installs a root-owned APT hook and first verifies a real backup through the same privilege-dropping bridge. It does not install or upgrade any packages. The root hook runs all backup, OneDrive and desktop work as the configured desktop user.
+
+Before APT invokes dpkg, it creates a verified snapshot in the remembered OneDrive folder and keeps a verified local repair copy. Multiple dpkg calls in the same update batch share the first snapshot. If OneDrive is unmounted, unavailable or cannot store a verified copy, the update is postponed with an explanation; sign in, make OneDrive available and retry. This also means unattended/offline APT updates can be postponed while the user's OneDrive mount is unavailable. Local verification does not require waiting for cloud upload. OneDrive continues syncing normally.
+
+A user timer checks for pending repair every minute and at sign-in. It waits at least 60 seconds after package activity, until dpkg locks are released and a GNOME session is available. It supports the tested Zorin 18 / GNOME 46 layout; an unsupported OS/Shell version or changed desktop-adapter API pauses repair for review.
+
+Repair restores missing managed icon, extension and launcher files, and layout settings reset to their schema defaults or recorded original values. Existing edited files and other customization values are preserved. Managed extension membership is merged with unrelated extensions; a global user-extension pause is respected. Wallpaper recovery uses the latest existing selected wallpaper instead of reverting daily Spotlight to an older image. OneDrive/Explorer code, user photos, account/EQ state, credentials, monitor geometry, drivers and vendor files are outside automatic restoration. Restored extension code loads on the next normal sign-in; the guard never restarts Shell or signs you out.
+
+Snapshots accumulate in the selected OneDrive folder; the guard does not delete them. Two local repair archives are retained under `~/.local/state/zorin11-update-guard`. A failed or interrupted update is checked after locks clear as well. This covers APT/dpkg transactions made through APT, including Zorin's APT updater and unattended-upgrades. Direct standalone `dpkg`, Flatpak, Snap, manual file edits and extension downloads outside APT do not run this pre-update hook. Major release upgrades still need compatibility review; this is desktop recovery, not a full-system rollback.
+
+Check protection:
+
+```bash
+systemctl --user status zorin11-update-repair.timer
+/usr/bin/python3 ~/.local/share/zorin11-hub/update_guard.py status
+journalctl --user -u zorin11-update-repair.service
+```
+
+Disable it without deleting backups:
+
+```bash
+pkexec /usr/bin/python3 ~/.local/share/zorin11-hub/install_update_guard.py --system --remove
+/usr/bin/python3 ~/.local/share/zorin11-hub/install_update_guard.py --remove
+```

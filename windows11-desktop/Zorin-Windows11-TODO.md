@@ -80,4 +80,4 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 ## Update recovery and shared fixes — 2026-10-20
 - [x] Verified dated desktop snapshots in a user-selected destination, including current GNOME layout, wallpaper/EQ preferences, account photo and installed runtime; mount guarding and selective restore notes.
 - [x] Consolidate AccountsService account-photo refresh, Custom EQ/live preview, System EQ menu and modern HEIC decoder fixes from the related chats.
-- [ ] Automatic pre-update snapshots and post-update compatibility/repair workflow; current snapshots are manual and extensions still require major-version validation.
+- [x] Optional APT pre-update snapshots and deferred, compatibility-gated repair of missing desktop files/reset layout settings. OneDrive failure postpones updates; arbitrary app updates and major GNOME changes still require separate handling.
