@@ -30,7 +30,7 @@ if '--private' not in sys.argv:
                    XDG_STATE_HOME=str(root/'state'), XDG_CACHE_HOME=str(root/'cache'),
                    XDG_DATA_HOME=str(root/'data'), PIPEWIRE_REMOTE='pipewire-0',
                    PULSE_SERVER='unix:'+str(root/'runtime/pulse/native'), WIREPLUMBER_CONFIG_DIR=str(wp))
-        raise SystemExit(subprocess.run(['dbus-run-session', '--', '/usr/bin/python3', __file__, '--private'],
+        raise SystemExit(subprocess.run(['dbus-run-session', '--', '/usr/bin/python3', __file__, '--private',*sys.argv[1:]],
                                         env=env, timeout=110).returncode)
 
 import audio_effects as eq
@@ -116,7 +116,7 @@ try:
     baseline = measure()
     assert min(baseline)>.015, baseline
     node = None
-    for choice in eq.PRESETS[1:]:
+    for choice in (eq.PRESETS[1:] if '--spectrum-only' not in sys.argv else []):
         assert engine.update(choice['id'])
         if node is None:
             node = engine.node
@@ -153,6 +153,21 @@ try:
     player.wait()
     source.close()
     print('PASS output switching, existing/new streams, preserved hardware volume, and Off restoration',flush=True)
+    from audio_spectrum import Monitor
+    eq.run(['pactl','set-sink-volume','test-headphones','100%'])
+    visual=Monitor();visual.enable(True)
+    try:
+        with tone.open('rb') as signal:
+            playback=subprocess.Popen(['pacat','--playback','--device=test-headphones',
+                '--format=float32le','--rate=48000','--channels=2'],stdin=signal)
+            processes.append(playback)
+            wait(lambda:visual.data['available'] and max(visual.data['levels'])>.4)
+            playback.wait(timeout=8)
+        wait(lambda:max(visual.data['levels'])<.015)
+        visual.enable(False)
+        wait(lambda:json.loads(eq.run(['pactl','--format=json','list','source-outputs']))==[])
+        print('PASS real playback spectrum, silence decay and releasing monitor when hidden',flush=True)
+    finally:visual.close()
 finally:
     engine.stop()
     for process in reversed(processes):

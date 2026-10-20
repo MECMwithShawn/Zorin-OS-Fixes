@@ -778,10 +778,26 @@ class Hub(Gtk.Application):
             Gio.AppInfo.launch_default_for_uri(Path(path).as_uri(), Gdk.Display.get_default().get_app_launch_context())
         self.start.hide()
 
+    def spectrum_tick(self):
+        now=time.monotonic()
+        visible=[s for s in self.surfaces.values()
+                 if getattr(s,'spectrum_until',0)>now and s.get_visible()
+                 and s.get_window() and not s.get_window().get_state() & Gdk.WindowState.ICONIFIED]
+        self.spectrum.enable(bool(visible))
+        for surface in visible:surface.send(dict(type='audio-spectrum',**self.spectrum.data))
+        return True
+
     def dispatch(self, surface, message):
         action = message.get('action')
         if not isinstance(action,str):raise ValueError('Missing action.')
-        if action=='snap-hover' and surface.mode in ('explorer','settings'):
+        if action=='audio-spectrum' and surface.mode in ('settings','quick'):
+            surface.spectrum_until=time.monotonic()+5 if message.get('enabled') is True else 0
+            if not hasattr(self,'spectrum'):
+                from audio_spectrum import Monitor
+                self.spectrum=Monitor()
+                self.connect('shutdown',lambda *_:self.spectrum.close())
+                GLib.timeout_add(100,self.spectrum_tick)
+        elif action=='snap-hover' and surface.mode in ('explorer','settings'):
             self.multitasking.caption_hover(surface,bool(message.get('enter')))
         elif action=='snap-layouts' and surface.mode in ('explorer','settings'):
             self.multitasking.show_snap(surface.get_window().get_xid())
