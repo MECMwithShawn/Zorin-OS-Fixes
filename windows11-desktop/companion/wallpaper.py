@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import time
 import threading
+import fcntl
 from functools import wraps
 import urllib.request
 from urllib.parse import urlparse
@@ -28,12 +29,27 @@ CONFIG=Path(os.environ.get('ZORIN11_CONFIG_DIR',str(Path.home()/'.config/zorin11
 ROOT=CONFIG/'wallpapers'
 STATE=CONFIG/'wallpapers.json'
 LOCK=threading.RLock()
+LOCK_DEPTH=threading.local()
 
 
 def locked(function):
     @wraps(function)
     def call(*args,**kwargs):
-        with LOCK:return function(*args,**kwargs)
+        with LOCK:
+            depth=getattr(LOCK_DEPTH,'value',0)
+            descriptor=None
+            if not depth:
+                CONFIG.mkdir(parents=True,exist_ok=True)
+                descriptor=os.open(CONFIG/'wallpaper.lock',os.O_CREAT|os.O_RDWR,0o600)
+                try:fcntl.flock(descriptor,fcntl.LOCK_EX)
+                except BaseException:
+                    os.close(descriptor)
+                    raise
+            LOCK_DEPTH.value=depth+1
+            try:return function(*args,**kwargs)
+            finally:
+                LOCK_DEPTH.value=depth
+                if descriptor is not None:os.close(descriptor)
     return call
 FEEDS={
  'bing':'https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=en-US',
@@ -47,6 +63,7 @@ def load():
     except (OSError,ValueError):return default
 
 
+@locked
 def save(state):
     CONFIG.mkdir(parents=True,exist_ok=True)
     temp=STATE.with_suffix('.tmp');temp.write_text(json.dumps(state,indent=2)+'\n');temp.replace(STATE)
@@ -126,6 +143,7 @@ def remember(data,metadata):
     return entry
 
 
+@locked
 def download(source=None):
     state=load();source=source or state['source'];options=candidates(source,state['preferUhd'])
     if not options:raise ValueError('The image service has no picture available right now.')
@@ -224,6 +242,7 @@ def due():
     return state['daily'] and state['source'] in FEEDS and state.get('lastDay')!=datetime.date.today().isoformat() and time.time()-state.get('lastAttempt',0)>3600
 
 
+@locked
 def update():
     with LOCK:
         state=load();state['lastAttempt']=time.time();save(state)

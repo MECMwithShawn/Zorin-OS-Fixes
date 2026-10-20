@@ -46,19 +46,31 @@ def folder_defaults(content):
     keyfile.set_string('Default Applications','inode/directory','zorin11-explorer.desktop;')
     return keyfile.to_data()[0].encode()
 
+def personalization_entries(apps):
+    entries={}
+    for ident,name,page,icon in [
+        ('gnome-background-panel','Personalize','background','preferences-desktop-wallpaper'),
+        ('gnome-display-panel','Display settings','display','video-display'),
+        ('org.gnome.Settings','Settings','home','preferences-system'),
+    ]:
+        entries[apps/(ident+'.desktop')]=desktop(name,'--settings '+page,icon,'Zorin11-settings','Settings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\n'
+    return entries
+
 
 def install():
     import snipping_install
+    import desktop_menu_install
     snipping_binary=snipping_install.build()
     # Sources are managed runtime files; personal state lives under .config.
     DEST.mkdir(parents=True,exist_ok=True)
     shutil.copytree(ROOT/'companion',DEST,dirs_exist_ok=True,
         ignore=shutil.ignore_patterns('node_modules','__pycache__','test_*','.pnpm*','src','pnpm-lock.yaml'))
-    for helper in ('gnome_setup.py','gnome_install.py','snipping_install.py'):shutil.copy2(ROOT/helper,DEST/helper)
+    for helper in ('gnome_setup.py','gnome_install.py','snipping_install.py','desktop_menu_install.py'):shutil.copy2(ROOT/helper,DEST/helper)
     extension_files={EXTENSION/p.relative_to(ROOT/'gnome-extension'):p.read_bytes()
                      for p in (ROOT/'gnome-extension').rglob('*') if p.is_file() and p.name!='gschemas.compiled'}
     for icon in ('start.svg','search.svg','taskview.svg'):extension_files[EXTENSION/icon]=(ROOT/'companion'/icon).read_bytes()
     files=dict(extension_files)
+    files.update(desktop_menu_install.prepare())
     files.update(snipping_install.files(snipping_binary))
     audio_extension=HOME/'.local/share/gnome-shell/extensions/zorin11-audio@zorin-os-fixes'
     files.update({audio_extension/p.name:p.read_bytes() for p in (ROOT/'gnome-audio-extension').iterdir() if p.is_file()})
@@ -74,6 +86,7 @@ def install():
     ]:files[apps/f'zorin11-{ident}.desktop']=desktop(name,args,icon,wm)
     files[apps/'gnome-sound-panel.desktop']=desktop('Sound','--settings sound','multimedia-volume-control','Zorin11-settings','Settings;HardwareSettings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\n'
     files[apps/'gnome-bluetooth-panel.desktop']=desktop('Bluetooth','--settings devices','bluetooth','Zorin11-settings','Settings;HardwareSettings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\n'
+    files.update(personalization_entries(apps))
     files[apps/'zorin11-explorer.desktop']+=b'MimeType=inode/directory;\nKeywords=Files;Folders;File Manager;Explorer;\n'
     launcher=f'/usr/bin/env GDK_BACKEND=x11 /usr/bin/python3 "{DEST / "app.py"}"'
     files[apps/'zorin11-explorer.desktop']+=(f'Actions=new-window;this-pc;\n\n'
@@ -110,6 +123,7 @@ def install():
     subprocess.run(['systemctl','--user','try-restart','zorin11-audio-effects.service'],check=True)
     subprocess.run(['systemctl','--user','enable','--now','zorin11-thumbnail-cache.timer'],check=True)
     subprocess.run(['glib-compile-schemas',str(EXTENSION/'schemas')],check=True)
+    subprocess.run(['glib-compile-schemas',str(HOME/'.local/share/gnome-shell/extensions'/desktop_menu_install.UUID/'schemas')],check=True)
     subprocess.run(['update-desktop-database',str(apps)],check=True)
     Gio,GLib=gnome_setup.bindings()
     shell=Gio.Settings.new('org.gnome.shell')
@@ -118,6 +132,8 @@ def install():
                              'disabled-extensions':[x for x in shell.get_strv('disabled-extensions') if x not in (UUID,'zorin11-audio@zorin-os-fixes','zorin-window-move-effect@zorinos.com')]},
              'org.gnome.mutter':{'dynamic-workspaces':False}}
     gnome_setup.install(gnome_setup.plan(changes))
+    if not desktop_menu_install.activate():
+        print('Desktop menu installed; it will activate at the next sign-in.')
     # Journal shortcut recovery now, but let the extension take ownership only
     # when it loads. Existing shortcuts keep working before the first logout.
     bindings={'org.gnome.shell.keybindings':{'toggle-application-view':[], 'focus-active-notification':[]},
@@ -140,12 +156,14 @@ def install():
 def restore():
     if os.geteuid()==0:raise RuntimeError("Run as your desktop user, without sudo.")
     import snipping_install
+    import desktop_menu_install
     snipping_install.restore_shortcut()
     snipping_install.restore_record_shortcut()
     subprocess.run(['systemctl','--user','disable','--now','zorin11-audio-effects.service'],capture_output=True)
     subprocess.run(['systemctl','--user','disable','--now','zorin11-thumbnail-cache.timer'],capture_output=True)
     subprocess.run(['systemctl','--user','stop','zorin11-thumbnail-cache.service'],capture_output=True)
     subprocess.run(['gnome-extensions','disable','zorin11-audio@zorin-os-fixes'],capture_output=True)
+    subprocess.run(['gnome-extensions','disable',desktop_menu_install.UUID],capture_output=True)
     subprocess.run(['gnome-extensions','disable',UUID],capture_output=True)
     if DEST.joinpath('app.py').exists():
         # Ask only an existing instance to quit, without starting a new UI.
@@ -172,6 +190,7 @@ def restore():
                 remaining.append(record)
         if remaining:gnome_setup.save(remaining,FILES)
         else:FILES.unlink()
+    desktop_menu_install.cleanup()
     subprocess.run(['systemctl','--user','daemon-reload'],capture_output=True)
     gnome_setup.restore()
 
