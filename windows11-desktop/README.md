@@ -3,6 +3,12 @@
 **GNOME is the primary desktop.** The same installer detects Zorin 18 GNOME or Zorin Lite/Xfce and installs the matching integration. The shared companion provides the Windows 11-style Start menu, File Explorer, Settings, Quick Settings, notification/calendar flyout, Desktop Groups and multitasking UI.
 
 
+## Fractional scaling on hybrid graphics
+
+On the tested Intel/NVIDIA laptop, GNOME X11 at laptop 125% / external 100% produces a cropped external display even though the reported native modes and screenshot look correct. Do not use a successful settings readback alone to confirm scaling: check all four edges on the physical screens. This matches the [X11 PRIME transform issue documented by NVIDIA](https://forums.developer.nvidia.com/t/450-75-with-reverse-prime-xrandr-scale-2x2-does-not-work-renders-only-1-4-of-screen-problem-with-nvidia-settings/142424).
+
+Test **Zorin Desktop on Wayland** from the login-screen session selector for independent scaling. Save work before signing out. This is a different session, not a theme reinstall; the package does not switch sessions automatically. Physical Wayland validation on this machine remains pending. Both screens at 100% is the fallback if staying on the current X11 session.
+
 ## Device Manager (GNOME)
 
 Search **Device Manager** in Start to open a standalone dark hardware tree. Categories expand into PCI controllers, USB devices, cameras/Bluetooth adapters, physical disks and input endpoints, with icons and actual bound driver names. Search by device, driver, category or hardware ID. Select a device and choose **Properties**, double-click it, or use the context menu to view/copy its details. **Refresh** or F5 updates the inventory after connecting or disconnecting hardware; Ctrl+F focuses search and Escape clears it.
