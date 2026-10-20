@@ -977,7 +977,7 @@ class Hub(Gtk.Application):
             surface.hide();settings_backend.launch(tool)
         elif action=='quick-set':
             name,value=message.get('name'),message.get('value')
-            if name not in ('volume','muted','wifi','bluetooth','airplane','batterySaver','dnd','output','stickyKeys','slowKeys','bounceKeys','mouseKeys'):
+            if name not in ('volume','muted','wifi','bluetooth','airplane','batterySaver','dnd','output','audioPreset','stickyKeys','slowKeys','bounceKeys','mouseKeys'):
                 raise ValueError('Unknown Quick Settings control.')
             self.quick_change(lambda:settings_backend.apply(name,value))
         elif action=='quick-device':
