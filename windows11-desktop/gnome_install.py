@@ -48,15 +48,18 @@ def folder_defaults(content):
 
 
 def install():
+    import snipping_install
+    snipping_binary=snipping_install.build()
     # Sources are managed runtime files; personal state lives under .config.
     DEST.mkdir(parents=True,exist_ok=True)
     shutil.copytree(ROOT/'companion',DEST,dirs_exist_ok=True,
         ignore=shutil.ignore_patterns('node_modules','__pycache__','test_*','.pnpm*','src','pnpm-lock.yaml'))
-    for helper in ('gnome_setup.py','gnome_install.py'):shutil.copy2(ROOT/helper,DEST/helper)
+    for helper in ('gnome_setup.py','gnome_install.py','snipping_install.py'):shutil.copy2(ROOT/helper,DEST/helper)
     extension_files={EXTENSION/p.relative_to(ROOT/'gnome-extension'):p.read_bytes()
                      for p in (ROOT/'gnome-extension').rglob('*') if p.is_file() and p.name!='gschemas.compiled'}
     for icon in ('start.svg','search.svg','taskview.svg'):extension_files[EXTENSION/icon]=(ROOT/'companion'/icon).read_bytes()
     files=dict(extension_files)
+    files.update(snipping_install.files(snipping_binary))
     audio_extension=HOME/'.local/share/gnome-shell/extensions/zorin11-audio@zorin-os-fixes'
     files.update({audio_extension/p.name:p.read_bytes() for p in (ROOT/'gnome-audio-extension').iterdir() if p.is_file()})
     apps=HOME/'.local/share/applications'
@@ -99,6 +102,8 @@ def install():
     files.update({HOME/'.config/systemd/user'/name:text.encode()
                   for name,text in thumbnail_cache.units(DEST).items()})
     write_files(files)
+    snipping_install.BINARY.chmod(0o755)
+    snipping_install.shortcut()
     subprocess.run(['systemctl','--user','daemon-reload'],check=True)
     # A running Python daemon keeps its old preset catalog after files are upgraded.
     subprocess.run(['systemctl','--user','try-restart','zorin11-audio-effects.service'],check=True)
@@ -133,6 +138,8 @@ def install():
 
 def restore():
     if os.geteuid()==0:raise RuntimeError("Run as your desktop user, without sudo.")
+    import snipping_install
+    snipping_install.restore_shortcut()
     subprocess.run(['systemctl','--user','disable','--now','zorin11-audio-effects.service'],capture_output=True)
     subprocess.run(['systemctl','--user','disable','--now','zorin11-thumbnail-cache.timer'],capture_output=True)
     subprocess.run(['systemctl','--user','stop','zorin11-thumbnail-cache.service'],capture_output=True)

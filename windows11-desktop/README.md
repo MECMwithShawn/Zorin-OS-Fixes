@@ -172,3 +172,11 @@ GNOME's native Sound output menu also includes an Audio enhancements submenu wit
 HEIC and HEIF photos are supported in Explorer thumbnails, the Preview pane and background precaching through Zorin’s `heif-gdk-pixbuf` decoder. The installer includes that package. Image workers remain bounded by input size, dimensions, memory and execution time; cached PNGs discard source metadata. Existing OneDrive mount and download behavior are retained.
 
 AAE files contain Apple Photos edit instructions. Selecting one in Explorer's Preview pane finds a same-name HEIC/HEIF, JPEG or PNG in that folder and shows it with an explicit **Original photo** notice. Apple adjustments are not applied. Missing originals get an explanation; sidecar contents are never interpreted or used as paths, and sibling lookup is bounded.
+
+## Rust Snipping Tool
+
+Open **Snipping Tool** from Start, use **Win+Shift+S**, or choose Screenshot in Quick Settings. X11 supports rectangle, freeform, window and entire-desktop capture across monitors. Wayland uses GNOME's permission-mediated screenshot picker. Delays are 0, 3, 5 or 10 seconds; Escape cancels selection.
+
+The native Rust/GTK editor supports pen, highlighter, rectangle, ellipse, arrow, text, crop, undo/redo, image clipboard and explicit PNG/JPEG save. Ctrl+N/O/S/C/Z and Ctrl+Shift+Z provide the usual shortcuts. Unsaved changes prompt before replacement or closing; nothing is uploaded or automatically saved. Screen recording and OCR are not included.
+
+The GNOME installer builds the locked Rust project (Rust 1.75+, Cargo, pkg-config and GTK 3 development files) and installs per-user. To install only this tool, run `python3 snipping_install.py` from this directory. Existing Win+Shift+S custom bindings are preserved; managed shortcuts participate in desktop restoration and later user edits are retained.

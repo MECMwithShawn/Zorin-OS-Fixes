@@ -1,0 +1,12 @@
+window { background: #202020; color: #f5f5f5; }
+headerbar { background: #202020; border: none; box-shadow: none; padding: 8px 10px; min-height: 42px; }
+headerbar .title { font-size: 14px; font-weight: 500; }
+button, combobox button, spinbutton { border-radius: 5px; background: #303030; color: #f4f4f4; border: 1px solid #484848; box-shadow: none; text-shadow: none; padding: 6px 10px; }
+button:hover { background: #3d3d3d; }
+button:checked, button.suggested-action { background: #70c9f5; border-color: #70c9f5; color: #101010; }
+button:disabled { opacity: 0.45; }
+.tools { background: #252525; padding: 9px 12px; border-bottom: 1px solid #393939; }
+.tools button { padding: 6px 8px; }
+.footer { background: #202020; padding: 9px 16px; min-height: 25px; }
+.footer label { color: #c7c7c7; font-size: 12px; }
+entry { background: #303030; color: #fff; border-radius: 5px; }

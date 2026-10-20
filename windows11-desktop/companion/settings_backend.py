@@ -41,6 +41,9 @@ if is_gnome():
 
 # Pairing uses a bounded, searchable picker on both supported desktops.
 TOOLS['bluetooth']=[sys.executable,str(Path(__file__).with_name('bluetooth_pairing.py'))]
+snipping_tool=Path.home()/'.local/bin/zorin11-snipping-tool'
+if snipping_tool.is_file() and os.access(snipping_tool,os.X_OK):
+    TOOLS['screenshot']=[str(snipping_tool),'--capture']
 
 GNOME_SETTINGS={
  ('xfce4-notifyd','/do-not-disturb'):('org.gnome.desktop.notifications','show-banners',True),
