@@ -30,6 +30,7 @@ apps=[{'id':ident,'name':ident.split('.')[0].title(),'description':'Test app','c
        'icon':'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="32" height="32"%3E%3Crect width="32" height="32" rx="6" fill="%2360cdff"/%3E%3C/svg%3E'} for ident in ids]
 textfile=base/'example.html';textfile.write_text('<script>window.previewExecuted=true</script>\nPreview contents')
 imagefile=base/'picture.png';Image.new('RGB',(1600,800),'#2176c1').save(imagefile)
+(base/'picture.AAE').write_bytes(b'Apple Photos edit sidecar; adjustments are not rendered')
 output=Path(sys.argv[sys.argv.index('--output')+1]) if '--output' in sys.argv else None
 if output:output.mkdir(parents=True,exist_ok=True)
 manager=WebKit2.UserContentManager();manager.register_script_message_handler('desktop')
@@ -121,9 +122,16 @@ def verify():
             time.sleep(.1)
         assert js('document.querySelector(".preview-content img").naturalWidth')==1024
         snapshot('explorer-image-preview.png')
+        js('(()=>{[...document.querySelectorAll(".file-item")].find(e=>e.title==="picture.AAE").click();return true})()')
+        for _ in range(35):
+            if js('!!document.querySelector(".preview-content img")?.naturalWidth && document.querySelector(".preview-content").textContent.includes("not applied")'):break
+            time.sleep(.1)
+        assert js('document.querySelector(".preview-content img").alt')=='Preview of picture.png'
+        assert 'Original photo: picture.png' in js('document.querySelector(".preview-content").textContent')
+        snapshot('explorer-aae-original.png')
         assert not errors,errors
         assert js('window.desktopErrors.length')==0
-        print('Explorer: real text/image decoding, inert HTML, selection update and rendering passed',flush=True)
+        print('Explorer: text/image decoding, inert HTML, AAE original photo disclosure, selection update and rendering passed',flush=True)
     except Exception:
         import traceback;traceback.print_exc();exit_code=1
     finally:GLib.idle_add(Gtk.main_quit)

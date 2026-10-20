@@ -42,6 +42,35 @@ class PreviewTests(unittest.TestCase):
         with patch.object(preview,'PIXEL_LIMIT',100):
             self.assertEqual(preview.generate(path)['kind'],'unavailable')
 
+    def test_aae_previews_case_insensitive_sibling_without_reading_edit_instructions(self):
+        sidecar=self.root/'IMG_42.AAE'
+        sidecar.write_bytes(b'Uninterpreted Apple edits; never a source path or command')
+        Image.new('RGB',(40,20),'red').save(self.root/'img_42.JPG')
+        result=preview.read(str(sidecar))
+        self.assertEqual(result['kind'],'image')
+        self.assertEqual(result['sourceName'],'img_42.JPG')
+        self.assertIn('not applied',result['note'])
+        self.assertEqual((result['width'],result['height']),(40,20))
+
+    def test_aae_uses_heic_original_and_keeps_orphans_explanatory(self):
+        import shutil
+        sidecar=self.root/'portrait.aae';sidecar.touch()
+        self.assertIn('not an image',preview.generate(sidecar)['message'])
+        shutil.copyfile(Path(__file__).parent/'test-fixtures/portrait.heic',self.root/'portrait.HEIC')
+        result=preview.read(str(sidecar))
+        self.assertEqual(result['kind'],'image')
+        self.assertEqual((result['width'],result['height']),(160,320))
+
+    def test_aae_match_never_follows_links_and_scan_is_bounded(self):
+        sidecar=self.root/'picture.aae';sidecar.touch()
+        target=self.root/'outside.png';Image.new('RGB',(10,10)).save(target)
+        (self.root/'picture.png').symlink_to(target)
+        self.assertEqual(preview.generate(sidecar)['kind'],'unavailable')
+        (self.root/'linked.aae').symlink_to(sidecar)
+        self.assertEqual(preview.generate(self.root/'linked.aae')['kind'],'unavailable')
+        with patch.object(preview,'PAIR_SCAN_LIMIT',1):
+            self.assertIn('too large',preview.generate(sidecar)['message'])
+
     def test_coalesced_requests_discard_old_selection_and_closed_windows(self):
         from app import Hub
         from types import SimpleNamespace

@@ -222,3 +222,8 @@ The session test uses the installed operating system and packages with a clean t
 - A private GNOME 46 Wayland session exercised all eight native submenu actions through their subprocess handler and verified persisted selection and labels. The processing sink is hidden from the physical-output list. The existing per-user Sound launcher resolves to the companion EQ page and was actually launched on the desktop.
 - Reproduced Music reverting to Vocal clarity: the running daemon retained the catalog loaded before Music was added. Its unknown-preset fallback selected Off until the caller timed out and restored the previous selection. Upgrades now refresh active services, and preset changes detect an older loaded engine before waiting for confirmation. A regression test covers this path and ensures subsequent changes do not restart the current engine.
 - Seven focused unit tests passed. Music was applied locally and remained selected with active DSP beyond the reported 5–10 second failure window. The native submenu is installed but requires the next sign-in; no desktop session was restarted. The existing Sound Settings link works immediately.
+
+## AAE original-photo previews — 2026-10-20
+
+- Eighteen focused image/preview tests cover case-insensitive AAE sibling matching, HEIC decoding, orphan explanations, link rejection and bounded lookup, plus existing thumbnail/preview limits. AAE contents are never decoded as an image or interpreted as commands/paths.
+- The native WebKit/Hub preview test rendered the matching original with its real filename, dimensions and visible warning that Apple edits are not applied. The existing Explorer browser test checks OneDrive navigation and file controls. No OneDrive backend code or original photo is changed.

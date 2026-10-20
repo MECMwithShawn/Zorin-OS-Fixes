@@ -15,19 +15,49 @@ IMAGES = {'.png','.jpg','.jpeg','.webp','.gif','.bmp','.heic','.heif'}
 TEXT_LIMIT = 1024 * 1024
 IMAGE_LIMIT = 10 * 1024 * 1024
 PIXEL_LIMIT = 25_000_000
+PAIR_SCAN_LIMIT = 30_000
+ORIGINAL_FORMATS = ('.heic', '.heif', '.jpg', '.jpeg', '.png')
 
 
 def unavailable(message):
     return {'kind':'unavailable','message':message}
 
 
-def generate(path):
+def apple_original(sidecar):
+    """AAE is edit metadata. Match a sibling photo without interpreting its data."""
+    if not stat.S_ISREG(sidecar.lstat().st_mode):
+        return unavailable('Only regular files can be previewed.')
+    candidates = []
+    with os.scandir(sidecar.parent) as entries:
+        for count, entry in enumerate(entries):
+            if count >= PAIR_SCAN_LIMIT:
+                return unavailable('This folder is too large to locate the AAE’s original photo. Open the matching HEIC or JPEG directly.')
+            photo = Path(entry.path)
+            if (photo.stem.casefold() == sidecar.stem.casefold()
+                    and photo.suffix.lower() in ORIGINAL_FORMATS
+                    and entry.is_file(follow_symlinks=False)):
+                candidates.append(photo)
+    if not candidates:
+        return unavailable('AAE files contain Apple Photos edit instructions, not an image. No matching HEIC or JPEG original was found in this folder.')
+    photo = min(candidates, key=lambda p:(ORIGINAL_FORMATS.index(p.suffix.lower()), p.name))
+    result = generate(photo, nofollow=True)
+    note = f'Original photo: {photo.name}. Apple Photos edits from the AAE file are not applied.'
+    if result['kind'] == 'image':
+        result.update(sourceName=photo.name, note=note)
+    else:
+        result['message'] = note+' '+result.get('message', '')
+    return result
+
+
+def generate(path, nofollow=False):
     p = Path(path)
+    if p.suffix.lower() == '.aae':
+        return apple_original(p)
     image = p.suffix.lower() in IMAGES
     if not image and p.suffix.lower() not in TEXT:
         return unavailable('No preview available for this file type.')
     # O_NONBLOCK prevents special files such as FIFOs from hanging on open.
-    fd = os.open(p, os.O_RDONLY | os.O_NONBLOCK)
+    fd = os.open(p, os.O_RDONLY | os.O_NONBLOCK | (os.O_NOFOLLOW if nofollow else 0))
     with os.fdopen(fd,'rb') as stream:
         info = os.fstat(stream.fileno())
         if not stat.S_ISREG(info.st_mode):
