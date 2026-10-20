@@ -32,6 +32,7 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 | Notifications | GNOME's current session notifications, read/dismiss/clear and calendar; native notification banners remain managed by GNOME |
 | Task Manager | Mission Center provides expandable application/process groups, actual application icons, combined resource usage, and CPU, memory, disk, network and supported GPU graphs |
 | Backgrounds | Windows Spotlight, Bing daily/UHD images, local photos, history, original-background restore **and the installed Zorin wallpaper collection** |
+| Desktop menu | Windows-style View, Sort by, Refresh, Paste, New, Display settings, Personalize and Next desktop background; Zorin actions retained under Show more options |
 | Desktop Groups | Shared movable shortcut groups and folder portals; original files stay in place |
 | Multitasking | Snap Layouts/Assist, Task View, desktop create/rename/reorder/close, per-desktop backgrounds, saved app/layout recipes and Alt+Tab Snap Groups |
 | Terminal | Pinned PowerShell 7.6.7 and WezTerm, PowerShell/Bash profiles, Cascadia Mono, tabs and split panes |
@@ -93,6 +94,14 @@ Open **Win+I → Personalization → Background**:
 - Enable **Change the picture daily** for daily refresh while signed in.
 - Pick an image from **Zorin wallpapers** to return to the installed collection.
 - Use **Browse photos**, **Recent images**, or **Restore original background**.
+
+The desktop's **Change Background** shortcut opens this Background page. **Settings** and **Display settings** also open the corresponding Windows-style pages; advanced controls inside those pages still reach the native tools.
+
+The GNOME desktop menu adapter adds **View → Large/Medium/Small icons**, **Auto arrange icons**, **Show desktop icons**, **Sort by**, **Refresh**, **Paste**, **New → Folder / Document from template**, **Display settings**, **Personalize**, and **Next desktop background**. **Show more options** retains Zorin's native undo/redo, terminal and other desktop actions. Hiding icons only hides their display; it does not move or delete files. File selection menus, dragging and file operations remain owned by Zorin Desktop Icons.
+
+The adapter runs from a per-user extension and references the installed Zorin Desktop Icons files without changing them. On GNOME 46, a newly installed extension activates at the **next sign-in**. Wallpaper controls and shortcut routing work immediately; the installer does not restart the desktop or close applications. The adapter requires Zorin 18's Desktop Icons extension.
+
+**Next desktop background** fetches another image from the selected Spotlight/Bing feed and opens Background settings for status and credits. With **Picture** selected, it opens the picker instead. Wallpaper changes from the menu and companion serialize through a local lock; failed downloads retain the current picture. Daily refresh runs while the companion is signed in.
 
 Downloaded pictures and credits stay in your local account. Both GNOME light/dark wallpaper values are journaled before changing them. Restore preserves a wallpaper you changed later through another tool. No Windows images, proprietary fonts, personal wallpaper exports or account data are committed.
 
