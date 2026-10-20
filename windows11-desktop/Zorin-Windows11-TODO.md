@@ -42,7 +42,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Build a Windows-inspired clock/avatar lock screen while preserving native GNOME/GDM and Xfce authentication.
 - [x] GNOME Task Manager: Mission Center, expandable application groups, program icons, merged usage and supported GPU graphs. Intel and NVIDIA RTX 4090 laptop telemetry verified in Mission Center after the local NVIDIA driver reboot.
 - [x] GNOME Device Manager: expandable hardware categories/icons, driver and ID search, Properties/copy details and manual refresh. Read-only PCI/USB, disks and input endpoints; verified locally on 2026-10-20.
-- [ ] Device driver-management actions, Disk Management and Event Viewer equivalents; Task Manager includes Mission Center's Services view.
+- [x] GNOME Event Viewer: Application/System/Kernel journal sources, time/severity filters, loaded-event search, details, Copy event, refresh and optional five-second auto-refresh. Native GTK and installed GNOME/X11 tests passed 2026-10-20.
+- [ ] Device driver-management actions and Disk Management; Task Manager includes Mission Center's Services view.
 - [ ] Polish cursor, emoji input, scaling, accessibility, keyboard navigation and reduced-motion behavior.
 - [ ] Evaluate per-monitor taskbars, wallpapers, snapping and mixed-DPI layouts. Confirm physical output on each screen: laptop 125% / Dell 100% fails with external cropping on the tested Intel/NVIDIA X11 output-sink configuration; Wayland verification is pending.
 - [ ] Retain and validate existing 4K Spotlight/Bing rotation rather than duplicate it.
