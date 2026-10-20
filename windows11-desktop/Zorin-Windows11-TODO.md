@@ -50,7 +50,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 
 ## Premium Visual Fidelity — rendering and polish
 - [x] Extend the dark palette to native GTK3 controls/dialogs; match Explorer dialog footers, active/inactive borders and all-edge/corner resizing in Explorer/Settings. Other toolkits still need app-specific work.
-- [ ] Detect native monitor resolution, refresh rate, DPI, GPU renderer and active scale without changing display modes automatically.
+- [x] GNOME Advanced display detects current/preferred resolution, refresh, active scale, rotation and reported panel size/current-mode DPI without changing modes. Optional GPU inventory and OpenGL diagnostic-client renderer are shown; compositor GPU identification remains separate.
 - [ ] Verify native-resolution rendering at 1080p, 1440p and 4K, including 100%, 125%, 150% and 200% scaling where supported; document Xfce/X11 fractional-scaling limits.
 - [ ] Eliminate blurry text and bitmap upscaling in the companion; ensure appropriate WebKit device scale and consistent font hinting/antialiasing.
 - [ ] Standardize Segoe UI Variable where locally available and license-permitted, with Selawik fallback; tune weights, line heights and baseline alignment.

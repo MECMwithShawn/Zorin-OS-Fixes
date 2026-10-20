@@ -228,3 +228,11 @@ The GNOME installer builds the locked Rust project (Rust 1.75+, Cargo, pkg-confi
 Sound settings and Quick Settings now show sixteen live frequency bars from the selected playback output. Monitoring stops when the controls are hidden; no microphone is opened and no audio is saved. Presets remain fixed choices rather than automatic track classification.
 
 Axentra Mini Media can expose the same persistent system EQ and live bars directly beneath its common player controls. See [the player integration](integrations/minitube/README.md); changes synchronize with Sound settings and affect system playback across player sources.
+
+## Advanced display (GNOME)
+
+Open Start and search **Advanced display** for a standalone dark display-details window. It lists the main screen first, current and preferred resolution, refresh rate, scale, rotation, position, supported modes and reported panel size/current-mode DPI. Choose another monitor with the selector; display changes refresh automatically, with manual Refresh or F5 available. **Open display settings** opens GNOME's arrangement/scaling controls.
+
+Graphics adapters use optional `lspci`; the OpenGL diagnostic renderer uses optional `glxinfo`. Missing tools or panel dimensions show Unavailable. The diagnostic renderer is not necessarily the GPU used by other applications or the compositor. The window only reads display configuration; it never changes modes or drivers. This standalone launcher is installed immediately without rebuilding the shared companion frontend or requiring sign-out.
+
+Validation: `/usr/bin/python3 -m unittest discover -s companion -p test_display_details.py` and `/usr/bin/python3 companion/test_display_details_live.py` (the latter requires python3-dbus and Xvfb).
