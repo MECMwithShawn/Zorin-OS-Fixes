@@ -173,13 +173,17 @@ HEIC and HEIF photos are supported in Explorer thumbnails, the Preview pane and 
 
 AAE files contain Apple Photos edit instructions. Selecting one in Explorer's Preview pane finds a same-name HEIC/HEIF, JPEG or PNG in that folder and shows it with an explicit **Original photo** notice. Apple adjustments are not applied. Missing originals get an explanation; sidecar contents are never interpreted or used as paths, and sibling lookup is bounded.
 
-## Rust Snipping Tool
+## Axentra SnippingTool (Rust)
 
-Open **Snipping Tool** from Start, use **Win+Shift+S**, or choose Screenshot in Quick Settings. X11 supports rectangle, freeform, window and entire-desktop capture across monitors. Wayland uses GNOME's permission-mediated screenshot picker. Delays are 0, 3, 5 or 10 seconds; Escape cancels selection.
+Open **Axentra SnippingTool** from Start, use **Win+Shift+S** for a screenshot or **Win+Shift+R** for recording (press again to stop). Quick Settings → Screenshot opens the same app. The native Rust/GTK editor follows the [Microsoft Snipping Tool guide](https://support.microsoft.com/en-us/windows/apps/use-snipping-tool-to-capture-screenshots) with Linux-native capture, permission, sharing and printing services.
 
-The native Rust/GTK editor supports pen, highlighter, rectangle, ellipse, arrow, text, crop, undo/redo, image clipboard and explicit PNG/JPEG save. Ctrl+N/O/S/C/Z and Ctrl+Shift+Z provide the usual shortcuts. Unsaved changes prompt before replacement or closing; nothing is uploaded or automatically saved. Screen recording and OCR are not included.
+X11 supports rectangle, freeform, window and entire-desktop screenshots across monitors, plus region recording to MP4. Wayland uses the desktop screenshot picker and ScreenCast permission dialog for screen/window recording to WebM. Both recorders offer optional playback audio and microphone switches, initially off. Stop and review before saving; no recording starts merely by opening the app. Capture delays are 0–5 or 10 seconds. Escape cancels selection; arrow keys position a rectangle, Shift+arrows resize it, and Enter captures it.
 
-The GNOME installer builds the locked Rust project (Rust 1.75+, Cargo, pkg-config and GTK 3 development files) and installs per-user. To install only this tool, run `python3 snipping_install.py` from this directory. Existing Win+Shift+S custom bindings are preserved; managed shortcuts participate in desktop restoration and later user edits are retained.
+The editor includes pen, highlighter, shapes, text, emoji, annotation eraser, crop, rotation, zoom, undo/redo, PNG/JPEG save and image clipboard. **Text actions** performs local OCR, copies selected/all text and covers detected email addresses/phone numbers; **Redact** covers manually selected areas. Exported redactions are flattened pixels. Review OCR for missed content. The color tool samples image pixels; **⋯ → Pick screen color** uses the desktop's screen eyedropper. **⋯ → Share / Open with** chooses a local app for editing/sharing; Print opens the native print dialog.
+
+New screenshots are copied and saved to Pictures/Screenshots by default. **⋯ → Settings** changes both behaviors and the destination. Auto-save keeps the original capture; use Save as for edited/redacted copies. Unsaved edits and recordings prompt before replacement/closing. Nothing is uploaded automatically. Copilot's proprietary Perfect screenshot framing and Microsoft's Paint/Clipchamp integration are not included; local editors are available through Open with. See [feature coverage and platform differences](snipping-tool/PARITY.md).
+
+The GNOME installer builds the locked Rust project (Rust 1.75+, Cargo, pkg-config and GTK 3 development files) and installs per-user. `install-system-deps.sh` includes Tesseract, FFmpeg and GStreamer/PipeWire plugins. To update only this app, run `python3 snipping_install.py`. Existing custom shortcuts and subsequent user edits are preserved, and managed shortcuts participate in desktop restoration.
 
 Sound settings and Quick Settings now show sixteen live frequency bars from the selected playback output. Monitoring stops when the controls are hidden; no microphone is opened and no audio is saved. Presets remain fixed choices rather than automatic track classification.
 

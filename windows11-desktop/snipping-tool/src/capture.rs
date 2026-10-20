@@ -106,6 +106,37 @@ fn windows_inner() -> Result<Vec<Rect>, Box<dyn std::error::Error>> {
 }
 // Wayland capture is mediated by the desktop portal, including user consent.
 pub fn portal(done: impl FnOnce(Result<Pixbuf, String>) + 'static) -> Result<(), String> {
+    portal_request("Screenshot", move |r| {
+        done(r.and_then(|results| {
+            let uri = results
+                .get("uri")
+                .and_then(|v| v.get::<String>())
+                .ok_or("No screenshot returned")?;
+            let (file, _) = glib::filename_from_uri(&uri).map_err(|e| e.to_string())?;
+            crate::load_image(&file)
+        }))
+    })
+}
+pub fn pick_color(
+    done: impl FnOnce(Result<(f64, f64, f64), String>) + 'static,
+) -> Result<(), String> {
+    portal_request("PickColor", move |r| {
+        done(r.and_then(|v| {
+            v.get("color")
+                .and_then(|v| v.get::<(f64, f64, f64)>())
+                .filter(|(r, g, b)| {
+                    [*r, *g, *b]
+                        .iter()
+                        .all(|v| v.is_finite() && (0. ..=1.).contains(v))
+                })
+                .ok_or("No valid color returned".into())
+        }))
+    })
+}
+fn portal_request(
+    method: &'static str,
+    done: impl FnOnce(Result<HashMap<String, glib::Variant>, String>) + 'static,
+) -> Result<(), String> {
     let bus = gio::bus_get_sync(gio::BusType::Session, gio::Cancellable::NONE)
         .map_err(|e| e.to_string())?;
     let token = format!("snip{}_{}", std::process::id(), glib::monotonic_time());
@@ -138,12 +169,7 @@ pub fn portal(done: impl FnOnce(Result<Pixbuf, String>) + 'static) -> Result<(),
                     if code != 0 {
                         return Err("Capture cancelled.".into());
                     }
-                    let uri = results
-                        .get("uri")
-                        .and_then(|v| v.get::<String>())
-                        .ok_or("No screenshot returned")?;
-                    let (file, _) = glib::filename_from_uri(&uri).map_err(|e| e.to_string())?;
-                    crate::load_image(&file)
+                    Ok(results)
                 })());
             }
         },
@@ -153,23 +179,30 @@ pub fn portal(done: impl FnOnce(Result<Pixbuf, String>) + 'static) -> Result<(),
         ("handle_token", token.to_variant()),
         ("interactive", true.to_variant()),
     ]);
-    let result = bus.call_sync(
+    let failure_cb = cb.clone();
+    let failure_watch = watch.clone();
+    let failure_bus = bus.clone();
+    bus.call(
         Some("org.freedesktop.portal.Desktop"),
         "/org/freedesktop/portal/desktop",
         "org.freedesktop.portal.Screenshot",
-        "Screenshot",
+        method,
         Some(&("", opts).to_variant()),
         None,
         gio::DBusCallFlags::NONE,
         5000,
         gio::Cancellable::NONE,
+        move |result| {
+            if let Err(e) = result {
+                if let Some(id) = failure_watch.borrow_mut().take() {
+                    failure_bus.signal_unsubscribe(id);
+                }
+                if let Some(cb) = failure_cb.borrow_mut().take() {
+                    cb(Err(e.to_string()));
+                }
+            }
+        },
     );
-    if let Err(e) = result {
-        if let Some(id) = watch.borrow_mut().take() {
-            bus.signal_unsubscribe(id)
-        }
-        return Err(e.to_string());
-    }
     // A vanished portal must not leave the editor hidden indefinitely.
     glib::timeout_add_local_once(std::time::Duration::from_secs(120), move || {
         if let Some(id) = watch.borrow_mut().take() {

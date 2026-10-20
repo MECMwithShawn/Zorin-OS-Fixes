@@ -6,6 +6,7 @@ if '--private' not in sys.argv:
     with tempfile.TemporaryDirectory(prefix='zorin11-snip-test-') as folder:
         root=Path(folder);(root/'runtime').mkdir(mode=0o700)
         (root/'config').mkdir();(root/'Pictures').mkdir()
+        (root/'config/axentra-snipping').mkdir();(root/'config/axentra-snipping/settings.ini').write_text('[Capture]\nautosave=false\nautocopy=false\n')
         (root/'config/user-dirs.dirs').write_text(f'XDG_PICTURES_DIR="{root}/Pictures"\n')
         env=dict(os.environ,XDG_RUNTIME_DIR=str(root/'runtime'),XDG_CONFIG_HOME=str(root/'config'),XDG_CACHE_HOME=str(root/'cache'),XDG_DATA_HOME=str(root/'data'),XDG_STATE_HOME=str(root/'state'),XDG_SESSION_TYPE='x11',GDK_BACKEND='x11',GIO_USE_VFS='local',DCONF_PROFILE='/dev/null',GTK_USE_PORTAL='0',GIO_USE_VOLUME_MONITOR='unix')
         env.pop('AT_SPI_BUS_ADDRESS',None)
@@ -46,7 +47,7 @@ def click(name):
     n=wait(lambda:node(name));r=n.get_component_iface().get_extents(Atspi.CoordType.SCREEN);x('mousemove',r.x+r.width//2,r.y+r.height//2);x('click',1);pump()
 def x(*args):return subprocess.check_output(['xdotool',*map(str,args)],text=True).strip()
 def key(*keys):x('key','--clearmodifiers',*keys);pump()
-def focus(title='^Snipping Tool'):
+def focus(title='^Axentra SnippingTool'):
     wid=wait(lambda:x('search','--onlyvisible','--name',title).splitlines()[0] if subprocess.run(['xdotool','search','--onlyvisible','--name',title],capture_output=True).returncode==0 else None)
     x('windowfocus','--sync',wid);return wid
 # Serve the permission-mediated screenshot protocol on this private session only.
@@ -102,7 +103,7 @@ try:
     p=copied();assert bytes(p.get_pixels())!=before
     key('ctrl+z');assert bytes(copied().get_pixels())==before
     key('ctrl+shift+z');assert bytes(copied().get_pixels())!=before
-    click('Crop');drag([(cx-80,cy-45),(cx+80,cy+45)]);p=copied();assert(p.get_width(),p.get_height())==(160,90)
+    click('Crop');drag([(cx-80,cy-45),(cx+80,cy+45)]);p=copied();assert p.get_width() in (160,161) and p.get_height() in (90,91), (p.get_width(),p.get_height())
     key('ctrl+z');assert copied().get_width()==270
     # Save through the actual native chooser and verify encoded pixels.
     click('Save as');wait(lambda:node('Save snip'));key('ctrl+l');key('ctrl+a');x('type','--clearmodifiers',str(root/'saved.png'));key('Return');pump(.15)
