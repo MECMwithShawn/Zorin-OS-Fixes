@@ -1,5 +1,19 @@
 # Validation — 2026-10-17
 
+## GNOME Event Viewer — 2026-10-20
+
+- Added a standalone GTK3 Event Viewer and desktop entry. Its dark sidebar, event list, severity icons and selectable details were visually checked on an isolated display and the installed Zorin GNOME/X11 desktop. The new modules do not import the shared Hub or Explorer frontend.
+- Six backend tests passed: allowlisted journal arguments, kernel queries across boot/time ranges, metadata and literal message handling, malformed/binary/missing fields, record limits, real subprocess output/failure, byte limits, timeouts and cancellation. The 19 package tests passed, including fresh launcher/helper installation, repeated upgrade, original-file recovery and preservation of later user edits.
+- The native GTK integration test uses a private Xvfb display/D-Bus session, temporary config/cache/runtime directories and a real fixture `journalctl` subprocess. It passed scope/time/severity controls, multi-term search, selection/details, Copy event on the private clipboard, refresh selection retention, stale-query cancellation, error/retry/empty states, the actual five-second auto-refresh timer, keyboard controls and close-time cancellation.
+- Installed only the two new helpers and launcher through the recovery manifest. All 30 pre-existing records remained intact. The real desktop entry passed validation, appeared in the GNOME app catalog and activated the existing Event Viewer instance without duplicating its window.
+- Live journal checks returned 250 events each for Application, System and Kernel without access warnings; the current-boot kernel error filter returned three events. The installed window passed selection/details, search, severity/time changes and refresh against real journal data. Test windows were closed and prior focus restored. Private journal data and screenshots remain outside Git; real event text was not copied to the user's clipboard.
+- The shared checkout and installed Explorer/Hub/frontend files retained their original hashes. No shared frontend rebuild, Hub restart or full installation was performed. Mutter still reported laptop and Dell at 100% scale.
+- Permission failures are covered by a fixture; actual restricted-account and native Wayland testing remain pending. The host accessibility bus was unavailable, so screen-reader validation is not claimed. Application logs are limited to messages in the user's journal; previous-boot history depends on retention. Queries load at most 250 events/4 MiB, time out after four seconds and truncate individual fields at 16,000 characters.
+
+Reproduce the feature checks with `/usr/bin/python3 -m unittest -v test_event_logs.py` and `/usr/bin/python3 test_event_viewer_live.py` from `companion/`, plus `/usr/bin/python3 -m unittest discover -s tests -v` from `windows11-desktop/`. The native test requires Xvfb and `dbus-run-session`; `ZORIN11_TEST_OUTPUT` optionally saves a fixture-only screenshot.
+
+## Original Xfce validation — 2026-10-17
+
 Validated on Zorin OS 18.1 Lite, Xfce 4.20, X11, Ubuntu noble, x86-64.
 
 - Six persistence/model tests, five file-operation tests, and six portability tests passed.

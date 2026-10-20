@@ -47,16 +47,29 @@ def folder_defaults(content):
     return keyfile.to_data()[0].encode()
 
 
+def event_viewer_entry():
+    return (f'[Desktop Entry]\nType=Application\nName=Event Viewer\n'
+            f'Comment=Application, system and kernel event logs\n'
+            f'Exec=/usr/bin/python3 "{DEST / "event_viewer.py"}"\n'
+            'Icon=utilities-system-monitor\nTerminal=false\nCategories=System;Monitor;\n'
+            'Keywords=Logs;Events;Journal;Errors;Warnings;\n'
+            'StartupWMClass=Zorin11-event-viewer\nOnlyShowIn=GNOME;\n').encode()
+
+
 def install():
     # Sources are managed runtime files; personal state lives under .config.
     DEST.mkdir(parents=True,exist_ok=True)
     shutil.copytree(ROOT/'companion',DEST,dirs_exist_ok=True,
-        ignore=shutil.ignore_patterns('node_modules','__pycache__','test_*','.pnpm*','src','pnpm-lock.yaml'))
+        ignore=shutil.ignore_patterns('node_modules','__pycache__','test_*','.pnpm*','src','pnpm-lock.yaml',
+                                     'event_logs.py','event_viewer.py'))
     for helper in ('gnome_setup.py','gnome_install.py'):shutil.copy2(ROOT/helper,DEST/helper)
     extension_files={EXTENSION/p.relative_to(ROOT/'gnome-extension'):p.read_bytes()
                      for p in (ROOT/'gnome-extension').rglob('*') if p.is_file() and p.name!='gschemas.compiled'}
     for icon in ('start.svg','search.svg','taskview.svg'):extension_files[EXTENSION/icon]=(ROOT/'companion'/icon).read_bytes()
     files=dict(extension_files)
+    # Journal these standalone helpers before writing, like their launcher.
+    for helper in ('event_logs.py','event_viewer.py'):
+        files[DEST/helper]=(ROOT/'companion'/helper).read_bytes()
     apps=HOME/'.local/share/applications'
     for ident,name,args,icon,wm in [
         ('start','Start','--toggle-start',str(DEST/'start.svg'),'Zorin11-hub'),
@@ -69,6 +82,7 @@ def install():
     ]:files[apps/f'zorin11-{ident}.desktop']=desktop(name,args,icon,wm)
     files[apps/'gnome-bluetooth-panel.desktop']=desktop('Bluetooth','--settings devices','bluetooth','Zorin11-settings','Settings;HardwareSettings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\n'
     files[apps/'zorin11-explorer.desktop']+=b'MimeType=inode/directory;\nKeywords=Files;Folders;File Manager;Explorer;\n'
+    files[apps/'zorin11-event-viewer.desktop']=event_viewer_entry()
     launcher=f'/usr/bin/env GDK_BACKEND=x11 /usr/bin/python3 "{DEST / "app.py"}"'
     files[apps/'zorin11-explorer.desktop']+=(f'Actions=new-window;this-pc;\n\n'
         f'[Desktop Action new-window]\nName=New window\nExec={launcher} --explorer\n\n'
