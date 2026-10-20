@@ -163,6 +163,6 @@ GNOME support shares the repository's Linux-based Windows-style experience; it d
 
 ## Playback audio enhancements
 
-Settings → System → Sound and Quick Settings → Sound output include Off, Balanced, Bass boost, Vocal clarity, Movies, Gaming and Night listening. Six stereo PipeWire peaking filters shape playback at 60, 170, 500, 2k, 6k and 12k Hz. Preset headroom reduces clipping and may lower perceived volume. Night listening is EQ, not a compressor; surround processing is not included.
+Settings → System → Sound and Quick Settings → Sound output include Off, Balanced, Music, Bass boost, Vocal clarity, Movies, Gaming and Night listening. Six stereo PipeWire peaking filters shape playback at 60, 170, 500, 2k, 6k and 12k Hz. Preset headroom reduces clipping and may lower perceived volume. Night listening is EQ, not a compressor; surround processing is not included.
 
 Choosing a preset enables `zorin11-audio-effects.service` for your user and saves the choice across sign-in. Off stops/disables it and returns streams to their physical output. Hardware volume, default physical output and microphone routing stay unchanged. Output changes rebuild the graph; new default-output playback streams are routed within approximately half a second. Missing PipeWire tools disable the controls.

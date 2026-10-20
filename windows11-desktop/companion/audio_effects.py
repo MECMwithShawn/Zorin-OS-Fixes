@@ -20,6 +20,7 @@ FREQUENCIES = [60, 170, 500, 2000, 6000, 12000]
 PRESETS = [
     dict(id='off', name='Off', detail='Original sound, without equalization.', gains=[0]*6),
     dict(id='balanced', name='Balanced', detail='A gentle lift to bass and detail.', gains=[2, 1, -1, 0, 1, 1]),
+    dict(id='music', name='Music', detail='Warm bass and a gentle treble lift for music.', gains=[3, 1, -1, 0, 2, 2]),
     dict(id='bass', name='Bass boost', detail='More low-end weight for music.', gains=[6, 3, 0, -1, 0, 0]),
     dict(id='voice', name='Vocal clarity', detail='Less rumble and clearer voices for speech and calls.', gains=[-5, -3, 0, 3, 2, -1]),
     dict(id='movies', name='Movies', detail='Fuller bass with clearer dialogue.', gains=[4, 2, -1, 2, 1, 0]),

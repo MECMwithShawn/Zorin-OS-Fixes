@@ -1,7 +1,7 @@
 ## Playback EQ presets — 2026-10-20
 
-- Settings and Quick Settings expose seven choices including Off, real processing status, unavailable/error states and six-band gains. Twenty-seven targeted Python tests and the audio, Explorer and Quick Settings browser tests passed.
-- A private D-Bus/PipeWire/WirePlumber session with hardware monitors disabled measured all six presets against expected biquad responses (maximum error 0.001 dB). Existing/new streams, live preset changes, output switching, unchanged hardware volume/default output and Off cleanup passed on silent virtual devices. Run `companion/test_audio_effects_live.py` to reproduce.
+- Settings and Quick Settings expose eight choices including Off, real processing status, unavailable/error states and six-band gains. Twenty-seven targeted Python tests and the audio, Explorer and Quick Settings browser tests passed.
+- A private D-Bus/PipeWire/WirePlumber session with hardware monitors disabled measured all seven presets against expected biquad responses (maximum error 0.001 dB). Existing/new streams, live preset changes, output switching, unchanged hardware volume/default output and Off cleanup passed on silent virtual devices. Run `companion/test_audio_effects_live.py` to reproduce.
 - Installed on the running desktop. Balanced created the real DSP graph while preserving the default output, microphone and hardware volume. Off restored playback and removed the virtual sink. Installed Settings shows Audio enhancements with no frontend errors; OneDrive remains mounted and the background thumbnail service continues.
 - A legacy wallpaper test was found to touch GNOME despite mocking Xfce. Its test setup now explicitly selects the mocked backend. The live background was restored to the installed Zorin defaults after that test; wallpaper assets were not removed.
 

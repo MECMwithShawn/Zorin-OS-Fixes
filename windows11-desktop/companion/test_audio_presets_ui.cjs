@@ -24,7 +24,7 @@ const fixture=JSON.parse(require('child_process').execFileSync('/usr/bin/python3
   await page.waitForSelector('.settings-shell');
   await page.evaluate(()=>window.receive({type:'show',page:'sound'}));
   const select=page.getByRole('combobox',{name:'Audio preset'});
-  assert.equal(await select.locator('option').count(),7);
+  assert.equal(await select.locator('option').count(),8);
   for(const p of fixture.presets){
    await select.selectOption(p.id);
    await page.waitForFunction(id=>document.querySelector('[aria-label="Audio preset"]').value===id && document.querySelectorAll('.audio-preset-bands dd').length===(id==='off'?0:6),p.id);
