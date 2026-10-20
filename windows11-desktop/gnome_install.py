@@ -32,6 +32,14 @@ def desktop(name,args,icon,wmclass='Zorin11-hub',categories='Utility;'):
     launcher=f'/usr/bin/env GDK_BACKEND=x11 /usr/bin/python3 "{DEST / "app.py"}"'
     return f'[Desktop Entry]\nType=Application\nName={name}\nExec={launcher} {args}\nIcon={icon}\nTerminal=false\nCategories={categories}\nStartupWMClass={wmclass}\n'.encode()
 
+def display_details_entry():
+    return (f'[Desktop Entry]\nType=Application\nName=Advanced display\n'
+            f'Comment=Display resolution, refresh rate, scaling and graphics details\n'
+            f'Exec=/usr/bin/python3 "{DEST / "display_details.py"}"\n'
+            'Icon=video-display\nTerminal=false\nCategories=Settings;HardwareSettings;\n'
+            'Keywords=Monitor;Resolution;Refresh;Scale;DPI;GPU;Graphics;\n'
+            'StartupWMClass=Zorin11-display-details\nOnlyShowIn=GNOME;\n').encode()
+
 
 def explorer_favorites(favorites):
     replacements={'org.gnome.Nautilus.desktop':'zorin11-explorer.desktop',
@@ -58,6 +66,7 @@ def install():
     for icon in ('start.svg','search.svg','taskview.svg'):extension_files[EXTENSION/icon]=(ROOT/'companion'/icon).read_bytes()
     files=dict(extension_files)
     apps=HOME/'.local/share/applications'
+    files[apps/'zorin11-display-details.desktop']=display_details_entry()
     for ident,name,args,icon,wm in [
         ('start','Start','--toggle-start',str(DEST/'start.svg'),'Zorin11-hub'),
         ('explorer','File Explorer','--explorer %U',str(DEST/'explorer.svg'),'Zorin11-explorer'),

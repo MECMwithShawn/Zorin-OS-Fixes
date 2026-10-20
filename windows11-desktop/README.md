@@ -150,3 +150,11 @@ ZORIN11_TEST_FEEDS=1 python3 tests/gnome_live.py
 The GNOME live test starts a private headless Mutter/Wayland compositor, private D-Bus, settings, runtime and companion state. It exercises the shared UI, native Wayland resizing/desktops/thumbnails, notification read/dismiss, every installed Zorin thumbnail and wallpaper apply/restore. It closes only its disposable processes and windows. The default run does not access image feeds.
 
 GNOME support shares the repository's Linux-based Windows-style experience; it does not provide Windows APIs, Microsoft Windows Terminal, Phone Link, Windows Widgets or commercial Start11/Fences binaries. The broader feature inventory is in [PARITY.md](PARITY.md).
+
+## Advanced display (GNOME)
+
+Open Start and search **Advanced display** for a standalone dark display-details window. It lists the main screen first, current and preferred resolution, refresh rate, scale, rotation, position, supported modes and reported panel size/current-mode DPI. Choose another monitor with the selector; display changes refresh automatically, with manual Refresh or F5 available. **Open display settings** opens GNOME's arrangement/scaling controls.
+
+Graphics adapters use optional `lspci`; the OpenGL diagnostic renderer uses optional `glxinfo`. Missing tools or panel dimensions show Unavailable. The diagnostic renderer is not necessarily the GPU used by other applications or the compositor. The window only reads display configuration; it never changes modes or drivers. This standalone launcher is installed immediately without rebuilding the shared companion frontend or requiring sign-out.
+
+Validation: `/usr/bin/python3 -m unittest discover -s companion -p test_display_details.py` and `/usr/bin/python3 companion/test_display_details_live.py` (the latter requires python3-dbus and Xvfb).
