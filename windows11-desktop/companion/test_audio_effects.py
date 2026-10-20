@@ -78,6 +78,23 @@ class AudioTests(unittest.TestCase):
             eq.move(5, eq.SINK)
             command.assert_called_once_with(['pactl','move-sink-input','1',eq.SINK])
 
+    def test_upgrade_restarts_old_daemon_before_waiting_for_new_preset(self):
+        eq.save(eq.STATE, dict(preset='voice'))
+        eq.save(eq.STATUS, dict(active=True, preset='voice', updated=time.time()))
+        def service(args, **_kwargs):
+            if 'restart' in args:
+                eq.save(eq.STATUS, dict(active=True, preset='music',
+                                       updated=time.time(), version=eq.ENGINE_VERSION))
+            return ''
+        with patch.object(eq, 'available', return_value=True), patch.object(eq, 'run', side_effect=service) as command:
+            eq.configure('music')
+            self.assertEqual(eq.selection(), 'music')
+            self.assertTrue(eq.snapshot()['active'])
+            self.assertTrue(any('restart' in c.args[0] for c in command.call_args_list))
+            command.reset_mock()
+            eq.configure('music')
+            self.assertFalse(any('restart' in c.args[0] for c in command.call_args_list))
+
     def test_settings_delegates_presets_and_hides_processing_sink(self):
         with patch.object(eq, 'configure') as configure:
             settings.apply('audioPreset', 'night')

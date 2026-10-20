@@ -26,7 +26,7 @@ if '--private' not in sys.argv:
             for monitor in ('alsa_monitor', 'bluez_monitor', 'v4l2_monitor', 'libcamera_monitor'):
                 text = text.replace('\n'+monitor+'.enable()', '\n-- private test: '+monitor)
             path.write_text(text)
-        env = dict(os.environ, XDG_RUNTIME_DIR=str(root/'runtime'), XDG_CONFIG_HOME=str(root/'config'),
+        env = dict(os.environ, GIO_USE_VFS='local', XDG_RUNTIME_DIR=str(root/'runtime'), XDG_CONFIG_HOME=str(root/'config'),
                    XDG_STATE_HOME=str(root/'state'), XDG_CACHE_HOME=str(root/'cache'),
                    XDG_DATA_HOME=str(root/'data'), PIPEWIRE_REMOTE='pipewire-0',
                    PULSE_SERVER='unix:'+str(root/'runtime/pulse/native'), WIREPLUMBER_CONFIG_DIR=str(wp))

@@ -1,5 +1,6 @@
 """Playback-only PipeWire equalizer; hardware volume and default output stay intact."""
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -16,6 +17,8 @@ STATUS = RUNTIME/'status.json'
 SINK = 'zorin11.eq.input'
 PLAYBACK = 'zorin11.eq.output'
 UNIT = 'zorin11-audio-effects.service'
+# Capture the loaded code's identity, not the potentially upgraded file on disk.
+ENGINE_VERSION = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 FREQUENCIES = [60, 170, 500, 2000, 6000, 12000]
 PRESETS = [
     dict(id='off', name='Off', detail='Original sound, without equalization.', gains=[0]*6),
@@ -88,12 +91,17 @@ def configure(ident):
     with open(ROOT/'audio-effects.lock', 'a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         previous = selection()
+        previous_status = read_json(STATUS, {})
         save(STATE, dict(preset=ident))
         try:
             if ident == 'off':
                 run(['systemctl', '--user', 'disable', '--now', UNIT], timeout=12)
                 return
             run(['systemctl', '--user', 'enable', '--now', UNIT], timeout=8)
+            if (previous_status.get('active')
+                    and time.time()-previous_status.get('updated', 0) < 6
+                    and previous_status.get('version') != ENGINE_VERSION):
+                run(['systemctl', '--user', 'restart', UNIT], timeout=12)
             deadline = time.monotonic()+8
             while time.monotonic() < deadline:
                 status = read_json(STATUS, {})
@@ -284,12 +292,23 @@ def main():
                 except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
                     engine.stop()
                     active, error = False, 'Audio processing is unavailable. Original playback has been restored.'
-                save(STATUS, dict(preset=ident, active=active, error=error, updated=time.time()))
+                save(STATUS, dict(preset=ident, active=active, error=error,
+                                  updated=time.time(), version=ENGINE_VERSION))
                 stopped.wait(.5)
         finally:
             engine.stop()
-            save(STATUS, dict(preset=selection(), active=False, error='', updated=time.time()))
+            save(STATUS, dict(preset=selection(), active=False, error='',
+                              updated=time.time(), version=ENGINE_VERSION))
 
 
 if __name__ == '__main__':
-    main()
+    import sys
+    if len(sys.argv) == 3 and sys.argv[1] == '--set':
+        try: configure(sys.argv[2])
+        except Exception as error:
+            print(str(error), file=sys.stderr)
+            sys.exit(1)
+    elif len(sys.argv) == 1:
+        main()
+    else:
+        sys.exit('Usage: audio_effects.py [--set PRESET]')
