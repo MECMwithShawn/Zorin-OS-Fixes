@@ -6,7 +6,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 
 ## P0 — Highest-impact desktop improvements
 - [x] Taskbar: live grouped hover thumbnails, per-window Close, minimized/icon fallbacks and scrollable overflow. Includes launcher-less app grouping; verified on Xfwm, Compiz and the installed desktop on 2026-10-18.
-- [ ] Taskbar: per-app badges and progress indicators when real application state is available.
+- [x] GNOME taskbar: native per-app notification badges and app-reported progress indicators, with partial updates, visibility controls and sender-exit cleanup. Native protocol fixture, taskbar rebuilds, disable/enable and desktop-strip hover/click verified 2026-10-19. New extension code loads at the next sign-in.
+- [ ] Xfce taskbar: per-app badges and progress indicators when real application state is available.
 - [x] Taskbar: Snap Group cards with live layout previews; restore grouped positions and minimized members together; remove stale/closed members.
 - [x] Window switching: native GTK Alt+Tab chooser with individual windows and Snap Groups, live mosaics, combined MRU, forward/reverse cycling, release-to-select and Escape. Xfce shortcuts work on Xfwm and Compiz; verified 2026-10-18.
 - [x] Start: app folders with drag/drop creation, persistent ordering, rename, keyboard-accessible move controls and ungrouping. Shared GNOME/Xfce interface; verified 2026-10-19.

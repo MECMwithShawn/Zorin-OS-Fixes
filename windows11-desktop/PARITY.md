@@ -8,7 +8,7 @@ GNOME backend (2026-10-19): shared Start, Explorer, Settings, Quick Settings, no
 | Area | Delivered | Remaining differences / next work |
 |---|---|---|
 | 1. Desktop | Dark appearance, personal Windows icons, This PC, shortcut groups, Spotlight/Bing rotation with history and Zorin backgrounds; GNOME Windows-style desktop background menu and Personalize routing | File selection menus/visuals remain native; Xfce retains its desktop menu; a new GNOME menu extension needs the next sign-in; Spotlight refresh is per login session |
-| 2. Taskbar | Centered Start/app area, 32 px icons, distinct active/running/closed states through Docklike, live grouped hover thumbnails with close buttons, bounded overflow and minimized/icon fallbacks, live Snap Group cards with whole-layout restoration; Task View button, search, tray overflow, compact Fluent network/audio, clock/date, laptop battery retained | Desktop peek, badges/progress and per-monitor taskbars need further work |
+| 2. Taskbar | Centered Start/app area, 32 px icons, distinct active/running/closed states through Docklike, live grouped hover thumbnails with close buttons, bounded overflow and minimized/icon fallbacks, live Snap Group cards with whole-layout restoration; Task View button, search, tray overflow, compact Fluent network/audio, clock/date, laptop battery retained; GNOME native notification badges, app-reported progress bars and narrow Show desktop/hover-peek strip | Xfce badge/progress integration and per-monitor taskbars need further work; GNOME progress requires LauncherEntry support in the app |
 | 3. Start | Anchored rounded panel, pinned grid/reordering, persistent app folders with drag/drop and keyboard controls, All apps/categories, search, recent apps/documents with privacy controls, installed desktop-entry actions, verified native GNOME account/power actions | App-specific recent-file jump lists |
 | 4. Search | Unified apps, scoped local filenames/folders and Settings search with configurable folders/exclusions; category filters, keyboard navigation, safe file previews and Open file location | Whole-disk/content indexing and remaining Windows keyboard conventions |
 | 5. Window frames | Dark Xfwm/Compiz frames, thin borders, large caption targets, red Close hover, companion captions and edge/corner resizing | Third-party custom title bars and corner/shadow parity vary |
@@ -36,7 +36,7 @@ GNOME backend (2026-10-19): shared Start, Explorer, Settings, Quick Settings, no
 ## Next implementation priorities
 
 1. App-specific recent-file jump lists; recent documents, configurable search scopes and installed desktop-entry actions are complete.
-2. Additional Explorer preview formats and GNOME taskbar badge/progress integration; transfer/conflict dialogs are complete.
+2. Additional Explorer preview formats and Xfce taskbar badge/progress integration; GNOME app-reported progress and native badges are implemented, and transfer/conflict dialogs are complete.
 3. Additional Settings pages and native dialog styling; close remaining icon and spacing differences against the user's Windows reference.
 4. Battery-saver and connected-device controls, plus richer notification actions where supported.
 5. Validate on the laptop, especially real backlight control, battery, touchpad, scaling, suspend and multiple displays.

@@ -8,6 +8,7 @@ import Clutter from 'gi://Clutter';
 import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import {TaskbarProgress} from './taskbar-progress.js';
 
 const XML = `<node><interface name="local.zorin11.Gnome">
 <method name="Call"><arg direction="in" type="s"/><arg direction="out" type="s"/></method>
@@ -54,6 +55,7 @@ export default class Zorin11 extends Extension {
         this._connect(Main.layoutManager,'monitors-changed',()=>this._panels());
         if(global.zorinTaskbar)this._connect(global.zorinTaskbar,'panels-created',()=>this._panels());
         this._panels();
+        this._taskbarProgress=new TaskbarProgress();
     }
     _syncMenu() {
         const menu=Main.extensionManager.lookup('zorin-menu@zorinos.com')?.stateObj;
@@ -160,6 +162,7 @@ export default class Zorin11 extends Extension {
         const p=JSON.parse(text), wm=global.workspace_manager;
         let result=true;
         switch(p.op) {
+        case 'taskbar-status': result=this._taskbarProgress?.snapshot() || [];break;
         case 'panels': result=(global.zorinTaskbar?.panels?.map(panel=>panel.panel)||[Main.panel]).map(panel=>({
             zorinStartVisible:panel.statusArea['zorin-menu']?.visible||false,
             windowsStartVisible:panel.statusArea['zorin11-start']?.visible||false}));break;
@@ -216,6 +219,7 @@ export default class Zorin11 extends Extension {
         return JSON.stringify(result);
     }
     disable() {
+        this._taskbarProgress?.destroy();this._taskbarProgress=null;
         this._injections?.clear();
         for(const {settings,key,before} of this._bindingChanges || [])if(settings.get_strv(key).length===0)settings.set_value(key,before);
         this._bindingChanges=[];
