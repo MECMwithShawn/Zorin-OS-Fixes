@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 import tempfile
 import time
+import threading
 from types import SimpleNamespace
 from urllib.parse import urlparse, quote
 import json
@@ -76,7 +77,7 @@ class ThumbnailTests(unittest.TestCase):
 
     def test_service_cache_and_stale_delivery(self):
         from gi.repository import GLib
-        service = t.Service()
+        service = t.Service(self.root/'cache')
         results = []
         def wait():
             end = time.monotonic()+4
@@ -106,6 +107,80 @@ class ThumbnailTests(unittest.TestCase):
         finally:
             service.close()
             service.pool.shutdown(wait=True)
+
+    def test_persistent_cache_invalidation_limits_and_unwritable_storage(self):
+        cache = t.DiskCache(self.root/'cache')
+        original = cache.load(str(self.path), self.version(), lambda: True)
+        key = cache.key(str(self.path), self.version())
+        self.assertTrue(original)
+        with patch.object(t, 'read', side_effect=AssertionError('Must reuse disk cache after restart')):
+            fresh = t.DiskCache(cache.root)
+            self.assertEqual(fresh.load(str(self.path), self.version(), lambda: True), original)
+        self.assertEqual(cache.root.stat().st_mode & 0o777, 0o700)
+        self.assertEqual((cache.root/(key+'.png')).stat().st_mode & 0o777, 0o600)
+        info = self.path.stat()
+        remounted = SimpleNamespace(st_mode=info.st_mode, st_dev=999, st_ino=999,
+                                    st_mtime=info.st_mtime, st_size=info.st_size,
+                                    st_mtime_ns=info.st_mtime_ns, st_ctime_ns=info.st_ctime_ns)
+        with patch.object(t.os, 'stat', return_value=remounted):
+            self.assertEqual(cache.key(str(self.path), [info.st_mtime, info.st_size]), key)
+        Image.new('RGB', (800, 400), 'blue').save(self.path)
+        self.assertNotEqual(cache.key(str(self.path), self.version()), key)
+        self.assertNotEqual(cache.load(str(self.path), self.version(), lambda: True), original)
+        with patch.object(t, 'DISK_LIMIT', 1):
+            cache.prune()
+        self.assertEqual(list(cache.root.glob('*.png')), [])
+        # A cache path occupied by a regular file cannot break the displayed photo.
+        blocked = self.root/'blocked'
+        blocked.write_text('not a directory')
+        self.assertTrue(t.DiskCache(blocked).load(str(self.path), self.version(), lambda: True))
+
+    def test_prefetch_coalesces_visible_work_and_reserves_a_foreground_worker(self):
+        from gi.repository import GLib
+        service = t.Service(self.root/'cache')
+        self.addCleanup(service.close)
+        release = threading.Event()
+        started = []
+        results = []
+        alive = [True]
+        other = self.root/'next.jpg'
+        Image.new('RGB', (100, 100), 'green').save(other)
+        entries = [dict(path=str(p), folder=False, modified=self.version(p)[0], size=self.version(p)[1])
+                   for p in (self.path, other)]
+        def load(path, *_args):
+            started.append(path)
+            if path == str(self.path):
+                release.wait(3)
+            return b'PNG fixture'
+        def wait(condition):
+            end = time.monotonic()+4
+            while not condition() and time.monotonic() < end:
+                GLib.MainContext.default().iteration(False)
+                time.sleep(.005)
+            self.assertTrue(condition())
+        try:
+            with patch.object(service.disk, 'load', side_effect=load), \
+                    patch.object(t, 'finish', side_effect=lambda request, content=b'': results.append((request,content))):
+                service.prefetch('window', entries, lambda: alive[0])
+                wait(lambda:len(started)==1)
+                service.request('same', str(self.path), self.version(), lambda: alive[0])
+                service.request('visible', str(other), self.version(other), lambda: True)
+                wait(lambda:any(r[0]=='visible' for r in results))
+                self.assertEqual(started.count(str(self.path)), 1)
+                alive[0] = False
+                release.set()
+                wait(lambda:any(r[0]=='same' for r in results))
+                self.assertIn(('same', b''), results)
+        finally:
+            release.set()
+            service.close()
+            service.pool.shutdown(wait=True)
+
+    def test_background_does_not_hydrate_online_only_photos(self):
+        disk = t.DiskCache(self.root/'cache')
+        with patch.object(t.os, 'getxattr', return_value=b'online'), patch.object(t, 'read') as decode:
+            self.assertEqual(disk.load(str(self.path), self.version(), lambda: True, background=True), b'')
+            decode.assert_not_called()
 
     def test_request_requires_own_current_listing_and_version(self):
         from unittest.mock import Mock

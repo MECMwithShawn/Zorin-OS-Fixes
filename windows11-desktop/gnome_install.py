@@ -89,7 +89,12 @@ def install():
     import window_style
     css=HOME/'.config/gtk-3.0/gtk.css'
     files[css]=window_style.css(css.read_text() if css.exists() else '',DEST).encode()
+    import thumbnail_cache
+    files.update({HOME/'.config/systemd/user'/name:text.encode()
+                  for name,text in thumbnail_cache.units(DEST).items()})
     write_files(files)
+    subprocess.run(['systemctl','--user','daemon-reload'],check=True)
+    subprocess.run(['systemctl','--user','enable','--now','zorin11-thumbnail-cache.timer'],check=True)
     subprocess.run(['glib-compile-schemas',str(EXTENSION/'schemas')],check=True)
     subprocess.run(['update-desktop-database',str(apps)],check=True)
     Gio,GLib=gnome_setup.bindings()
@@ -120,6 +125,8 @@ def install():
 
 def restore():
     if os.geteuid()==0:raise RuntimeError("Run as your desktop user, without sudo.")
+    subprocess.run(['systemctl','--user','disable','--now','zorin11-thumbnail-cache.timer'],capture_output=True)
+    subprocess.run(['systemctl','--user','stop','zorin11-thumbnail-cache.service'],capture_output=True)
     subprocess.run(['gnome-extensions','disable',UUID],capture_output=True)
     if DEST.joinpath('app.py').exists():
         # Ask only an existing instance to quit, without starting a new UI.
@@ -146,6 +153,7 @@ def restore():
                 remaining.append(record)
         if remaining:gnome_setup.save(remaining,FILES)
         else:FILES.unlink()
+    subprocess.run(['systemctl','--user','daemon-reload'],capture_output=True)
     gnome_setup.restore()
 
 

@@ -1,5 +1,16 @@
 # Validation — 2026-10-17
 
+## Persistent thumbnails and background library cache — 2026-10-20
+
+- Added a private disk cache that survives companion restarts, validates file identity and timestamps, and evicts old entries around 2 GiB / 32,768 images. Folder prefetch coalesces requests, reserves capacity for visible images and stops obsolete work. It skips online-only OneDrive items.
+- Added a low-priority systemd user service/timer for Pictures and the configured OneDrive library. It walks supported photos recursively, reuses unchanged cache entries, skips symlinks/hidden/dependency directories, and scans again 15 minutes after a completed pass. Online-only reads are opt-in; explicitly enabled on the requested desktop. Source photos, OneDrive configuration and Explorer's OneDrive backend are not modified.
+- Passed 24 combined thumbnail/library/preview/Explorer tests and 8 GNOME tests. Coverage includes persistent cache reuse in a fresh instance, invalidation, eviction, unwritable storage, deduplicated foreground/background requests, cancellation, recursive library traversal and cloud download policy. The actual WebKit thumbnail/OneDrive navigation test passed with folder prefetch enabled. systemd verified both generated units.
+- Applied the helpers and units locally with recovery records, enabled the timer, and started the full background pass. Verified its 25% CPU quota, nice level 15 and 768 MiB memory limit. A fresh process loaded 80 cached OneDrive photo thumbnails in approximately 4.5 ms without invoking a decoder. The initial library pass remains background work; completion of the full library is not claimed.
+- Verified OneDrive remains signed in and its Explorer backend hash is unchanged. A fresh GTK 3 picture chooser enumerated 139 eligible root entries; GTK 4's image-filtered chooser listed 139 entries at the OneDrive root and 150 in Photos and successfully opened a selected photo. The earlier empty chooser could not be reproduced after reopening; no OneDrive filesystem patch was made.
+- Real-photo cache, private chooser diagnostics and screenshots remain local. Unsupported/oversized/corrupt images keep their generic icon. Account picture contents were not changed.
+
+Reproduce with `/usr/bin/python3 -m unittest -v test_file_thumbnails.py test_thumbnail_cache.py test_file_preview.py test_explorer.py` and `/usr/bin/python3 test_thumbnails_live.py --onedrive` from `companion/`. Run `thumbnail_cache.py --root /path/to/test/photos` to exercise a library pass independently.
+
 ## Explorer image thumbnails — 2026-10-20
 
 - Explorer's grid previously displayed type icons for every image. Added actual raster thumbnails in Large icons and Details, with an 80 px large-icon area, preserved aspect ratio, corrected EXIF orientation and lazy viewport loading. The separate Preview pane retains its existing behavior.

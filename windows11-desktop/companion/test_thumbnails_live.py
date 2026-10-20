@@ -92,6 +92,7 @@ with tempfile.TemporaryDirectory(prefix='thumbnail-files-') as temp:
         surface.file_state = explorer.listing(str(path))
         surface.file_state['clouds'] = [dict(name='OneDrive - Personal',path=str(photos.parent),icon='folder')]
         send(dict(type='state',data=dict(surface.file_state,mode='explorer')))
+        file_thumbnails.prefetch(hub, surface)
 
     def message(_manager,result):
         item = json.loads(result.get_js_value().to_string())

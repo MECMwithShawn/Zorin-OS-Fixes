@@ -1190,6 +1190,7 @@ class Hub(Gtk.Application):
             surface.file_state = dict(data, hidden=hidden)
             surface.set_title(data['title']+' — File Explorer')
             surface.update()
+            file_thumbnails.prefetch(self, surface)
             if surface.file_monitor:
                 surface.file_monitor.cancel()
             if not location.startswith('::'):
