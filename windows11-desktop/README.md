@@ -167,4 +167,6 @@ Settings → System → Sound and Quick Settings → Sound output include Off, B
 
 Choosing a preset enables `zorin11-audio-effects.service` for your user and saves the choice across sign-in. Off stops/disables it and returns streams to their physical output. Hardware volume, default physical output and microphone routing stay unchanged. Output changes rebuild the graph; new default-output playback streams are routed within approximately half a second. Missing PipeWire tools disable the controls.
 
+GNOME's native Sound output menu also includes an Audio enhancements submenu with all eight presets and the current selection. Its Sound Settings link opens the companion's Sound page; Advanced still opens GNOME's volume/input controls. The separate `zorin11-audio@zorin-os-fixes` extension loads on the next sign-in after installation. Upgrades refresh an already-running EQ service, and preset changes detect an older loaded engine so newly added presets cannot time out and revert.
+
 HEIC and HEIF photos are supported in Explorer thumbnails, the Preview pane and background precaching through Zorin’s `heif-gdk-pixbuf` decoder. The installer includes that package. Image workers remain bounded by input size, dimensions, memory and execution time; cached PNGs discard source metadata. Existing OneDrive mount and download behavior are retained.

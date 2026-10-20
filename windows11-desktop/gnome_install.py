@@ -57,6 +57,8 @@ def install():
                      for p in (ROOT/'gnome-extension').rglob('*') if p.is_file() and p.name!='gschemas.compiled'}
     for icon in ('start.svg','search.svg','taskview.svg'):extension_files[EXTENSION/icon]=(ROOT/'companion'/icon).read_bytes()
     files=dict(extension_files)
+    audio_extension=HOME/'.local/share/gnome-shell/extensions/zorin11-audio@zorin-os-fixes'
+    files.update({audio_extension/p.name:p.read_bytes() for p in (ROOT/'gnome-audio-extension').iterdir() if p.is_file()})
     apps=HOME/'.local/share/applications'
     for ident,name,args,icon,wm in [
         ('start','Start','--toggle-start',str(DEST/'start.svg'),'Zorin11-hub'),
@@ -67,6 +69,7 @@ def install():
         ('quick','Quick Settings','--quick-settings','preferences-system','Zorin11-hub'),
         ('notifications','Notifications and calendar','--notifications','preferences-system-notifications','Zorin11-hub'),
     ]:files[apps/f'zorin11-{ident}.desktop']=desktop(name,args,icon,wm)
+    files[apps/'gnome-sound-panel.desktop']=desktop('Sound','--settings sound','multimedia-volume-control','Zorin11-settings','Settings;HardwareSettings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\n'
     files[apps/'gnome-bluetooth-panel.desktop']=desktop('Bluetooth','--settings devices','bluetooth','Zorin11-settings','Settings;HardwareSettings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\n'
     files[apps/'zorin11-explorer.desktop']+=b'MimeType=inode/directory;\nKeywords=Files;Folders;File Manager;Explorer;\n'
     launcher=f'/usr/bin/env GDK_BACKEND=x11 /usr/bin/python3 "{DEST / "app.py"}"'
@@ -90,20 +93,23 @@ def install():
     css=HOME/'.config/gtk-3.0/gtk.css'
     files[css]=window_style.css(css.read_text() if css.exists() else '',DEST).encode()
     import audio_effects
+    files[DEST/'audio-presets.json']=json.dumps(audio_effects.PRESETS).encode()
     files[HOME/'.config/systemd/user'/audio_effects.UNIT]=audio_effects.unit(DEST).encode()
     import thumbnail_cache
     files.update({HOME/'.config/systemd/user'/name:text.encode()
                   for name,text in thumbnail_cache.units(DEST).items()})
     write_files(files)
     subprocess.run(['systemctl','--user','daemon-reload'],check=True)
+    # A running Python daemon keeps its old preset catalog after files are upgraded.
+    subprocess.run(['systemctl','--user','try-restart','zorin11-audio-effects.service'],check=True)
     subprocess.run(['systemctl','--user','enable','--now','zorin11-thumbnail-cache.timer'],check=True)
     subprocess.run(['glib-compile-schemas',str(EXTENSION/'schemas')],check=True)
     subprocess.run(['update-desktop-database',str(apps)],check=True)
     Gio,GLib=gnome_setup.bindings()
     shell=Gio.Settings.new('org.gnome.shell')
-    changes={'org.gnome.shell':{'enabled-extensions':list(dict.fromkeys(shell.get_strv('enabled-extensions')+[UUID,'zorin-window-move-effect@zorinos.com'])),
+    changes={'org.gnome.shell':{'enabled-extensions':list(dict.fromkeys(shell.get_strv('enabled-extensions')+[UUID,'zorin11-audio@zorin-os-fixes','zorin-window-move-effect@zorinos.com'])),
                              'favorite-apps':explorer_favorites(shell.get_strv('favorite-apps')),
-                             'disabled-extensions':[x for x in shell.get_strv('disabled-extensions') if x not in (UUID,'zorin-window-move-effect@zorinos.com')]},
+                             'disabled-extensions':[x for x in shell.get_strv('disabled-extensions') if x not in (UUID,'zorin11-audio@zorin-os-fixes','zorin-window-move-effect@zorinos.com')]},
              'org.gnome.mutter':{'dynamic-workspaces':False}}
     gnome_setup.install(gnome_setup.plan(changes))
     # Journal shortcut recovery now, but let the extension take ownership only
@@ -130,6 +136,7 @@ def restore():
     subprocess.run(['systemctl','--user','disable','--now','zorin11-audio-effects.service'],capture_output=True)
     subprocess.run(['systemctl','--user','disable','--now','zorin11-thumbnail-cache.timer'],capture_output=True)
     subprocess.run(['systemctl','--user','stop','zorin11-thumbnail-cache.service'],capture_output=True)
+    subprocess.run(['gnome-extensions','disable','zorin11-audio@zorin-os-fixes'],capture_output=True)
     subprocess.run(['gnome-extensions','disable',UUID],capture_output=True)
     if DEST.joinpath('app.py').exists():
         # Ask only an existing instance to quit, without starting a new UI.

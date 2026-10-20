@@ -216,3 +216,9 @@ The session test uses the installed operating system and packages with a clean t
 - Added HEIC/HEIF to thumbnail, preview and background-cache formats using the system libheif/GdkPixbuf decoder. No source photo is rewritten and no OneDrive integration code changes.
 - Fifteen targeted tests passed: synthetic HEIC decoding, portrait proportions, PNG pixels, metadata removal, mixed-case names, corrupt/mislabeled inputs, dimension/version limits, existing thumbnails and previews. A real 3024×4032 OneDrive HEIC produced a 192×256 thumbnail and a bounded image preview locally.
 - Installed the decoder bridge and restarted the existing cache pass to include HEIC/HEIF. Personal photographs and generated previews remain outside Git. The repository includes only an original synthetic test image.
+
+## Native audio preset access and upgrade recovery — 2026-10-20
+
+- A private GNOME 46 Wayland session exercised all eight native submenu actions through their subprocess handler and verified persisted selection and labels. The processing sink is hidden from the physical-output list. The existing per-user Sound launcher resolves to the companion EQ page and was actually launched on the desktop.
+- Reproduced Music reverting to Vocal clarity: the running daemon retained the catalog loaded before Music was added. Its unknown-preset fallback selected Off until the caller timed out and restored the previous selection. Upgrades now refresh active services, and preset changes detect an older loaded engine before waiting for confirmation. A regression test covers this path and ensures subsequent changes do not restart the current engine.
+- Seven focused unit tests passed. Music was applied locally and remained selected with active DSP beyond the reported 5–10 second failure window. The native submenu is installed but requires the next sign-in; no desktop session was restarted. The existing Sound Settings link works immediately.
