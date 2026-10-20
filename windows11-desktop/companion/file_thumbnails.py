@@ -16,7 +16,7 @@ import tempfile
 import time
 from urllib.parse import parse_qs, unquote
 
-EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tif', '.tiff'}
+EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tif', '.tiff', '.heic', '.heif'}
 BYTE_LIMIT = 32 * 1024 * 1024
 PIXEL_LIMIT = 64_000_000
 CACHE_LIMIT = 16 * 1024 * 1024
@@ -148,6 +148,9 @@ def generate(path, version):
         if len(content) > BYTE_LIMIT or (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
                 after.st_size, after.st_mtime_ns, after.st_ctime_ns):
             return b''
+    if Path(path).suffix.lower() in ('.heic', '.heif'):
+        from heif_images import png
+        return png(content, 256, PIXEL_LIMIT)[0]
     from PIL import Image, ImageOps
     with Image.open(io.BytesIO(content)) as source:
         if source.format not in ('JPEG', 'PNG', 'WEBP', 'GIF', 'BMP', 'TIFF'):

@@ -11,7 +11,7 @@ import sys
 TEXT = {'.txt','.md','.rst','.log','.csv','.tsv','.json','.yaml','.yml','.toml',
         '.ini','.cfg','.conf','.xml','.html','.css','.js','.jsx','.ts','.tsx',
         '.py','.sh','.c','.h','.cpp','.rs','.sql','.desktop'}
-IMAGES = {'.png','.jpg','.jpeg','.webp','.gif','.bmp'}
+IMAGES = {'.png','.jpg','.jpeg','.webp','.gif','.bmp','.heic','.heif'}
 TEXT_LIMIT = 1024 * 1024
 IMAGE_LIMIT = 10 * 1024 * 1024
 PIXEL_LIMIT = 25_000_000
@@ -38,6 +38,12 @@ def generate(path):
         content = stream.read(limit + 1)
     if len(content) > limit:
         return unavailable('This file is too large to preview.')
+    if image and p.suffix.lower() in ('.heic', '.heif'):
+        from heif_images import png
+        try: data, (width, height) = png(content, 1024, PIXEL_LIMIT)
+        except ValueError as error: return unavailable(str(error))
+        return {'kind':'image', 'image':'data:image/png;base64,'+base64.b64encode(data).decode(),
+                'width':width, 'height':height}
     if image:
         from PIL import Image, ImageOps
         with Image.open(io.BytesIO(content)) as source:
@@ -70,7 +76,11 @@ def read(path):
 
 
 if __name__=='__main__':
-    try:result=generate(sys.argv[1])
+    try:
+        import resource
+        resource.setrlimit(resource.RLIMIT_AS, (512 * 1024 * 1024,) * 2)
+        resource.setrlimit(resource.RLIMIT_CPU, (3, 3))
+        result=generate(sys.argv[1])
     except PermissionError:result=unavailable('You do not have permission to preview this file.')
     except FileNotFoundError:result=unavailable('This file is no longer available.')
     except Exception:result=unavailable('This file could not be previewed.')
