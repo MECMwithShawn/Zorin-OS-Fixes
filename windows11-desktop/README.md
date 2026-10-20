@@ -2,6 +2,23 @@
 
 **GNOME is the primary desktop.** The same installer detects Zorin 18 GNOME or Zorin Lite/Xfce and installs the matching integration. The shared companion provides the Windows 11-style Start menu, File Explorer, Settings, Quick Settings, notification/calendar flyout, Desktop Groups and multitasking UI.
 
+
+## Fractional scaling on hybrid graphics
+
+On the tested Intel/NVIDIA laptop, GNOME X11 at laptop 125% / external 100% produces a cropped external display even though the reported native modes and screenshot look correct. Do not use a successful settings readback alone to confirm scaling: check all four edges on the physical screens. This matches the [X11 PRIME transform issue documented by NVIDIA](https://forums.developer.nvidia.com/t/450-75-with-reverse-prime-xrandr-scale-2x2-does-not-work-renders-only-1-4-of-screen-problem-with-nvidia-settings/142424).
+
+Test **Zorin Desktop on Wayland** from the login-screen session selector for independent scaling. Save work before signing out. This is a different session, not a theme reinstall; the package does not switch sessions automatically. Physical Wayland validation on this machine remains pending. Both screens at 100% is the fallback if staying on the current X11 session.
+
+## Device Manager (GNOME)
+
+Search **Device Manager** in Start to open a standalone dark hardware tree. Categories expand into PCI controllers, USB devices, cameras/Bluetooth adapters, physical disks and input endpoints, with icons and actual bound driver names. Search by device, driver, category or hardware ID. Select a device and choose **Properties**, double-click it, or use the context menu to view/copy its details. **Refresh** or F5 updates the inventory after connecting or disconnecting hardware; Ctrl+F focuses search and Escape clears it.
+
+The inventory is read-only. It reports driver bindings rather than claiming hardware is healthy, and offers no driver installation, device disable/reset or disk modification. Disk/input drivers can be bound at an ancestor device; Properties identifies that binding location. USB interfaces are combined under their parent, while separate devices with the same name retain distinct identities. Input endpoints can belong to an already-listed controller. Paired Bluetooth accessories remain in Bluetooth settings.
+
+Optional `lspci` provides descriptive PCI names; numeric IDs remain usable without it. Data comes from Linux sysfs ([PCI attributes](https://docs.kernel.org/PCI/sysfs-pci.html), [USB attributes](https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-bus-usb), [block attributes](https://www.kernel.org/doc/Documentation/ABI/stable/sysfs-block)). No administrator authentication is required.
+
+Checks: `/usr/bin/python3 -m unittest discover -s companion -p test_hardware_inventory.py` and `/usr/bin/python3 companion/test_device_manager_live.py` (native test requires Xvfb).
+
 ## Install on GNOME (default)
 
 Run as your desktop user from a Zorin OS 18 GNOME session:
@@ -24,19 +41,25 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 
 | Component | Integration |
 |---|---|
-| Taskbar | Dark blue appearance, Win11 icons, 48 px bottom taskbar, centered Start/Search/Task View/app area, native running-app indicators and previews |
+| Taskbar | Dark blue appearance, Win11 icons, 48 px bottom taskbar, centered Start/Search/Task View/app area, native running-app indicators/previews and notification badges, app-reported progress bars, narrow Show desktop/hover-peek strip |
 | Start | Opens on the primary monitor; shared Windows-style pinned apps, ordering, search, All apps, categories, recent documents/apps, desktop-entry actions, local folders and session actions |
 | Explorer / This PC | Tabs, sidebar, system drive first as Local Disk (C:), persistent display letters for other mounted drives, capacity, details view, create/rename/copy/cut/paste/trash; advanced locations open the system file manager |
 | Settings | Windows-style categories with actual device information and GNOME settings controls; advanced pages open the native tools |
 | Quick Settings | Eight editable tiles, Wi-Fi, airplane mode, battery saver, paired Bluetooth devices with connect/disconnect and battery, volume/output, DND, accessibility and supported backlights |
 | Notifications | GNOME's current session notifications, read/dismiss/clear and calendar; native notification banners remain managed by GNOME |
 | Task Manager | Mission Center provides expandable application/process groups, actual application icons, combined resource usage, and CPU, memory, disk, network and supported GPU graphs |
+| Event Viewer | Standalone dark event list, Application/System/Kernel journals, time and severity filters, loaded-event search, details, Copy event and optional auto-refresh |
 | Backgrounds | Windows Spotlight, Bing daily/UHD images, local photos, history, original-background restore **and the installed Zorin wallpaper collection** |
+| Desktop menu | Windows-style View, Sort by, Refresh, Paste, New, Display settings, Personalize and Next desktop background; Zorin actions retained under Show more options |
 | Desktop Groups | Shared movable shortcut groups and folder portals; original files stay in place |
 | Multitasking | Snap Layouts/Assist, Task View, desktop create/rename/reorder/close, per-desktop backgrounds, saved app/layout recipes and Alt+Tab Snap Groups |
 | Terminal | Pinned PowerShell 7.6.7 and WezTerm, PowerShell/Bash profiles, Cascadia Mono, tabs and split panes |
 
 The installer replaces the pinned GNOME Files shortcut with File Explorer and makes it the default for local folders. Network and Trash views remain available through the native file manager.
+
+The narrow strip at the far right of the GNOME taskbar shows the desktop when clicked; click again to restore the windows. Hover to peek temporarily. Notification badges use Zorin's native app notification state. Compatible apps can report progress through `com.canonical.Unity.LauncherEntry`; a blue progress bar then appears on their taskbar icon. Apps that do not report progress have no bar. Bars disappear when the app hides them or its reporting connection closes. The badge switch remains in Taskbar preferences. To hide progress bars, run `gsettings set org.gnome.shell.extensions.zorin-taskbar progress-show-bar false` (use `true` to restore them).
+
+After upgrading GNOME extension code, **sign out and back in when convenient** to load the progress integration. The installer does not restart your session. The desktop-strip setting applies immediately; the new code can be tested separately with the isolated native test below.
 
 Open **Quick Settings** with **Win+A**. Battery saver uses the installed power-profile service and restores the previous mode when switched off; **Settings → System → Power & battery** also lets you choose an available power mode. Airplane mode controls wireless radios through GNOME; a physical radio switch must be released on the device. Wired networking remains available. These controls show as unavailable when their services or hardware are missing. Airplane mode requires GNOME’s radio service; Xfce keeps its Wi-Fi/Bluetooth controls.
 
@@ -48,7 +71,17 @@ In Start, click your profile for Account settings, Lock, Switch user and Sign ou
 
 Organize pinned apps by dragging an app onto the **center** of another app to create a folder, or onto an existing folder to add it. Drop near a tile's edge to reorder pins. Right-click → **Move to Start folder…** provides the same organization with keyboard-accessible controls. Open a folder to rename it or reorder its apps; **Move to Start** and **Move all apps out of folder** retain the app shortcuts. Folder names and ordering survive companion restarts. Escape dismisses the folder or menu before closing Start.
 
-Explorer's **Preview** button or **Alt+P** opens a read-only preview pane. Supported raster images are decoded to a bounded PNG preview; supported text/code files render as plain text, including HTML. Text files are limited to 1 MB with at most 65,536 characters/1,000 lines shown; images are limited to 10 MB and 25 megapixels, resized to 1,024 px. Animated images show their first frame. Unsupported formats, PDFs and Office documents retain their normal **Open** action. Decoding runs in a timed worker, and changing selection discards stale previews. Preview content is not saved or uploaded.
+Explorer shows actual **image thumbnails** in **Large icons** and Details views, including downloaded photos inside OneDrive. JPEG, PNG, WebP, GIF, BMP and TIFF are supported; orientation is corrected and animated/multipage images use their first frame. Large icons use an 80 px preview area with a 256 px decoded image for high-DPI displays. Images load near the visible area with four frontend requests and two decoders at a time. A private disk cache survives Explorer restarts; an in-memory cache handles repeat requests. Visible photos have priority, while one worker prepares up to 512 nearby folder images. Changed files invalidate the disk cache using their identity, size and nanosecond timestamps.
+
+Thumbnail decoding accepts regular files up to 32 MiB and 64 megapixels, with a three-second interactive timeout and worker memory/CPU limits (15 seconds for the background library service). Corrupt, unavailable, oversized and unsupported files keep their type icon. Symbolic links, video, SVG, PDF and Office thumbnails are not included. HEIC/HEIF support uses the private decoder described below. Opening an online-only photo can cause OneDrive to retrieve its bytes. Folder prefetch only reads locally available files. Thumbnails stay in `~/.cache/zorin11-hub/thumbnails-v1`, outside OneDrive, with private permissions and an approximately 2 GiB / 32,768-image limit; the oldest entries are evicted. Originals are never rewritten and thumbnails are never uploaded. OneDrive sync settings and integration are preserved.
+
+GNOME installation enables `zorin11-thumbnail-cache.timer`. After sign-in and every 15 minutes after a completed pass, its low-priority user service walks Pictures and the configured OneDrive folder, reuses existing thumbnails, and creates missing ones. It follows no symlinks and skips hidden/dependency folders. It runs one decoder with a 25% CPU quota, idle I/O priority and a 768 MiB service memory limit. No Explorer window needs to be open.
+
+The library service defaults to locally available photos. To include online-only OneDrive photos, set `{"includeOnline": true}` in `~/.config/zorin11-hub/thumbnail-cache.json`, or run `thumbnail_cache.py --include-online` manually. This reads photo contents through the existing OneDrive mount and may download them. `--root PATH` can be repeated for a manual pass over other folders. Progress counts (without filenames) are saved to `~/.cache/zorin11-hub/thumbnail-status.json`.
+
+Use `systemctl --user start --no-block zorin11-thumbnail-cache.service` to start a pass, or `systemctl --user disable --now zorin11-thumbnail-cache.timer` and `systemctl --user stop zorin11-thumbnail-cache.service` to stop it. GNOME theme restore stops/disables the service and restores its unit files; the disposable thumbnail cache can be removed separately.
+
+Explorer's **Preview** button or **Alt+P** opens a separate read-only preview pane. Supported raster images are decoded to a bounded PNG preview; supported text/code files render as plain text, including HTML. Text files are limited to 1 MB with at most 65,536 characters/1,000 lines shown; images are limited to 10 MB and 25 megapixels, resized to 1,024 px. Animated images show their first frame. Unsupported formats, PDFs and Office documents retain their normal **Open** action. Decoding runs in a timed worker, and changing selection discards stale previews. Preview content is not saved or uploaded.
 
 Start and taskbar Search now combine **Apps, Files, Folders, and Settings**. Apps and settings appear immediately while local filename search runs. Use the category buttons, arrow keys and Enter, or select a result and choose **Open** / **Open file location**. Supported files show the same bounded image/text preview as Explorer. Settings results open the actual page (for example, “volume” → Sound).
 
@@ -64,6 +97,10 @@ Explorer copy/paste now shows progress, transferred bytes, completed/skipped ite
 Each file is staged in the destination filesystem before publication. Cancelling removes its unfinished staging file; completed items remain. Cut/paste removes source files only after their completed copies, and skipped or unfinished sources remain available. Closing the Explorer window cancels its transfer. Transfers support local/mounted filesystems; network and Trash locations still use native tools. Merging keeps existing folder permissions. Keyboard focus returns to Explorer after folder navigation and closing transfer dialogs, so Ctrl+C/Ctrl+X/Ctrl+V continue working.
 
 Task Manager opens [Mission Center](https://missioncenter.io/) in its Apps view with parent/child resource totals merged. The System Monitor launcher and taskbar pin are redirected through recoverable per-user settings, with one visible Task Manager app entry. Extra process-detection metadata lets ChatGPT's known pass-through launcher group under the ChatGPT name and icon. This metadata is excluded from desktop menus and file associations; the actual ChatGPT launcher is preserved. Performance includes GPU graphs supported by the active driver. NVIDIA monitoring requires the NVIDIA driver and NVML; Nouveau does not provide Mission Center's NVIDIA telemetry. Intel GPU metrics vary by driver and permissions. The installer does not change GPU drivers.
+
+Find **Event Viewer** in Start or app search. It opens a standalone GNOME utility with a dark sidebar, event table and selectable details. **Application** reads your user journal; **System** reads system services and **Kernel** reads kernel messages. Applications that do not write to the journal will not appear. Select the current or previous boot, last hour or last 24 hours, then choose a severity filter. The newest 250 matching events are loaded; **Search loaded events** filters only that loaded set.
+
+Select an event for its message, local timestamp, severity, source, service unit, PID and boot ID. **Copy event** copies those details when requested. **Refresh** / **F5** reads again; optional **Auto-refresh** updates every five seconds while the window is open. **Ctrl+F** focuses search; **Escape** clears search or closes the window. Changing filters cancels obsolete queries. Missing permissions, unavailable logs and output limits are shown in the window. Previous-boot events depend on journal retention. Event Viewer reads the Linux journal without elevating permissions, changing services or clearing logs; it does not emulate Windows event IDs or audit channels.
 
 Drive menus include Rename, Copy as path and Properties with filesystem, capacity and free-space details. Drive Rename changes the label shown in Explorer; it does not relabel or remount the filesystem.
 
@@ -83,6 +120,14 @@ Open **Win+I → Personalization → Background**:
 - Enable **Change the picture daily** for daily refresh while signed in.
 - Pick an image from **Zorin wallpapers** to return to the installed collection.
 - Use **Browse photos**, **Recent images**, or **Restore original background**.
+
+The desktop's **Change Background** shortcut opens this Background page. **Settings** and **Display settings** also open the corresponding Windows-style pages; advanced controls inside those pages still reach the native tools.
+
+The GNOME desktop menu adapter adds **View → Large/Medium/Small icons**, **Auto arrange icons**, **Show desktop icons**, **Sort by**, **Refresh**, **Paste**, **New → Folder / Document from template**, **Display settings**, **Personalize**, and **Next desktop background**. **Show more options** retains Zorin's native undo/redo, terminal and other desktop actions. Hiding icons only hides their display; it does not move or delete files. File selection menus, dragging and file operations remain owned by Zorin Desktop Icons.
+
+The adapter runs from a per-user extension and references the installed Zorin Desktop Icons files without changing them. On GNOME 46, a newly installed extension activates at the **next sign-in**. Wallpaper controls and shortcut routing work immediately; the installer does not restart the desktop or close applications. The adapter requires Zorin 18's Desktop Icons extension.
+
+**Next desktop background** fetches another image from the selected Spotlight/Bing feed and opens Background settings for status and credits. With **Picture** selected, it opens the picker instead. Wallpaper changes from the menu and companion serialize through a local lock; failed downloads retain the current picture. Daily refresh runs while the companion is signed in.
 
 Downloaded pictures and credits stay in your local account. Both GNOME light/dark wallpaper values are journaled before changing them. Restore preserves a wallpaper you changed later through another tool. No Windows images, proprietary fonts, personal wallpaper exports or account data are committed.
 
@@ -143,6 +188,9 @@ python3 companion/test_start_search_live.py
 # Power/radio/device services are isolated; this does not change host hardware.
 python3 companion/test_quick_hardware_live.py
 python3 companion/test_bluetooth_pairing_live.py
+# Native taskbar, protocol updates, desktop peek and extension lifecycle on a private display/bus.
+node tests/test_progress_state.mjs
+python3 tests/taskbar_live.py
 # Optional network-dependent verification:
 ZORIN11_TEST_FEEDS=1 python3 tests/gnome_live.py
 ```
@@ -150,3 +198,62 @@ ZORIN11_TEST_FEEDS=1 python3 tests/gnome_live.py
 The GNOME live test starts a private headless Mutter/Wayland compositor, private D-Bus, settings, runtime and companion state. It exercises the shared UI, native Wayland resizing/desktops/thumbnails, notification read/dismiss, every installed Zorin thumbnail and wallpaper apply/restore. It closes only its disposable processes and windows. The default run does not access image feeds.
 
 GNOME support shares the repository's Linux-based Windows-style experience; it does not provide Windows APIs, Microsoft Windows Terminal, Phone Link, Windows Widgets or commercial Start11/Fences binaries. The broader feature inventory is in [PARITY.md](PARITY.md).
+
+## Playback audio enhancements
+
+Settings → System → Sound and Quick Settings → Sound output include Off, Balanced, Music, Bass boost, Vocal clarity, Movies, Gaming, Custom and Night listening. Six stereo PipeWire peaking filters shape playback at 60, 170, 500, 2k, 6k and 12k Hz. Preset headroom reduces clipping and may lower perceived volume. Night listening is EQ, not a compressor; surround processing is not included.
+
+Choosing a preset enables `zorin11-audio-effects.service` for your user and saves the choice across sign-in. Off stops/disables it and returns streams to their physical output. Hardware volume, default physical output and microphone routing stay unchanged. Output changes rebuild the graph; new default-output playback streams are routed within approximately half a second. Missing PipeWire tools disable the controls.
+
+GNOME Quick Settings includes a **System EQ** tile, and its native Sound output menu includes an **Audio enhancements** submenu. Both list the installed presets and the current selection. **Edit custom preset…** opens six sliders (−12 to +12 dB): changes preview live, **Save as system default** persists the Custom curve, and closing without saving restores the selected default. Abandoned previews expire automatically. Its Sound Settings link opens the companion's Sound page; Advanced still opens GNOME's volume/input controls. The separate `zorin11-audio@zorin-os-fixes` extension loads on the next sign-in after installation. Upgrades refresh an already-running EQ service, and preset changes detect an older loaded engine so newly added presets cannot time out and revert.
+
+HEIC and HEIF photos are supported in Explorer thumbnails, the Preview pane and background precaching. The GNOME installer downloads hash-pinned Pillow 13.0.0 / pillow-heif 1.8.1 binary wheels into a private `heif-runtime` directory for Python 3.12 on Zorin 18 (x86-64 or ARM64). This handles iPhone depth metadata that the older system decoder can reject. Existing verified runtimes are reused; installation failure preserves the previous runtime. Zorin’s `heif-gdk-pixbuf` is the fallback when the private decoder is absent. `install-system-deps.sh` supplies `python3-venv` for the installer; system Python packages are not replaced. Image workers remain bounded by input size, dimensions, memory and execution time; cached PNGs discard source metadata. Existing OneDrive mount and download behavior are retained.
+
+AAE files contain Apple Photos edit instructions. Selecting one in Explorer's Preview pane finds a same-name HEIC/HEIF, JPEG or PNG in that folder and shows it with an explicit **Original photo** notice. Apple adjustments are not applied. Missing originals get an explanation; sidecar contents are never interpreted or used as paths, and sibling lookup is bounded.
+
+## Axentra SnippingTool (Rust)
+
+Open **Axentra SnippingTool** from Start, use **Win+Shift+S** for a screenshot or **Win+Shift+R** for recording (press again to stop). Quick Settings → Screenshot opens the same app. The native Rust/GTK editor follows the [Microsoft Snipping Tool guide](https://support.microsoft.com/en-us/windows/apps/use-snipping-tool-to-capture-screenshots) with Linux-native capture, permission, sharing and printing services.
+
+The compact dark window mirrors the [Windows 11 layout in this reference](https://www.computerhope.com/jargon/s/snipping.htm#win11): New, capture mode and delay sit beneath the title. Capturing/opening an image expands the window and reveals a single icon toolbar. **More tools** groups shapes, emoji, redaction, color picking and rotation; **Ink settings** contains color/thickness. Save, Copy and Share are directly available. Hover an icon for its name; **⋯ → Open image** or Ctrl+O opens an existing picture.
+
+X11 supports rectangle, freeform, window and entire-desktop screenshots across monitors, plus region recording to MP4. Wayland uses the desktop screenshot picker and ScreenCast permission dialog for screen/window recording to WebM. Both recorders offer optional playback audio and microphone switches, initially off. Stop and review before saving; no recording starts merely by opening the app. Capture delays are 0–5 or 10 seconds. Escape cancels selection; arrow keys position a rectangle, Shift+arrows resize it, and Enter captures it.
+
+The editor includes pen, highlighter, shapes, text, emoji, annotation eraser, crop, rotation, zoom, undo/redo, PNG/JPEG save and image clipboard. **Text actions** performs local OCR, copies selected/all text and covers detected email addresses/phone numbers; **Redact** covers manually selected areas. Exported redactions are flattened pixels. Review OCR for missed content. The color tool samples image pixels; **⋯ → Pick screen color** uses the desktop's screen eyedropper. **⋯ → Share / Open with** chooses a local app for editing/sharing; Print opens the native print dialog.
+
+New screenshots are copied and saved to Pictures/Screenshots by default. **⋯ → Settings** changes both behaviors and the destination. Auto-save keeps the original capture; use Save as for edited/redacted copies. Unsaved edits and recordings prompt before replacement/closing. Nothing is uploaded automatically. Copilot's proprietary Perfect screenshot framing and Microsoft's Paint/Clipchamp integration are not included; local editors are available through Open with. See [feature coverage and platform differences](snipping-tool/PARITY.md).
+
+The GNOME installer builds the locked Rust project (Rust 1.75+, Cargo, pkg-config and GTK 3 development files) and installs per-user. `install-system-deps.sh` includes Tesseract, FFmpeg and GStreamer/PipeWire plugins. To update only this app, run `python3 snipping_install.py`. Existing custom shortcuts and subsequent user edits are preserved, and managed shortcuts participate in desktop restoration.
+
+Sound settings and Quick Settings now show sixteen live frequency bars from the selected playback output. Monitoring stops when the controls are hidden; no microphone is opened and no audio is saved. Presets remain fixed choices rather than automatic track classification.
+
+Axentra Mini Media can expose the same persistent system EQ and live bars directly beneath its common player controls. See [the player integration](integrations/minitube/README.md); changes synchronize with Sound settings and affect system playback across player sources.
+
+## Advanced display (GNOME)
+
+Open Start and search **Advanced display** for a standalone dark display-details window. It lists the main screen first, current and preferred resolution, refresh rate, scale, rotation, position, supported modes and reported panel size/current-mode DPI. Choose another monitor with the selector; display changes refresh automatically, with manual Refresh or F5 available. **Open display settings** opens GNOME's arrangement/scaling controls.
+
+Graphics adapters use optional `lspci`; the OpenGL diagnostic renderer uses optional `glxinfo`. Missing tools or panel dimensions show Unavailable. The diagnostic renderer is not necessarily the GPU used by other applications or the compositor. The window only reads display configuration; it never changes modes or drivers. This standalone launcher is installed immediately without rebuilding the shared companion frontend or requiring sign-out.
+
+Validation: `/usr/bin/python3 -m unittest discover -s companion -p test_display_details.py` and `/usr/bin/python3 companion/test_display_details_live.py` (the latter requires python3-dbus and Xvfb).
+
+
+## Desktop snapshots and update recovery
+
+Create a verified snapshot before a major OS upgrade or after desktop customization:
+
+```bash
+/usr/bin/python3 ~/.local/share/zorin11-hub/desktop_backup.py --destination "$HOME/OneDrive/Axentra/Windows 11 Desktop Backups"
+# Later snapshots reuse the saved destination:
+/usr/bin/python3 ~/.local/share/zorin11-hub/desktop_backup.py
+# Check every archived file against the embedded inventory:
+/usr/bin/python3 ~/.local/share/zorin11-hub/desktop_backup.py --verify /path/to/snapshot/desktop-snapshot.tar.gz
+```
+
+Each dated folder contains the archive, SHA256SUMS, file inventory and restore notes. The tool verifies archive contents before publication and compares the OneDrive copy against the local archive. A remembered mount must be available; it will not silently fall back to an unmounted local directory. These are manual snapshots; no automatic restore or scheduled backup is enabled.
+
+Snapshots include installed companion code, extensions, icons, SnippingTool, managed launchers/user services, wallpaper history and choices, EQ defaults/custom curve, current GNOME layout settings, original recovery journals and the system account photo. Vendor extension copies and monitor configuration are reference material. OneDrive credentials, browser profiles, personal document trees and thumbnail caches are excluded. The destination stays in private local configuration. Snapshots can contain personal paths and the account photo; do not commit them to this repository. A verified local OneDrive write is not confirmation of cloud upload.
+
+Restore selected components from a staging directory after comparing versions and current files. Do not unpack the whole archive over the home directory: newer Explorer/OneDrive integration or user preferences could be overwritten. The original installation recovery journal undoes the theme; it does not restore the snapshot's current layout. Recheck compatibility after a GNOME/Zorin update before reapplying extensions. Per-user overlays normally survive package updates, but major Shell API changes may still require adaptation.
+
+Account images in Start and Settings now resolve AccountsService's current IconFile, then ~/.face, ~/.face.icon and the legacy imported avatar. The photo is rechecked every five seconds and its modification timestamp invalidates cached previews. Served images are scaled PNGs; no account photo is bundled in the repository.

@@ -1,0 +1,33 @@
+window { background: #202020; color: #f5f5f5; font-family: "Segoe UI", "Noto Sans", sans-serif; font-size: 13px; }
+headerbar { background: #202020; border: none; box-shadow: none; padding: 0 5px 0 14px; min-height: 36px; }
+headerbar label { font-size: 12px; font-weight: normal; }
+button, combobox button, spinbutton { border-radius: 4px; background: #303030; color: #f4f4f4; border: 1px solid #484848; box-shadow: none; text-shadow: none; padding: 6px 10px; }
+button:hover { background: #3a3a3a; }
+button:checked { background: #383838; border-color: #60c5f1; box-shadow: inset 0 -2px #60c5f1; }
+button.suggested-action { background: #70c9f5; border-color: #70c9f5; color: #101010; }
+button:disabled { opacity: 0.45; }
+headerbar button { background: transparent; border: none; border-radius: 3px; min-width: 26px; min-height: 26px; padding: 2px 6px; }
+headerbar button:hover { background: #353535; }
+headerbar button.close:hover { background: #c42b1c; }
+.capture-bar { background: #202020; padding: 7px 12px 9px; }
+.capture-bar button { background: transparent; border-color: transparent; }
+.capture-bar button:hover { background: #333333; }
+.capture-bar button:checked { background: #383838; border-color: #60c5f1; }
+.capture-bar .new-snip { background: #303030; border-color: #454545; padding: 6px 14px; }
+.capture-bar .new-snip:hover { background: #3b3b3b; }
+.capture-bar combobox button { padding: 6px 3px; }
+.tools { background: #252525; padding: 7px 12px; border-bottom: 1px solid #313131; }
+.tools button { background: transparent; border-color: transparent; }
+.tools button:hover { background: #363636; }
+.tools button:checked, .tools button.active-tool { background: #383838; border-color: transparent; box-shadow: inset 0 -2px #60c5f1; }
+button.icon-button { min-width: 22px; min-height: 22px; padding: 6px; }
+.tools separator { background: #444444; margin: 5px 3px; }
+.footer { background: #202020; padding: 5px 16px; min-height: 24px; }
+.footer label { color: #c7c7c7; font-size: 11px; }
+.footer combobox button { background: transparent; border-color: transparent; padding: 3px 6px; }
+entry { background: #303030; color: #fff; border-radius: 5px; }
+menu, popover { background: #2b2b2b; color: #f5f5f5; border: 1px solid #454545; border-radius: 7px; padding: 4px; }
+menuitem { padding: 8px 12px; border-radius: 4px; }
+menuitem:hover { background: #3b3b3b; }
+popover button { background: transparent; border-color: transparent; padding: 8px; }
+popover button:hover, popover button:checked { background: #3b3b3b; }

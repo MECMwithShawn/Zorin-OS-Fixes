@@ -28,7 +28,7 @@ class SettingsTests(unittest.TestCase):
 class WallpaperTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();root=Path(self.temp.name)
-        self.patches=[patch.object(wallpaper,'CONFIG',root),patch.object(wallpaper,'ROOT',root/'images'),patch.object(wallpaper,'STATE',root/'state.json')]
+        self.patches=[patch.object(wallpaper,'is_gnome',return_value=False),patch.object(wallpaper,'CONFIG',root),patch.object(wallpaper,'ROOT',root/'images'),patch.object(wallpaper,'STATE',root/'state.json')]
         for p in self.patches:p.start()
     def tearDown(self):
         for p in reversed(self.patches):p.stop()

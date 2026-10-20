@@ -16,7 +16,7 @@ export function FilePreview({item,location,onClose,actionPrefix="file"}){
   {item&&<h3>{item.name}</h3>}
   <div className="preview-content" role="region" aria-label="File preview" aria-busy={!!item&&!item.folder&&!result}>
    {!item?<p>Select one file to preview.</p>:item.folder?<p>Select a file to preview its contents.</p>:!result?<p role="status">Loading preview…</p>:
-    result.kind==='image'?<><img src={result.image} alt={'Preview of '+item.name}/><p>{result.width} × {result.height}</p></>:
+    result.kind==='image'?<><img src={result.image} alt={'Preview of '+(result.sourceName||item.name)}/><p>{result.width} × {result.height}</p>{result.note&&<p>{result.note}</p>}</>:
     result.kind==='text'?<><pre tabIndex={0}>{result.text||'Empty file'}</pre>{result.truncated&&<p>Showing the beginning of this file.</p>}</>:
     <p role="status">{result.message}</p>}
   </div>

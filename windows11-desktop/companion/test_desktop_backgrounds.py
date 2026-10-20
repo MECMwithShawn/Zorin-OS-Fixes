@@ -22,7 +22,8 @@ class DesktopBackgroundTests(unittest.TestCase):
         def setter(channel,key,value):self.props[key]=value
         self.xf=Mock();self.xf.SetProperty.side_effect=setter
         self.xf.ResetProperty.side_effect=lambda channel,key,_:self.props.pop(key,None)
-        self.patches=[patch.object(w,'CONFIG',self.root),patch.object(w,'ROOT',self.root),patch.object(w,'STATE',self.root/'state.json'),
+        self.patches=[patch.object(w,'is_gnome',return_value=False),patch.object(d,'is_gnome',return_value=False),
+                      patch.object(w,'CONFIG',self.root),patch.object(w,'ROOT',self.root),patch.object(w,'STATE',self.root/'state.json'),
                       patch.object(d,'CONTEXT',self.context),patch.object(w,'properties',side_effect=props),patch.object(d,'properties',side_effect=props),
                       patch.object(w,'set_property',side_effect=setter),patch.object(d,'set_property',side_effect=setter),
                       patch.object(w.subprocess,'check_output',return_value='screen connected'),

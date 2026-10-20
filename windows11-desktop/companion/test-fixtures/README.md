@@ -1,0 +1,1 @@
+`portrait.heic` is an original synthetic 160×320 yellow/blue image with a test EXIF description, generated using Pillow and pillow-heif 1.8.1. It contains no user image or location data. Regeneration is not required to run tests. Expected display: yellow above blue. The original artwork is covered by this repository's license.

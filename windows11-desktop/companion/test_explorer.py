@@ -80,6 +80,23 @@ class ExplorerTests(unittest.TestCase):
             self.assertEqual((target/'source/nested/file').read_text(),'content')
             with self.assertRaises(ValueError):explorer.paste([str(src)],str(src/'nested'))
 
+    def test_onedrive_gets_its_own_navigation_entry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);drive=root/'OneDrive';(drive/'Docs').mkdir(parents=True)
+            config=root/'config/axentra/onedrive';config.mkdir(parents=True)
+            (config/'config.toml').write_text(f'client_id = "x"\nmount_point = "{drive}"\n')
+            with patch.dict(explorer.os.environ,{'XDG_CONFIG_HOME':str(root/'config')}),\
+                 patch.object(explorer,'_onedrive_name',return_value='OneDrive - Personal'),\
+                 patch.dict(explorer.CLOUD_CACHE,{'at':-60.0,'value':[]}):
+                self.assertEqual(explorer.cloud_places(),[dict(name='OneDrive - Personal',path=str(drive),icon='axentra-onedrive')])
+                data=explorer.listing(str(drive))
+                self.assertEqual(data['title'],'OneDrive - Personal')
+                self.assertEqual(data['clouds'][0]['path'],str(drive))
+                self.assertNotIn(str(drive),[e['path'] for e in explorer.listing('::computer')['entries']])
+            with patch.dict(explorer.os.environ,{'XDG_CONFIG_HOME':str(root/'missing')}),\
+                 patch.dict(explorer.CLOUD_CACHE,{'at':-60.0,'value':[]}):
+                self.assertEqual(explorer.cloud_places(),[])
+
     def test_virtual_locations_are_real_paths(self):
         entries=explorer.listing('::home')['entries']+explorer.listing('::computer')['entries']
         self.assertTrue(all(Path(e['path']).exists() for e in entries))

@@ -6,7 +6,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 
 ## P0 — Highest-impact desktop improvements
 - [x] Taskbar: live grouped hover thumbnails, per-window Close, minimized/icon fallbacks and scrollable overflow. Includes launcher-less app grouping; verified on Xfwm, Compiz and the installed desktop on 2026-10-18.
-- [ ] Taskbar: per-app badges and progress indicators when real application state is available.
+- [x] GNOME taskbar: native per-app notification badges and app-reported progress indicators, with partial updates, visibility controls and sender-exit cleanup. Native protocol fixture, taskbar rebuilds, disable/enable and desktop-strip hover/click verified 2026-10-19. New extension code loads at the next sign-in.
+- [ ] Xfce taskbar: per-app badges and progress indicators when real application state is available.
 - [x] Taskbar: Snap Group cards with live layout previews; restore grouped positions and minimized members together; remove stale/closed members.
 - [x] Window switching: native GTK Alt+Tab chooser with individual windows and Snap Groups, live mosaics, combined MRU, forward/reverse cycling, release-to-select and Escape. Xfce shortcuts work on Xfwm and Compiz; verified 2026-10-18.
 - [x] Start: app folders with drag/drop creation, persistent ordering, rename, keyboard-accessible move controls and ungrouping. Shared GNOME/Xfce interface; verified 2026-10-19.
@@ -25,6 +26,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Desktop switching: native Compiz slides, individual-picture crossfades, three speeds and reduced-motion controls. Standard Xfwm retains instant switching. Verified 2026-10-18.
 - [x] Task View: display Snap Groups and per-workspace previews. Includes drag/Move to, cross-desktop search and Win+Ctrl desktop shortcuts; verified on Xfwm and Compiz.
 - [x] Explorer: read-only image/text preview pane with allowlisted content, file/pixel limits, timed decoding and stale-selection rejection. Verified 2026-10-19.
+- [x] Explorer: persistent photo cache and low-priority background Pictures/OneDrive library service, with opt-in online-only downloads and automatic new/changed-photo scans. Verified 2026-10-20.
+- [x] Explorer: actual image thumbnails in Large icons and Details, lazy viewport loading, bounded decoding/cache, orientation correction and fallback icons. OneDrive navigation retained; verified 2026-10-20.
 - [x] Explorer: Windows-style context menus, Rename, Properties, Copy as path and drive details.
 - [x] Explorer: copy/move progress, pause/resume/cancel, Replace/Skip/Keep both, folder merge, apply-to-remaining choices and per-item error/retry dialogs. Verified 2026-10-19.
 - [x] Start/search: real installed desktop-entry actions; Explorer New window/This PC also appear in the native GNOME taskbar menu.
@@ -38,14 +41,16 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Quick Settings: supported battery saver with previous-mode restoration, GNOME airplane mode, connected/paired Bluetooth controls and reported device battery. Shared Settings controls and unavailable/hardware-lock states; verified 2026-10-19. AirPods stayed connected during live discovery/cleanup. Searchable pairing groups duplicate names, preserves address selection, handles confirmation/PINs and stops scanning after one minute; new physical pairing through this picker remains pending.
 - [ ] Build a Windows-inspired clock/avatar lock screen while preserving native GNOME/GDM and Xfce authentication.
 - [x] GNOME Task Manager: Mission Center, expandable application groups, program icons, merged usage and supported GPU graphs. Intel and NVIDIA RTX 4090 laptop telemetry verified in Mission Center after the local NVIDIA driver reboot.
-- [ ] Windows-inspired Device Manager, Disk Management and Event Viewer equivalents; Task Manager includes Mission Center's Services view.
+- [x] GNOME Device Manager: expandable hardware categories/icons, driver and ID search, Properties/copy details and manual refresh. Read-only PCI/USB, disks and input endpoints; verified locally on 2026-10-20.
+- [x] GNOME Event Viewer: Application/System/Kernel journal sources, time/severity filters, loaded-event search, details, Copy event, refresh and optional five-second auto-refresh. Native GTK and installed GNOME/X11 tests passed 2026-10-20.
+- [ ] Device driver-management actions and Disk Management; Task Manager includes Mission Center's Services view.
 - [ ] Polish cursor, emoji input, scaling, accessibility, keyboard navigation and reduced-motion behavior.
-- [ ] Evaluate per-monitor taskbars, wallpapers, snapping and mixed-DPI layouts.
-- [ ] Retain and validate existing 4K Spotlight/Bing rotation rather than duplicate it.
+- [ ] Evaluate per-monitor taskbars, wallpapers, snapping and mixed-DPI layouts. Confirm physical output on each screen: laptop 125% / Dell 100% fails with external cropping on the tested Intel/NVIDIA X11 output-sink configuration; Wayland verification is pending.
+- [x] Retain existing 4K Spotlight/Bing rotation and Zorin wallpaper catalog; restore Personalize/Background entry points. Verified 2026-10-20.
 
 ## Premium Visual Fidelity — rendering and polish
 - [x] Extend the dark palette to native GTK3 controls/dialogs; match Explorer dialog footers, active/inactive borders and all-edge/corner resizing in Explorer/Settings. Other toolkits still need app-specific work.
-- [ ] Detect native monitor resolution, refresh rate, DPI, GPU renderer and active scale without changing display modes automatically.
+- [x] GNOME Advanced display detects current/preferred resolution, refresh, active scale, rotation and reported panel size/current-mode DPI without changing modes. Optional GPU inventory and OpenGL diagnostic-client renderer are shown; compositor GPU identification remains separate.
 - [ ] Verify native-resolution rendering at 1080p, 1440p and 4K, including 100%, 125%, 150% and 200% scaling where supported; document Xfce/X11 fractional-scaling limits.
 - [ ] Eliminate blurry text and bitmap upscaling in the companion; ensure appropriate WebKit device scale and consistent font hinting/antialiasing.
 - [ ] Standardize Segoe UI Variable where locally available and license-permitted, with Selawik fallback; tune weights, line heights and baseline alignment.
@@ -68,3 +73,11 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Update PARITY.md, VALIDATION.md and README.md after each verified milestone.
 
 **Definition of done:** a stable, reversible, reproducible Windows 11-like Linux desktop. Exact third-party app parity and Windows API compatibility are out of scope.
+
+- [x] Playback EQ presets in Sound and Quick Settings with persistent PipeWire service, Off restoration and measured audio-response tests.
+
+
+## Update recovery and shared fixes — 2026-10-20
+- [x] Verified dated desktop snapshots in a user-selected destination, including current GNOME layout, wallpaper/EQ preferences, account photo and installed runtime; mount guarding and selective restore notes.
+- [x] Consolidate AccountsService account-photo refresh, Custom EQ/live preview, System EQ menu and modern HEIC decoder fixes from the related chats.
+- [ ] Automatic pre-update snapshots and post-update compatibility/repair workflow; current snapshots are manual and extensions still require major-version validation.

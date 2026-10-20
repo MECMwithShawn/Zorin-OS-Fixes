@@ -9,6 +9,7 @@ import subprocess
 import sys
 import dbus
 import hardware_controls
+import audio_effects
 from platform_ui import desktop_status
 from gnome_bridge import active as is_gnome
 from gi.repository import Gio
@@ -40,6 +41,9 @@ if is_gnome():
 
 # Pairing uses a bounded, searchable picker on both supported desktops.
 TOOLS['bluetooth']=[sys.executable,str(Path(__file__).with_name('bluetooth_pairing.py'))]
+snipping_tool=Path.home()/'.local/bin/zorin11-snipping-tool'
+if snipping_tool.is_file() and os.access(snipping_tool,os.X_OK):
+    TOOLS['screenshot']=[str(snipping_tool),'--capture']
 
 GNOME_SETTINGS={
  ('xfce4-notifyd','/do-not-disturb'):('org.gnome.desktop.notifications','show-banners',True),
@@ -112,7 +116,7 @@ def bluetooth_objects():
 def sound_outputs():
     try:
         sinks=json.loads(run(['pactl','--format=json','list','sinks']))
-        return [{'id':s['name'],'name':s['description']} for s in sinks]
+        return [{'id':s['name'],'name':s['description']} for s in sinks if s['name'] != audio_effects.SINK]
     except (OSError,ValueError,subprocess.SubprocessError):return []
 
 
@@ -140,6 +144,7 @@ def snapshot():
     if is_gnome():
         result['desktopAnimations']=Gio.Settings.new('org.gnome.desktop.interface').get_boolean('enable-animations')
     result['outputs']=sound_outputs()
+    result['audioEffects']=audio_effects.snapshot()
     try:result['output']=run(['pactl','get-default-sink'])
     except (OSError,subprocess.SubprocessError):result['output']=None
     for channel in {v[0] for v in BOOL_SETTINGS.values()}:
@@ -170,7 +175,9 @@ def snapshot():
 
 
 def apply(name,value):
-    if name in ('batterySaver','powerProfile'):
+    if name=='audioPreset':
+        audio_effects.configure(value)
+    elif name in ('batterySaver','powerProfile'):
         hardware_controls.set_power(name,value)
     elif name=='airplane':
         hardware_controls.set_airplane(value)
@@ -198,7 +205,7 @@ def apply(name,value):
         streams=json.loads(run(['pactl','--format=json','list','sink-inputs']))
         run(['pactl','set-default-sink',value])
         for stream in streams:
-            if previous_index is not None and stream['sink']==previous_index:
+            if previous_index is not None and stream['sink']==previous_index and not audio_effects.owned_stream(stream):
                 run(['pactl','move-sink-input',str(stream['index']),value])
     elif name=='wifi':
         if type(value) is not bool:raise ValueError('This control needs an on/off value.')

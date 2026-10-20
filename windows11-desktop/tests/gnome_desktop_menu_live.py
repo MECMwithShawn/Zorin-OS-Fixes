@@ -1,0 +1,140 @@
+#!/usr/bin/python3
+"""Run the real Zorin desktop and menu adapter in a disposable GNOME session."""
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from desktop_menu_install import UUID, VENDOR, prepare
+from gnome_live import systemd_fixture, until
+
+if '--systemd-fixture' in sys.argv:
+    systemd_fixture()
+    raise SystemExit
+
+if '--session' not in sys.argv:
+    with tempfile.TemporaryDirectory(prefix='axentra-desktop-session-') as directory:
+        root = Path(directory)
+        for name in ('runtime', 'config', 'data', 'cache', 'desktop'):
+            (root/name).mkdir(mode=0o700)
+        (root/'desktop/menu-test.txt').write_text('Disposable desktop fixture\n')
+        (root/'config/user-dirs.dirs').write_text(f'XDG_DESKTOP_DIR="{root}/desktop"\n')
+        env = dict(os.environ, XDG_RUNTIME_DIR=str(root/'runtime'),
+                   XDG_CONFIG_HOME=str(root/'config'), XDG_DATA_HOME=str(root/'data'),
+                   XDG_CACHE_HOME=str(root/'cache'), GSETTINGS_BACKEND='keyfile',
+                   XDG_CURRENT_DESKTOP='GNOME', XDG_SESSION_TYPE='wayland',
+                   GNOME_SHELL_SESSION_MODE='user',
+                   WAYLAND_DISPLAY='axentra-menu-test', GDK_BACKEND='wayland',
+                   GIO_USE_VFS='local', GIO_USE_VOLUME_MONITOR='unix', GTK_USE_PORTAL='0',
+                   PULSE_SERVER='unix:'+str(root/'no-pulse'))
+        result = subprocess.run(['dbus-run-session', '--', sys.executable, __file__, '--session', str(root)],
+                                env=env, capture_output=True, text=True, timeout=80)
+        print(result.stdout)
+        if result.returncode:
+            print(result.stderr[-3000:])
+            if (root/'shell.log').exists():
+                print((root/'shell.log').read_text()[-6000:])
+        raise SystemExit(result.returncode)
+
+from gi.repository import Gio, GLib
+root = Path(sys.argv[-1])
+extensions = root/'data/gnome-shell/extensions'
+# The vendor constructor kills old processes matching its own path. Copy it so
+# the private test can never match the user's real desktop process.
+vendor = extensions/VENDOR.name
+shutil.copytree(VENDOR, vendor)
+extension = extensions/UUID
+for path, data in prepare(extension, vendor=vendor).items():
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+subprocess.run(['glib-compile-schemas', str(extension/'schemas')], check=True)
+# Test-only instrumentation observes real rendered file items and menu actions.
+with (extension/'app/desktopManager.js').open('a') as stream:
+    stream.write("""
+const drawForTest = DesktopManager.prototype._drawDesktop;
+DesktopManager.prototype._drawDesktop = function(files) {
+    drawForTest.call(this, files);
+    GLib.file_set_contents(GLib.build_filenamev([GLib.get_user_config_dir(), 'menu-state.json']),
+        JSON.stringify({files:this._fileList.length, rows:this._menu.get_children().map(
+            row => row.get_accessible().accessible_name), codePath:this._codePath}));
+};
+""")
+(extension/'extension.js').rename(extension/'adapter.js')
+(extension/'extension.js').write_text("""
+import Base from './adapter.js';
+import Gio from 'gi://Gio';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+const XML=`<node><interface name="local.zorin11.DesktopMenuTest"><method name="State"><arg type="s" direction="out"/></method></interface></node>`;
+export default class Test extends Base {
+ enable(){super.enable();this._bus=Gio.DBusExportedObject.wrapJSObject(XML,this);
+ this._bus.export(Gio.DBus.session,'/local/zorin11/DesktopMenuTest');
+ this._owner=Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.DesktopMenuTest',Gio.BusNameOwnerFlags.NONE,null,null);}
+ State(){const d=Main.extensionManager.lookup('zorin-desktop-icons@zorinos.com')?.stateObj;
+ return JSON.stringify({hooked:!!this._ding, pid:d?.data.currentProcess?.subprocess?.get_identifier(), path:d?.path});}
+ disable(){this._bus?.unexport();if(this._owner)Gio.bus_unown_name(this._owner);super.disable();}
+}
+""")
+shell_settings = Gio.Settings.new('org.gnome.shell')
+shell_settings.set_strv('enabled-extensions', [VENDOR.name, UUID])
+shell_settings.set_string('welcome-dialog-last-shown-version', '46.0')
+icons = Gio.Settings.new('org.gnome.shell.extensions.zorin-desktop-icons')
+for key in ('show-home', 'show-trash', 'show-volumes', 'show-network-volumes'):
+    icons.set_boolean(key, False)
+Gio.Settings.sync()
+stub = subprocess.Popen([sys.executable, __file__, '--systemd-fixture'])
+time.sleep(.2)
+log = (root/'shell.log').open('w')
+shell = subprocess.Popen(['gnome-shell', '--headless', '--wayland', '--virtual-monitor',
+                          '1280x800', '--wayland-display', 'axentra-menu-test'], stdout=log, stderr=log)
+bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+def state():
+    return json.loads(bus.call_sync('local.zorin11.DesktopMenuTest', '/local/zorin11/DesktopMenuTest',
+        'local.zorin11.DesktopMenuTest', 'State', None, None, Gio.DBusCallFlags.NONE, 2000, None).unpack()[0])
+def rendered():
+    return json.loads((root/'config/menu-state.json').read_text())
+def extension_action(method):
+    return bus.call_sync('org.gnome.Shell.Extensions', '/org/gnome/Shell/Extensions',
+        'org.gnome.Shell.Extensions', method, GLib.Variant('(s)', (UUID,)), None,
+        Gio.DBusCallFlags.NONE, 2000, None).unpack()[0]
+try:
+    initial = until(lambda: (s if (s:=state()).get('hooked') and s.get('pid') else None))
+    until(lambda: rendered()['files'] == 1)
+    assert 'Personalize' in rendered()['rows'] and 'Show more options' in rendered()['rows']
+    assert initial['path'] == str(vendor), initial  # launch path restored after spawn
+    command = Path('/proc')/initial['pid']/'cmdline'
+    assert str(extension/'app/ding.js').encode() in command.read_bytes()
+    source = Gio.SettingsSchemaSource.new_from_directory(str(extension/'schemas'),
+                                                        Gio.SettingsSchemaSource.get_default(), False)
+    preferences = Gio.Settings.new_full(source.lookup('org.gnome.shell.extensions.zorin11-desktop', False), None, None)
+    preferences.set_boolean('show-icons', False); Gio.Settings.sync()
+    until(lambda: rendered()['files'] == 0)
+    assert (root/'desktop/menu-test.txt').is_file()
+    preferences.set_boolean('show-icons', True); Gio.Settings.sync()
+    until(lambda: rendered()['files'] == 1)
+    assert extension_action('DisableExtension')
+    until(lambda: not command.exists())
+    assert extension_action('EnableExtension')
+    until(lambda: state().get('hooked') and state().get('pid') != initial['pid'])
+    until(lambda: rendered()['files'] == 1)
+    messages = (root/'shell.log').read_text()
+    assert 'JS ERROR' not in messages and 'Exception while Initiating Desktop' not in messages
+    print('PASS GNOME login startup, real Zorin desktop rendering, hide/show preserving files, disable/enable and process supervision')
+finally:
+    # Disable the private vendor extension before Shell exits to reap its child.
+    try:
+        bus.call_sync('org.gnome.Shell.Extensions', '/org/gnome/Shell/Extensions',
+            'org.gnome.Shell.Extensions', 'DisableExtension', GLib.Variant('(s)', (VENDOR.name,)),
+            None, Gio.DBusCallFlags.NONE, 2000, None)
+    except GLib.Error:
+        pass
+    for process in (shell, stub):
+        process.terminate()
+        try: process.wait(timeout=5)
+        except subprocess.TimeoutExpired: process.kill(); process.wait()
+    log.close()

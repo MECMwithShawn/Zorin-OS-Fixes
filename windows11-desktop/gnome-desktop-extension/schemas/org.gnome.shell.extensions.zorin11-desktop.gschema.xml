@@ -1,0 +1,5 @@
+<schemalist>
+  <schema id="org.gnome.shell.extensions.zorin11-desktop" path="/org/gnome/shell/extensions/zorin11-desktop/">
+    <key name="show-icons" type="b"><default>true</default><summary>Show desktop icons</summary></key>
+  </schema>
+</schemalist>

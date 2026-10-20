@@ -1,0 +1,3 @@
+.explorer-files.icons .file-rows{grid-template-columns:repeat(auto-fill,minmax(124px,1fr))}
+.explorer-files.icons .file-item:not(.location-card){height:144px}
+.explorer-files.icons .file-name>.file-thumbnail{overflow:visible}

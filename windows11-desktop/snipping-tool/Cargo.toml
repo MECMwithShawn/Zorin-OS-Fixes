@@ -1,0 +1,23 @@
+[package]
+name = "zorin11-snipping-tool"
+version = "0.2.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+description = "Native Rust screen capture and annotation for Zorin OS"
+
+[dependencies]
+gtk = "0.18.2"
+gdk = "0.18.2"
+gdk-pixbuf = "0.18.5"
+glib = "0.18.5"
+gio = "0.18.4"
+cairo-rs = { version = "0.18.5", features = ["png"] }
+x11rb = "0.13.2"
+regex = "1.11"
+libc = "0.2"
+pangocairo = "0.18"
+
+[profile.release]
+lto = "thin"
+strip = true

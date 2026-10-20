@@ -19,6 +19,7 @@ from model import Store
 from platform_ui import panel_button, desktop_status
 import explorer
 import file_preview
+import file_thumbnails
 import unified_search
 import start_preferences
 import file_transfer
@@ -147,7 +148,7 @@ class Surface(Gtk.ApplicationWindow):
             elif self.mode == 'notifications':
                 data = dict(self.hub.notification_data,mode='notifications',busy=self.hub.notification_busy)
             elif self.mode == 'explorer':
-                data = dict(self.file_state or {'path':self.location,'title':'Home','entries':[], 'places':explorer.place_paths()}, mode='explorer')
+                data = dict(self.file_state or {'path':self.location,'title':'Home','entries':[], 'places':explorer.place_paths(), 'clouds':explorer.cloud_places()}, mode='explorer')
                 data.update(maximized=self.maximized,focused=self.is_active())
             elif self.mode == 'settings':
                 data = dict(self.hub.settings_data,mode='settings',maximized=self.maximized,
@@ -419,14 +420,21 @@ class Hub(Gtk.Application):
                 content = path.read_bytes()
                 mime = mimetypes.guess_type(path.name)[0] or 'application/octet-stream'
             elif uri.netloc == 'profile' and uri.path == '/avatar':
-                content = (CONFIG/'reference-avatar.jpg').read_bytes()
-                mime = 'image/jpeg'
+                path = self.account_avatar()
+                if path is None:
+                    raise ValueError('No account photo configured')
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(str(path), 256, 256, True)
+                content = pixbuf.save_to_bufferv('png', [], [])[1]
+                mime = 'image/png'
             elif uri.netloc == 'backdrop':
                 content = self.backdrops.get(uri.path.lstrip('/'), b'')
                 mime = 'image/png'
             elif uri.netloc == 'wallpaper':
                 content = wallpaper.thumbnail(uri.path.lstrip('/'))
                 mime = 'image/jpeg'
+            elif uri.netloc == 'thumbnail':
+                file_thumbnails.serve(self, request, uri)
+                return
             elif uri.netloc == 'icon':
                 key = unquote(uri.path.lstrip('/'))
                 content = self.icon_bytes(key)
@@ -510,6 +518,44 @@ class Hub(Gtk.Application):
             result['items'] = items
         return result
 
+    def account_avatar(self):
+        """Resolve the system account photo; periodically recheck account changes."""
+        now = time.monotonic()
+        if now >= getattr(self, '_avatar_checked_until', 0):
+            self._avatar_checked_until = now + 5
+            candidates = []
+            try:
+                bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+                user_path = bus.call_sync('org.freedesktop.Accounts',
+                    '/org/freedesktop/Accounts', 'org.freedesktop.Accounts',
+                    'FindUserById', GLib.Variant('(x)', (os.getuid(),)),
+                    GLib.VariantType.new('(o)'), Gio.DBusCallFlags.NONE, 1000, None).unpack()[0]
+                icon = bus.call_sync('org.freedesktop.Accounts', user_path,
+                    'org.freedesktop.DBus.Properties', 'Get',
+                    GLib.Variant('(ss)', ('org.freedesktop.Accounts.User', 'IconFile')),
+                    GLib.VariantType.new('(v)'), Gio.DBusCallFlags.NONE, 1000, None).unpack()[0]
+                if icon:
+                    candidates.append(Path(icon))
+            except GLib.Error:
+                pass
+            candidates.extend([Path.home()/'.face', Path.home()/'.face.icon', CONFIG/'reference-avatar.jpg'])
+            self._account_avatar_path = None
+            for path in candidates:
+                try:
+                    if path.is_file() and os.access(path, os.R_OK):
+                        self._account_avatar_path = path
+                        break
+                except OSError:
+                    continue
+        return self._account_avatar_path
+
+    def account_avatar_uri(self):
+        path = self.account_avatar()
+        try:
+            return 'zorin11://profile/avatar?v=' + str(path.stat().st_mtime_ns) if path else None
+        except OSError:
+            return None
+
     def payload(self, group_id=None):
         state = self.store.state
         if group_id:
@@ -521,7 +567,7 @@ class Hub(Gtk.Application):
             'documents': self.recent_documents,
             'groups': [self.group_info(g) for g in state['groups']], 'groupsVisible': state['groups_visible'],
             'user': self.presentation.get('displayName') or (GLib.get_real_name() if GLib.get_real_name() not in ('Unknown', '') else GLib.get_user_name()),
-            'avatar': 'zorin11://profile/avatar' if (CONFIG/'reference-avatar.jpg').exists() else None,
+            'avatar': self.account_avatar_uri(),
             'places': [self.path_info(p) for p in [Path.home(), Path.home()/'Documents', Path.home()/'Downloads'] if p.exists()]}
 
     def broadcast(self):
@@ -774,10 +820,26 @@ class Hub(Gtk.Application):
             Gio.AppInfo.launch_default_for_uri(Path(path).as_uri(), Gdk.Display.get_default().get_app_launch_context())
         self.start.hide()
 
+    def spectrum_tick(self):
+        now=time.monotonic()
+        visible=[s for s in self.surfaces.values()
+                 if getattr(s,'spectrum_until',0)>now and s.get_visible()
+                 and s.get_window() and not s.get_window().get_state() & Gdk.WindowState.ICONIFIED]
+        self.spectrum.enable(bool(visible))
+        for surface in visible:surface.send(dict(type='audio-spectrum',**self.spectrum.data))
+        return True
+
     def dispatch(self, surface, message):
         action = message.get('action')
         if not isinstance(action,str):raise ValueError('Missing action.')
-        if action=='snap-hover' and surface.mode in ('explorer','settings'):
+        if action=='audio-spectrum' and surface.mode in ('settings','quick'):
+            surface.spectrum_until=time.monotonic()+5 if message.get('enabled') is True else 0
+            if not hasattr(self,'spectrum'):
+                from audio_spectrum import Monitor
+                self.spectrum=Monitor()
+                self.connect('shutdown',lambda *_:self.spectrum.close())
+                GLib.timeout_add(100,self.spectrum_tick)
+        elif action=='snap-hover' and surface.mode in ('explorer','settings'):
             self.multitasking.caption_hover(surface,bool(message.get('enter')))
         elif action=='snap-layouts' and surface.mode in ('explorer','settings'):
             self.multitasking.show_snap(surface.get_window().get_xid())
@@ -973,7 +1035,7 @@ class Hub(Gtk.Application):
             surface.hide();settings_backend.launch(tool)
         elif action=='quick-set':
             name,value=message.get('name'),message.get('value')
-            if name not in ('volume','muted','wifi','bluetooth','airplane','batterySaver','dnd','output','stickyKeys','slowKeys','bounceKeys','mouseKeys'):
+            if name not in ('volume','muted','wifi','bluetooth','airplane','batterySaver','dnd','output','audioPreset','stickyKeys','slowKeys','bounceKeys','mouseKeys'):
                 raise ValueError('Unknown Quick Settings control.')
             self.quick_change(lambda:settings_backend.apply(name,value))
         elif action=='quick-device':
@@ -1186,6 +1248,7 @@ class Hub(Gtk.Application):
             surface.file_state = dict(data, hidden=hidden)
             surface.set_title(data['title']+' — File Explorer')
             surface.update()
+            file_thumbnails.prefetch(self, surface)
             if surface.file_monitor:
                 surface.file_monitor.cancel()
             if not location.startswith('::'):
