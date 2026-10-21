@@ -1119,10 +1119,24 @@ class Hub(Gtk.Application):
         if surface:
             display=Gdk.Display.get_default()
             self.settings_data['monitors']=[{'name':display.get_monitor(i).get_model() or 'Display',
+                'x':display.get_monitor(i).get_geometry().x,
+                'y':display.get_monitor(i).get_geometry().y,
                 'width':display.get_monitor(i).get_geometry().width,
                 'height':display.get_monitor(i).get_geometry().height,
                 'scale':display.get_monitor(i).get_scale_factor(),
                 'refresh':round(display.get_monitor(i).get_refresh_rate()/1000,2)} for i in range(display.get_n_monitors())]
+            if is_gnome():
+                try:
+                    import display_details
+                    bus=Gio.bus_get_sync(Gio.BusType.SESSION,None)
+                    state=bus.call_sync(display_details.SERVICE,display_details.PATH,display_details.SERVICE,'GetCurrentState',None,None,0,1000,None).unpack()
+                    rows=display_details.parse_state(state)
+                    for monitor in self.settings_data['monitors']:
+                        match=next((r for r in rows if r['connector']==monitor['name']),None)
+                        if match and match['resolution']:
+                            monitor.update(nativeWidth=match['resolution'][0],nativeHeight=match['resolution'][1],actualScale=match['scale'])
+                except GLib.Error:
+                    pass
             from effects import wm_name
             self.settings_data['wobble']=('zorin-window-move-effect@zorinos.com' in Gio.Settings.new('org.gnome.shell').get_strv('enabled-extensions')) if is_gnome() else 'compiz' in wm_name()
             surface.update()

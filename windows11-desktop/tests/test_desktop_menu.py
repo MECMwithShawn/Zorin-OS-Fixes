@@ -16,6 +16,9 @@ class DesktopMenuTests(unittest.TestCase):
     def test_launchers_use_companion_without_file_association_changes(self):
         entries=gnome_install.personalization_entries(Path('/example/apps'))
         self.assertEqual(len(entries),3)
+        for panel in ('gnome-display-panel','gnome-background-panel'):
+            self.assertIn(b'X-GNOME-Settings-Panel;',entries[Path('/example/apps')/(panel+'.desktop')])
+            self.assertIn(b'X-GNOME-DevicesSettings;',entries[Path('/example/apps')/(panel+'.desktop')])
         for path,data in entries.items():
             self.assertIn(b'app.py" --settings ',data)
             self.assertNotIn(b'DBusActivatable=true',data)

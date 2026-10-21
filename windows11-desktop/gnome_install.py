@@ -61,7 +61,8 @@ def personalization_entries(apps):
         ('gnome-display-panel','Display settings','display','video-display'),
         ('org.gnome.Settings','Settings','home','preferences-system'),
     ]:
-        entries[apps/(ident+'.desktop')]=desktop(name,'--settings '+page,icon,'Zorin11-settings','Settings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\n'
+        categories='GNOME;GTK;Settings;HardwareSettings;X-GNOME-Settings-Panel;X-GNOME-DevicesSettings;' if ident.endswith('-panel') else 'Settings;'
+        entries[apps/(ident+'.desktop')]=desktop(name,'--settings '+page,icon,'Zorin11-settings',categories)+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\nKeywords=Settings;Display;Background;\n'
     return entries
 
 
@@ -119,9 +120,9 @@ def install():
         ('quick','Quick Settings','--quick-settings','preferences-system','Zorin11-hub'),
         ('notifications','Notifications and calendar','--notifications','preferences-system-notifications','Zorin11-hub'),
     ]:files[apps/f'zorin11-{ident}.desktop']=desktop(name,args,icon,wm)
-    files[apps/'gnome-sound-panel.desktop']=desktop('Sound','--settings sound','multimedia-volume-control','Zorin11-settings','Settings;HardwareSettings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\n'
+    files[apps/'gnome-sound-panel.desktop']=desktop('Sound','--settings sound','multimedia-volume-control','Zorin11-settings','Settings;HardwareSettings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\nKeywords=Settings;Display;Background;\n'
     files[apps/'zorin11-device-manager.desktop']=device_manager_entry()
-    files[apps/'gnome-bluetooth-panel.desktop']=desktop('Bluetooth','--settings devices','bluetooth','Zorin11-settings','Settings;HardwareSettings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\n'
+    files[apps/'gnome-bluetooth-panel.desktop']=desktop('Bluetooth','--settings devices','bluetooth','Zorin11-settings','Settings;HardwareSettings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\nKeywords=Settings;Display;Background;\n'
     files.update(personalization_entries(apps))
     files[apps/'zorin11-explorer.desktop']+=b'MimeType=inode/directory;\nKeywords=Files;Folders;File Manager;Explorer;\n'
     files[apps/'zorin11-event-viewer.desktop']=event_viewer_entry()
