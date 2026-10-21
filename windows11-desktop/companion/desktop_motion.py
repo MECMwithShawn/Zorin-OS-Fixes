@@ -75,11 +75,13 @@ def configure(name,value):
     previous=STATE.read_bytes() if STATE.exists() else None
     tmp=STATE.with_suffix('.tmp');tmp.write_text(json.dumps(state)+'\n');tmp.replace(STATE)
     from gnome_bridge import active as is_gnome
-    if is_gnome():
-        from gi.repository import Gio
-        Gio.Settings.new('org.gnome.desktop.interface').set_boolean('enable-animations',state['enabled'])
-        Gio.Settings.sync();return
-    try:refresh_profile()
+    try:
+        if is_gnome():
+            from gi.repository import Gio
+            if not Gio.Settings.new('org.gnome.desktop.interface').set_boolean('enable-animations',state['enabled']):
+                raise RuntimeError('Desktop animations setting is not writable.')
+            Gio.Settings.sync()
+        else:refresh_profile()
     except Exception:
         if previous is None:STATE.unlink(missing_ok=True)
         else:tmp.write_bytes(previous);tmp.replace(STATE)

@@ -637,6 +637,12 @@ class Hub(Gtk.Application):
         """Keep a tiny, blurred-on-render snapshot in memory for acrylic panels."""
         if surface.get_visible():
             return
+        if os.environ.get('XDG_SESSION_TYPE') == 'wayland':
+            # XWayland's root is not the composited desktop. Use the normal
+            # panel background instead of a black/incomplete root capture.
+            self.backdrops.pop(surface.mode, None)
+            surface.backdrop = None
+            return
         try:
             root = Gdk.get_default_root_window()
             pixels = Gdk.pixbuf_get_from_window(root, x, y, width, height)

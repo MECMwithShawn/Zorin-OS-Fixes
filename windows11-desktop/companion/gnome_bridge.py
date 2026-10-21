@@ -46,7 +46,7 @@ class Window:
     is_maximized_horizontally=is_maximized
     is_maximized_vertically=is_maximized
     def is_fullscreen(self):return self.row()['fullscreen']
-    def is_skip_tasklist(self):return self.row()['skip'] or self.get_name() in ('Zorin 11 Start','Quick settings','Notifications and calendar','Desktop group','Task view','Snap layouts','Snap assist','Window switcher','Switch windows')
+    def is_skip_tasklist(self):return self.row()['skip'] or min(self.row()['rect'][2:]) <= 0 or self.get_name() in ('Zorin 11 Start','Quick settings','Notifications and calendar','Desktop group','Task view','Snap layouts','Snap assist','Window switcher','Switch windows')
     def get_window_type(self):
         from gi.repository import Wnck
         return {0:Wnck.WindowType.NORMAL,1:Wnck.WindowType.DESKTOP,2:Wnck.WindowType.DOCK,3:Wnck.WindowType.DIALOG,4:Wnck.WindowType.DIALOG}.get(self.row()['type'],Wnck.WindowType.UTILITY)
