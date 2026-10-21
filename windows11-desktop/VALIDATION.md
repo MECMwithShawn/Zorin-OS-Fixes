@@ -361,3 +361,12 @@ These snapshots provide selective recovery, not automatic repair after every OS 
 - NetworkManager selected an unusable saved network awaiting secrets. Raised home profile priority locally; the next attempt still selected the unusable profile, so its autoconnect was disabled. That final profile change has not been sleep-tested.
 - OneDrive was healthy after cycle 2 but lost its session-bus registration after later sign-out. Restarted its existing service; verified up_to_date, pending 0, issues []. Closed only its stuck tray UI afterward; sync remained healthy.
 - Identified and terminated orphaned Soloist playback from an earlier login. Mini Media's persistent cleanup needs a separate app lifecycle fix.
+
+
+## Graphical-session lifecycle — 2026-10-20
+
+- Added exact-executable, same-user cleanup of Mini Media, Soloist and OneDrive GUI at graphical logout, using pidfds and a bounded graceful-shutdown interval. The sync executable is excluded from this matcher.
+- Existing OneDrive sync service receives a PartOf drop-in and graphical-session startup dependency, preserving its original unit and app files.
+- Three cleanup tests passed. A real isolated systemd target stop invoked the cleanup helper, stopped its disposable player process, and preserved an unrelated process. All 38 desktop/installer tests passed.
+- Installed locally, cleanup service armed (active/exited), OneDrive daemon still up_to_date with zero pending files and issues.
+- Wi-Fi preferences remain applied (working home profile priority 100; unusable saved profile autoconnect disabled). Real logout/login and another Wi-Fi sleep/resume test await user readiness; these are not yet claimed as verified.

@@ -152,6 +152,12 @@ def install():
     import thumbnail_cache
     files.update({HOME/'.config/systemd/user'/name:text.encode()
                   for name,text in thumbnail_cache.units(DEST).items()})
+    import session_cleanup
+    files.update({HOME/'.config/systemd/user'/name:text.encode()
+                  for name,text in session_cleanup.units(DEST).items()})
+    onedrive_service=HOME/'.config/systemd/user/axentra-onedrive.service'
+    if onedrive_service.exists():
+        files[onedrive_service.with_name(onedrive_service.name+'.d')/'zorin11-session.conf']=b'[Unit]\nPartOf=graphical-session.target\n'
     write_files(files)
     snipping_install.BINARY.chmod(0o755)
     snipping_install.shortcut()
@@ -160,6 +166,9 @@ def install():
     # A running Python daemon keeps its old preset catalog after files are upgraded.
     subprocess.run(['systemctl','--user','try-restart','zorin11-audio-effects.service'],check=True)
     subprocess.run(['systemctl','--user','enable','--now','zorin11-thumbnail-cache.timer'],check=True)
+    subprocess.run(['systemctl','--user','enable','--now','zorin11-session-cleanup.service'],check=True)
+    if onedrive_service.exists():
+        subprocess.run(['systemctl','--user','add-wants','graphical-session.target','axentra-onedrive.service'],check=True)
     subprocess.run(['glib-compile-schemas',str(EXTENSION/'schemas')],check=True)
     subprocess.run(['glib-compile-schemas',str(HOME/'.local/share/gnome-shell/extensions'/desktop_menu_install.UUID/'schemas')],check=True)
     subprocess.run(['update-desktop-database',str(apps)],check=True)
