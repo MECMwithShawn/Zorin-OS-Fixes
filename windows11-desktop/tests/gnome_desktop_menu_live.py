@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -62,7 +63,8 @@ DesktopManager.prototype._drawDesktop = function(files) {
     drawForTest.call(this, files);
     GLib.file_set_contents(GLib.build_filenamev([GLib.get_user_config_dir(), 'menu-state.json']),
         JSON.stringify({files:this._fileList.length, rows:this._menu.get_children().map(
-            row => row.get_accessible().accessible_name), codePath:this._codePath}));
+            row => row.get_accessible().accessible_name), codePath:this._codePath,
+            pid:GLib.file_read_link('/proc/self')}));
 };
 """)
 (extension/'extension.js').rename(extension/'adapter.js')
@@ -102,8 +104,40 @@ def extension_action(method):
     return bus.call_sync('org.gnome.Shell.Extensions', '/org/gnome/Shell/Extensions',
         'org.gnome.Shell.Extensions', method, GLib.Variant('(s)', (UUID,)), None,
         Gio.DBusCallFlags.NONE, 2000, None).unpack()[0]
+def launched_from(pid):
+    return (Path('/proc')/pid/'cmdline').read_bytes().split(b'\0')[1].decode()
+def desktops(launcher):
+    found = []
+    for proc in Path('/proc').iterdir():
+        try:
+            if proc.name.isdigit() and str(launcher).encode() in (proc/'cmdline').read_bytes():
+                found.append(proc.name)
+        except OSError:
+            pass
+    return found
+def remove_vendor_links():
+    # Reproduce what restore's cleanup leaves: the adapter files without Zorin's
+    # launcher links or compiled schema. Move them aside within this session only.
+    assert extension.is_relative_to(root) and vendor.is_relative_to(root)
+    held = root/'removed-adapter-links'
+    held.mkdir()
+    for link in (extension/'app').iterdir():
+        if link.is_symlink():
+            link.rename(held/link.name)
+    (extension/'schemas/gschemas.compiled').rename(held/'gschemas.compiled')
+def settled(exclude=None, drawn=True):
+    # Zorin's first desktop process can exit and relaunch during startup. Act only
+    # once one process (which has drawn, for the adapter) is still supervised 1.5 s later.
+    for _ in range(5):
+        current = until(lambda: (s if (s:=state()).get('pid') not in (None, exclude)
+                                 and (not drawn or rendered().get('pid') == s['pid']) else None))
+        time.sleep(1.5)
+        if state().get('pid') == current['pid']:
+            return current
+    raise AssertionError('Zorin desktop kept relaunching')
 try:
-    initial = until(lambda: (s if (s:=state()).get('hooked') and s.get('pid') else None))
+    until(lambda: state().get('hooked'))
+    initial = settled()
     until(lambda: rendered()['files'] == 1)
     assert 'Personalize' in rendered()['rows'] and 'Show more options' in rendered()['rows']
     assert initial['path'] == str(vendor), initial  # launch path restored after spawn
@@ -121,10 +155,37 @@ try:
     until(lambda: not command.exists())
     assert extension_action('EnableExtension')
     until(lambda: state().get('hooked') and state().get('pid') != initial['pid'])
+    hooked = settled()
+    until(lambda: rendered()['files'] == 1)
+    # Links removed while the adapter is loaded: the next relaunch must use Zorin's desktop.
+    remove_vendor_links()
+    os.kill(int(hooked['pid']), signal.SIGTERM)
+    fallback = settled(exclude=hooked['pid'], drawn=False)  # Zorin's own manager is not instrumented
+    assert launched_from(fallback['pid']) == str(vendor/'app/ding.js'), fallback
+    # Login with an incomplete adapter must leave the running Zorin desktop alone.
+    assert extension_action('DisableExtension')
+    original = until(lambda: desktops(vendor/'app/ding.js'))
+    assert extension_action('EnableExtension')
+    until(state)
+    time.sleep(1.5)  # a killed desktop would have been replaced by now
+    incomplete = state()
+    assert not incomplete['hooked'] and incomplete['pid'] in original, incomplete
+    assert desktops(vendor/'app/ding.js') == original
+    # Reinstalling the links restores the adapter at the next enable/login.
+    prepare(extension, vendor=vendor)
+    subprocess.run(['glib-compile-schemas', str(extension/'schemas')], check=True)
+    (root/'config/menu-state.json').unlink()
+    assert extension_action('DisableExtension')
+    assert extension_action('EnableExtension')
+    until(lambda: state().get('hooked'))
+    repaired = settled()
+    assert launched_from(repaired['pid']) == str(extension/'app/ding.js'), repaired
     until(lambda: rendered()['files'] == 1)
     messages = (root/'shell.log').read_text()
     assert 'JS ERROR' not in messages and 'Exception while Initiating Desktop' not in messages
+    assert 'Error while trying to launch DING process' not in messages
     print('PASS GNOME login startup, real Zorin desktop rendering, hide/show preserving files, disable/enable and process supervision')
+    print('PASS removed adapter links fall back to Zorin desktop at relaunch and login; repair restores the menu')
 finally:
     # Disable the private vendor extension before Shell exits to reap its child.
     try:

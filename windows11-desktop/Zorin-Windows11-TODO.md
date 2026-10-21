@@ -86,3 +86,4 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Verified dated desktop snapshots in a user-selected destination, including current GNOME layout, wallpaper/EQ preferences, account photo and installed runtime; mount guarding and selective restore notes.
 - [x] Consolidate AccountsService account-photo refresh, Custom EQ/live preview, System EQ menu and modern HEIC decoder fixes from the related chats.
 - [x] Optional APT pre-update snapshots and deferred, compatibility-gated repair of missing desktop files/reset layout settings. OneDrive failure postpones updates; arbitrary app updates and major GNOME changes still require separate handling.
+- [x] Desktop icons survive an incomplete desktop-menu adapter (falls back to Zorin's desktop at sign-in and relaunch); package restore tests no longer touch the live desktop menu or SnippingTool shortcuts.

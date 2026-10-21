@@ -1,5 +1,4 @@
 // The installed Zorin desktop still owns icons, drag/drop and file operations.
-import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -27,12 +26,18 @@ export default class DesktopMenu extends Extension {
         if (!ding?.data?.isEnabled || ding === this._ding) return;
         if (typeof ding.launchDesktop !== 'function' || typeof ding.doRelaunch !== 'function')
             throw new Error('This version of Zorin Desktop Icons is not supported.');
-        const app = GLib.build_filenamev([this.path, 'app', 'desktopManager.js']);
-        if (!Gio.File.new_for_path(app).query_exists(null))
-            throw new Error('Install the desktop menu adapter before enabling it.');
+        if (!this._overlayReady()) {
+            // Never stop a working desktop for an adapter that cannot launch.
+            console.warn(`${this.uuid}: desktop menu adapter is incomplete; keeping Zorin's desktop.`);
+            return;
+        }
         this._ding = ding;
         const overlay = this.path;
+        const ready = () => this._overlayReady();
         this._injections.overrideMethod(ding, 'launchDesktop', original => function (...args) {
+            // A restore or partial copy can remove the vendor links after login;
+            // relaunch Zorin's own desktop instead of respawning a missing file.
+            if (!ready()) return original.apply(this, args);
             // Only the synchronous launch sees the overlay. Zorin's process
             // supervisor, monitor geometry and Wayland client ownership remain intact.
             const descriptor = Object.getOwnPropertyDescriptor(this, 'path');
@@ -45,6 +50,12 @@ export default class DesktopMenu extends Extension {
         });
         ding.killCurrentProcess();
         ding.doRelaunch(100);
+    }
+    _overlayReady() {
+        // file_test follows the installer's links, so removed or dangling ones fail.
+        return ['app/ding.js', 'app/desktopManager.js', 'app/zorinOriginal/desktopManager.js',
+            'schemas/gschemas.compiled'].every(file => GLib.file_test(
+            GLib.build_filenamev([this.path, file]), GLib.FileTest.IS_REGULAR));
     }
     disable() {
         if (this._signal) Main.extensionManager.disconnect(this._signal);
