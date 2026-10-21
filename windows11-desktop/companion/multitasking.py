@@ -1,4 +1,4 @@
-"""Fluent-style Snap Layouts and searchable Task View over native X11 windows."""
+"""Fluent-style Snap Layouts and Task View for GNOME and Xfce windows."""
 import json
 import os
 from pathlib import Path
@@ -309,13 +309,17 @@ class Multitasking:
     def activate_group(self,group):
         if hasattr(group,'token'):self.snap_groups.activate(group.token)
 
+    def show_surface_snap(self,surface):
+        self.caption_hover(surface,False)
+        target=self.windows.for_surface(surface)
+        if target:self.show_snap(target.get_xid())
+
     def caption_hover(self,surface,enter):
         if self.hover_timer:GLib.source_remove(self.hover_timer);self.hover_timer=0
         if not enter:return
         def show():
             self.hover_timer=0
             if surface.is_active():
-                from gnome_bridge import active as is_gnome
-                self.show_snap(None if is_gnome() else surface.get_window().get_xid())
+                self.show_surface_snap(surface)
             return False
         self.hover_timer=GLib.timeout_add(650,show)

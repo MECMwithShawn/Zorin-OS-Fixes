@@ -848,7 +848,7 @@ class Hub(Gtk.Application):
         elif action=='snap-hover' and surface.mode in ('explorer','settings'):
             self.multitasking.caption_hover(surface,bool(message.get('enter')))
         elif action=='snap-layouts' and surface.mode in ('explorer','settings'):
-            self.multitasking.show_snap(surface.get_window().get_xid())
+            self.multitasking.show_surface_snap(surface)
         elif action=='window-resize' and surface.mode in ('explorer','settings'):
             edges={name.lower().replace('_','-'):getattr(Gdk.WindowEdge,name) for name in
                    ('NORTH','SOUTH','EAST','WEST','NORTH_WEST','NORTH_EAST','SOUTH_WEST','SOUTH_EAST')}
