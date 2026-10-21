@@ -361,3 +361,13 @@ These snapshots provide selective recovery, not automatic repair after every OS 
 - NetworkManager selected an unusable saved network awaiting secrets. Raised home profile priority locally; the next attempt still selected the unusable profile, so its autoconnect was disabled. That final profile change has not been sleep-tested.
 - OneDrive was healthy after cycle 2 but lost its session-bus registration after later sign-out. Restarted its existing service; verified up_to_date, pending 0, issues []. Closed only its stuck tray UI afterward; sync remained healthy.
 - Identified and terminated orphaned Soloist playback from an earlier login. Mini Media's persistent cleanup needs a separate app lifecycle fix.
+
+
+## Wayland Alt+Tab recovery — 2026-10-21
+
+- GNOME modifier tracking no longer loads libX11 or opens an X display. Xfce retains its X11 backend.
+- A lost GNOME bridge cancels the chooser without activating a different window; an unavailable bridge at startup leaves the current window alone.
+- Six modifier/bridge tests pass, covering no X11 dependency, modifier release, held Alt, and bridge failure. Live Shell modifier query succeeds.
+- Live native Wayland fixture passed all six snap layouts, compositor PNG previews, and restore on the currently exposed monitor. This run does not establish dual-monitor coverage.
+- Installed switcher module locally after backing up the previous file. Running hub was not restarted because Explorer was open; it loads the fix on its next launch.
+- OneDrive reports up_to_date, pending 0 and no issues. No OneDrive or Explorer changes. Sign-out and sleep testing remain deferred.

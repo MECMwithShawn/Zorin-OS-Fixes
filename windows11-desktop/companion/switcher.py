@@ -1,4 +1,4 @@
-"""Keyboard-driven window/Snap Group switcher for the Xfce Alt+Tab shortcut.
+"""Keyboard-driven window/Snap Group switcher for GNOME and Xfce Alt+Tab.
 
 Xfce launches the command; only a visible switcher grabs the keyboard. No idle
 key listener or global passive grab is installed. Native Ctrl+Alt+Tab remains
@@ -8,6 +8,9 @@ import ctypes as C
 import subprocess
 import time
 from pathlib import Path
+import gi
+gi.require_version("Gtk","3.0")
+gi.require_version("Gdk","3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib, Pango
 from multitasking import label
 
@@ -17,6 +20,9 @@ BASE=Path(__file__).resolve().parent
 class AltKeys:
     """Query only the physical Alt keys while the chooser is open."""
     def __init__(self):
+        from gnome_bridge import active as is_gnome
+        self.gnome=is_gnome();self.display=None
+        if self.gnome:return
         self.x=C.CDLL('libX11.so.6')
         for name,restype,args in [
             ('XOpenDisplay',C.c_void_p,[C.c_char_p]),
@@ -30,8 +36,8 @@ class AltKeys:
         self.codes=[self.x.XKeysymToKeycode(self.display,key) for key in (Gdk.KEY_Alt_L,Gdk.KEY_Alt_R)]
 
     def held(self):
-        from gnome_bridge import active as is_gnome,call
-        if is_gnome():return bool(call('modifiers') & int(Gdk.ModifierType.MOD1_MASK))
+        from gnome_bridge import call
+        if self.gnome:return bool(call('modifiers') & int(Gdk.ModifierType.MOD1_MASK))
         keys=(C.c_ubyte*32)();self.x.XQueryKeymap(self.display,keys)
         return any(code and keys[code//8] & (1<<(code%8)) for code in self.codes)
 
@@ -97,10 +103,15 @@ class Switcher:
         if not self.items:return
         origin=self.m.windows.active();self.m.origin=origin.get_xid() if origin else None
         self.selected=(len(self.items)-1 if reverse else 1)%len(self.items)
-        self.keys=AltKeys()
+        try:
+            self.keys=AltKeys()
+            held=self.keys.held()
+        except (GLib.Error,RuntimeError,OSError,ValueError,TypeError):
+            if self.keys:self.keys.close();self.keys=None
+            return
         # A fast tap may finish before the Xfce command reaches the application.
         # Select directly in that case instead of leaving a stranded popup.
-        if not self.keys.held():
+        if not held:
             self.keys.close();self.keys=None;self.commit();return
         area=self.m.area(origin);width=min(1160,area[2]-40,48+270*len(self.items))
         columns=max(1,min(4,(width-48)//250))
@@ -138,13 +149,22 @@ class Switcher:
         if self.keys:self.keys.close();self.keys=None
         self.cards=[];self.drawings=[]
 
+    def alt_held(self):
+        try:return self.keys.held()
+        except (GLib.Error,RuntimeError,OSError,ValueError,TypeError):
+            # Losing the bridge must cancel, not select another window.
+            self.m.close(False)
+            return None
+
     def check_release(self):
-        if self.window and self.keys and not self.keys.held():self.commit()
+        if self.window and self.keys and self.alt_held() is False:self.commit()
         return False
 
     def tick(self):
         if not self.window:return False
-        if not self.keys.held():self.timer=0;self.commit();return False
+        held=self.alt_held()
+        if held is None:return False
+        if not held:self.timer=0;self.commit();return False
         from gnome_bridge import active as is_gnome
         if is_gnome():return True  # Shell owns Alt+Tab; poll native modifier release.
         if not self.grabbed:
