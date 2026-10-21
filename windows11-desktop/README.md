@@ -45,6 +45,8 @@ Task View and Snap Assist refresh visible window cards in the background, with o
 
 In Task View, Ctrl+F focuses search and selects the query. Escape cancels an unfinished desktop rename or clears the search before closing the panel. Enter saves a desktop name. Search and rename tooltips explain these shortcuts, and the search field has an explicit accessibility label.
 
+Alt+Tab also refreshes only visible, nonminimized window and Snap Group previews. Closed windows leave the chooser; minimized windows keep their cached image. Releasing Alt selects the highlighted entry, and Escape cancels. Closing/reopening rejects obsolete capture jobs and results, with at most one Alt+Tab capture queued or running. A capture already running can finish within its three-second timeout; its result is ignored after closing.
+
 | Component | Integration |
 |---|---|
 | Taskbar | Dark blue appearance, Win11 icons, 48 px bottom taskbar, centered Start/Search/Task View/app area, native running-app indicators/previews and notification badges, app-reported progress bars, narrow Show desktop/hover-peek strip |

@@ -13,6 +13,7 @@ gi.require_version("Gtk","3.0")
 gi.require_version("Gdk","3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib, Pango
 from multitasking import label
+from card_previews import decode
 
 BASE=Path(__file__).resolve().parent
 
@@ -253,6 +254,22 @@ class Switcher:
                 Gdk.cairo_set_source_pixbuf(cr,scaled,x+(w-pw)/2,y+(h-ph)/2);cr.paint()
         return False
 
+    def preview_targets(self):
+        if not self.window or not self.flow.get_mapped():return []
+        adjustment=self.scroll.get_vadjustment();low=adjustment.get_value();high=low+adjustment.get_page_size()
+        ids=[]
+        for entry,card in zip(self.items,self.cards):
+            child=card.get_parent()
+            if not card.get_mapped() or not child.get_child_visible():continue
+            bounds=child.get_allocation()
+            if bounds.y+bounds.height<=low or bounds.y>=high:continue
+            ids.extend(x for x,_ in entry['members'] if x not in ids)
+        if not ids:return []
+        try:
+            live={w.get_xid() for w in self.m.windows.windows() if not w.is_minimized()}
+            return [x for x in ids if x in live]
+        except (GLib.Error,ValueError):return []
+
     def capture(self):
         if not self.window:return False
         # Refresh metadata without changing the order under a held Alt key.
@@ -264,27 +281,23 @@ class Switcher:
             self.selected=next((i for i,e in enumerate(items) if e['key']==selected),min(self.selected,len(items)-1))
             self.build_cards();self.highlight()
         if self.pending_capture:return True
-        adjustment=self.scroll.get_vadjustment();low=adjustment.get_value();high=low+adjustment.get_page_size()
-        ids=[]
-        for entry,card in zip(self.items,self.cards):
-            bounds=card.get_parent().get_allocation()
-            if bounds.y+bounds.height<low or bounds.y>high:continue
-            ids.extend(x for x,_ in entry['members'] if x not in ids)
+        ids=self.preview_targets()
         if not ids:return True
         self.capture_cursor%=len(ids);xid=ids[self.capture_cursor];self.capture_cursor+=1
-        w=self.m.windows.get(xid)
-        if not w or w.is_minimized():return True
         self.pending_capture=True;epoch=self.epoch
         def task():
-            return subprocess.run(['/usr/bin/python3',str(BASE/'window_preview.py'),str(xid)],capture_output=True,timeout=2,check=False).stdout
+            # A worker may still be queued when Alt is released. Do not start
+            # that capture after this chooser has closed or reopened.
+            if epoch!=self.epoch:return b''
+            return subprocess.run(['/usr/bin/python3',str(BASE/'window_preview.py'),str(xid)],capture_output=True,timeout=3,check=False).stdout
         def done(data):
             self.pending_capture=False
-            if epoch!=self.epoch or not data or len(data)>1048576:return
-            try:
-                loader=GdkPixbuf.PixbufLoader.new_with_type('png');loader.write(data);loader.close()
-                self.m.preview_cache[xid]=loader.get_pixbuf()
-                while len(self.m.preview_cache)>36:self.m.preview_cache.pop(next(iter(self.m.preview_cache)))
-                for widget in self.drawings:widget.queue_draw()
-            except GLib.Error:pass
-        self.m.hub.background(task,done,lambda _:done(b''))
+            if epoch!=self.epoch or xid not in self.preview_targets():return
+            pix=decode(data)
+            if pix is None:return
+            self.m.preview_cache.pop(xid,None);self.m.preview_cache[xid]=pix
+            while len(self.m.preview_cache)>36:self.m.preview_cache.pop(next(iter(self.m.preview_cache)))
+            for widget in self.drawings:widget.queue_draw()
+        try:self.m.hub.background(task,done,lambda _:done(b''))
+        except RuntimeError:self.pending_capture=False
         return True
