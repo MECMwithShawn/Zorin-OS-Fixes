@@ -7,7 +7,7 @@
 
 On the tested Intel/NVIDIA laptop, GNOME X11 at laptop 125% / external 100% produces a cropped external display even though the reported native modes and screenshot look correct. Do not use a successful settings readback alone to confirm scaling: check all four edges on the physical screens. This matches the [X11 PRIME transform issue documented by NVIDIA](https://forums.developer.nvidia.com/t/450-75-with-reverse-prime-xrandr-scale-2x2-does-not-work-renders-only-1-4-of-screen-problem-with-nvidia-settings/142424).
 
-Test **Zorin Desktop on Wayland** from the login-screen session selector for independent scaling. Save work before signing out. This is a different session, not a theme reinstall; the package does not switch sessions automatically. Physical Wayland validation on this machine remains pending. Both screens at 100% is the fallback if staying on the current X11 session.
+Test **Zorin Desktop on Wayland** from the login-screen session selector for independent scaling. Save work before signing out. This is a different session, not a theme reinstall; the package does not switch sessions automatically. The user confirmed improved scaling in Wayland; native window snapping, previews and Snipping Tool capture/recording have also passed local checks. Broader mixed-DPI and suspend/resume coverage remains pending. Both screens at 100% is the fallback if staying on the current X11 session.
 
 ## Device Manager (GNOME)
 
@@ -38,6 +38,8 @@ Zorin Taskbar, Zorin Menu and User Themes must be enabled. The installer enables
 Re-run `python3 setup.py install` to upgrade. Your original recovery values, Start pins, Desktop Groups and saved Snap Group recipes are retained. `--desktop gnome` or `--desktop xfce` can make the expected desktop explicit; a mismatched session is rejected.
 
 ## GNOME experience
+
+**Snap Layouts:** press Win+Z for the active window. In companion Explorer and Settings, hover over Maximize, right-click it, or focus it and press Down or Shift+F10. Choose a zone to snap; Escape closes the picker. Caption requests resolve the originating window through GNOME, including duplicate Explorer titles, so an XWayland window ID cannot select an unrelated native window. Ambiguous or closed windows are ignored. Third-party maximize-hover integration remains pending.
 
 | Component | Integration |
 |---|---|

@@ -1,6 +1,6 @@
 import React,{useState,useEffect,useRef} from 'react';
 import fluentPaths from './fluent-paths.js';
-import {WindowEdges} from './window-chrome.jsx';
+import {WindowEdges,MaximizeButton} from './window-chrome.jsx';
 import {FilePreview} from './file-preview.jsx';
 import {FileThumbnail,canThumbnail} from './file-thumbnail.jsx';
 import {TransferDialog} from './transfer-dialog.jsx';
@@ -51,7 +51,7 @@ export function Explorer({data,toast}){
  const open=item=>item.folder?navigate(item.path):send('file-open',{path:item.path});
  const select=(e,item)=>{if(e.shiftKey&&anchor.current){const a=entries.findIndex(x=>x.path===anchor.current),b=entries.findIndex(x=>x.path===item.path);setSelected(entries.slice(Math.min(a,b),Math.max(a,b)+1).map(x=>x.path));}else if(e.ctrlKey){setSelected(s=>s.includes(item.path)?s.filter(p=>p!==item.path):[...s,item.path]);anchor.current=item.path;}else {setSelected([item.path]);anchor.current=item.path;}};
  const context=(e,item)=>{e.preventDefault();e.stopPropagation();if(item&&!selected.includes(item.path))setSelected([item.path]);if(!item)setSelected([]);setMenu({kind:'context',x:Math.max(8,Math.min(e.clientX,innerWidth-292)),y:Math.max(8,Math.min(e.clientY,innerHeight-400))});};
- const toolbar=(name,label,fn,disabled=false)=> <button title={label} aria-label={label} disabled={disabled} onMouseEnter={()=>{if(name==='max'||name==='restore')send('snap-hover',{enter:true});}} onMouseLeave={()=>{if(name==='max'||name==='restore')send('snap-hover',{enter:false});}} onClick={()=>{if(name==='max'||name==='restore')send('snap-hover',{enter:false});fn();}}><Glyph name={name}/></button>;
+ const toolbar=(name,label,fn,disabled=false)=> <button title={label} aria-label={label} disabled={disabled} onClick={fn}><Glyph name={name}/></button>;
  const parent=data.path.startsWith('::')?null:data.path.replace(/\/?[^/]+\/?$/,'')||'/';
  const crumbs=data.path.startsWith('::')?[{name:data.title,path:data.path}]:[{name:'This PC',path:'::computer'},...data.path.split('/').filter(Boolean).map((name,i,parts)=>({name,path:'/'+parts.slice(0,i+1).join('/')}))];
  return <main ref={shell} className={'explorer-shell'+(data.maximized?' maximized':'')+(data.focused===false?' inactive':'')} tabIndex={0} onClick={()=>setMenu(null)} onKeyDown={e=>{
@@ -70,7 +70,7 @@ export function Explorer({data,toast}){
  }}>
  <header className="explorer-title" onMouseDown={e=>{if(e.button===0&&!e.target.closest('button,input'))send('file-move');}} onDoubleClick={e=>{if(!e.target.closest('button'))send('file-maximize');}}>
   <div className="explorer-tabs">{tabs.map(t=><button className={'explorer-tab '+(t.id===active?'active':'')} key={t.id} onClick={()=>{setActive(t.id);send('file-navigate',{path:t.path,hidden});}}>{t.path.startsWith('::')?<PlaceIcon name={t.path==='::home'?'home':'computer'} size={16}/>:<FileIcon item={{folder:true}} size={16}/>}<span>{t.title}</span><span role="button" tabIndex={0} aria-label={'Close '+t.title+' tab'} onClick={e=>closeTab(e,t.id)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();closeTab(e,t.id);}}}><Glyph name="close" size={10}/></span></button>)}<button className="tab-add" aria-label="New tab" onClick={()=>newTab('::home')}><Glyph name="plus" size={16}/></button></div>
-  <div className="window-controls">{toolbar('min','Minimize',()=>send('file-minimize'))}{toolbar(data.maximized?'restore':'max',data.maximized?'Restore down':'Maximize',()=>send('file-maximize'))}<button className="window-close" aria-label="Close window" onClick={()=>send('close')}><Glyph name="close" size={16}/></button></div>
+  <div className="window-controls">{toolbar('min','Minimize',()=>send('file-minimize'))}<MaximizeButton maximized={data.maximized} onMaximize={()=>send('file-maximize')}><Glyph name={data.maximized?'restore':'max'}/></MaximizeButton><button className="window-close" aria-label="Close window" onClick={()=>send('close')}><Glyph name="close" size={16}/></button></div>
  </header>
  <div className="explorer-addressbar"><div className="navigation-buttons">{toolbar('back','Back',()=>travel(-1),tab.index===0)}{toolbar('forward','Forward',()=>travel(1),tab.index===tab.history.length-1)}{toolbar('up','Up',()=>navigate(parent),!parent)}{toolbar('refresh','Refresh',()=>navigate(data.path,false))}</div>
  <div className="address" onDoubleClick={()=>setAddress(data.path.startsWith('::')?'':data.path)}><Glyph name={data.path==='::home'?'home':data.path==='::computer'?'desktop':'folder'} size={18}/>{address!==null?<input autoFocus aria-label="Folder address" value={address} onChange={e=>setAddress(e.target.value)} onFocus={e=>e.target.select()} onBlur={()=>setAddress(null)} onKeyDown={e=>{if(e.key==='Enter')navigate(address);if(e.key==='Escape')setAddress(null);}}/>:<div className="breadcrumbs">{crumbs.map((c,i)=><React.Fragment key={c.path}>{i>0&&<span>›</span>}<button onClick={()=>navigate(c.path)}>{c.name}</button></React.Fragment>)}</div>}</div>

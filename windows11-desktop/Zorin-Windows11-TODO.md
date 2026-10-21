@@ -19,6 +19,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 
 ## P1 — Window management and Explorer
 - [ ] Expand maximize-hover Snap Layouts to compatible third-party windows; keep Win+Z fallback.
+- [x] Companion Snap Layouts: native GNOME caption targeting, duplicate-title handling, right-click and Down/Shift+F10 access on Maximize. Live Wayland/WebKit fixtures and installed runtime passed 2026-10-21; arbitrary desktop keyboard injection remains unverified.
 - [x] Persist Snap Group app/layout recipes across restarts; on-demand relaunch, rename/remove and monitor scaling.
 - [ ] Investigate top-edge snap bar and custom free-form zones without breaking native tiling.
 - [x] Task View: workspace thumbnails plus create, rename and remove desktop actions. Verified 2026-10-18.

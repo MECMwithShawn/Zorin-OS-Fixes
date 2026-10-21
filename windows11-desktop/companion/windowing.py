@@ -1,5 +1,6 @@
-"""Window-manager requests for real X11 clients. No application data is changed."""
+"""Window-manager requests through X11 or the native GNOME bridge."""
 import gi
+import os
 import re
 import subprocess
 gi.require_version('Wnck', '3.0')
@@ -85,6 +86,10 @@ class Windows:
     def get(self,xid):
         return next((w for w in self.windows() if w.get_xid()==xid),None)
 
+    def for_surface(self,surface):
+        if not surface.get_mapped() or not surface.get_window():return None
+        return self.get(surface.get_window().get_xid())
+
     def active(self):
         self.screen.force_update();w=self.screen.get_active_window()
         return WindowRef(self,w.get_xid()) if self.eligible(w) else next(iter(self.windows()),None)
@@ -165,6 +170,18 @@ if is_gnome():
             self.handlers=[self.screen.connect('active-window-changed',self.changed),self.screen.connect('window-closed',self.closed)]
             self.changed()
         def timestamp(self):return Gdk.CURRENT_TIME
+        def for_surface(self,surface):
+            # Mutter IDs are not XIDs. Resolve our own mapped caption window,
+            # never whichever application happens to have focus when WebKit's
+            # message arrives. Duplicate Explorer titles need frame matching.
+            if not surface.get_mapped() or not surface.get_window():return None
+            candidates=[w for w in self.windows()
+                        if w.get_pid()==os.getpid() and w.get_name()==surface.get_title()]
+            if len(candidates)>1:
+                frame=surface.get_window().get_frame_extents()
+                rect=(frame.x,frame.y,frame.width,frame.height)
+                candidates=[w for w in candidates if w.get_geometry()==rect]
+            return candidates[0] if len(candidates)==1 else None
         def minimum(self,w):return 1,1  # Mutter enforces each app's native constraints.
         def close(self):super().close();self.screen.close()
     Windows=GnomeWindows
