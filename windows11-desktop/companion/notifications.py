@@ -1,4 +1,4 @@
-"""Use Xfce's existing notification log; never run actions from logged text."""
+"""Read GNOME/Xfce notifications as text; never run actions from logged text."""
 from html.parser import HTMLParser
 import dbus
 import json
@@ -32,7 +32,8 @@ def snapshot():
         result={'loading':False,'entries':[],'available':False,'logging':True,
                 'dnd':bool(properties('xfce4-notifyd').get('/do-not-disturb',False)),'hasMore':False}
         try:
-            result['entries']=gnome_call('notifications');result['available']=True
+            result['entries']=[dict(row,body=plain(row.get('body',''))) for row in gnome_call('notifications')]
+            result['available']=True
         except Exception:pass
         return result
     config=properties('xfce4-notifyd')
