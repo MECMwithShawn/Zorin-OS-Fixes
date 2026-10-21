@@ -55,7 +55,7 @@ class TaskView:
         focus_window=next((c.xid for c in self.m.flow.get_children() if c.get_child().has_focus()),None) if hasattr(self.m,'flow') else None
         for widget in self.box.get_children():widget.destroy()
         self.items=self.d.items();self.selected=min(self.selected,len(self.items)-1)
-        self.thumbs=[];self.desktop_buttons=[];self.revision=self.fingerprint()
+        self.thumbs=[];self.desktop_buttons=[];self.rename_entries=[];self.revision=self.fingerprint()
         self.clients=self.m.windows.windows()
         live={w.get_xid() for w in self.clients};self.pixbufs={k:v for k,v in self.pixbufs.items() if k in live}
         self.m.preview_cache={k:v for k,v in self.m.preview_cache.items() if k in live}
@@ -66,6 +66,8 @@ class TaskView:
         header.pack_end(button('Close',lambda:self.m.close()),False,False,0)
         header.pack_end(label('Win + Tab','z11-muted'),False,False,0);self.box.pack_start(header,False,False,0)
         self.search=Gtk.SearchEntry();self.search.set_placeholder_text('Search windows across your desktops')
+        self.search.get_accessible().set_name('Search windows across your desktops')
+        self.search.set_tooltip_text('Search windows · Ctrl+F to focus · Escape to clear')
         self.search.set_text(query);self.box.pack_start(self.search,False,False,0)
         self.m.snap_groups.prune()
         groups=[g for g in self.m.groups if self.m.snap_groups.desktop(g) is not None]
@@ -128,6 +130,23 @@ class TaskView:
         query=self.search.get_text().strip().casefold()
         return query in child.search_text if query else child.desktop in (None,self.selected)
 
+    def key(self,event):
+        if event.keyval in (Gdk.KEY_f,Gdk.KEY_F) and event.state & Gdk.ModifierType.CONTROL_MASK:
+            self.search.grab_focus();self.search.select_region(0,-1);return True
+        if event.keyval!=Gdk.KEY_Escape:return False
+        if self.menu:
+            self.menu.popdown();return True
+        # Window key handlers run before the focused entry. Cancel the draft
+        # before moving focus, which would otherwise commit through focus-out.
+        focus=self.win.get_focus()
+        for name,item in self.rename_entries:
+            if focus is name:
+                name.set_text(item['name']);self.search.grab_focus();self.editing=False
+                return True
+        if self.search.get_text():
+            self.search.set_text('');self.search.grab_focus();self.filter();return True
+        return False
+
     def search_key(self,widget,event):
         if event.keyval in (Gdk.KEY_Return,Gdk.KEY_Down):
             children=[c for c in self.m.flow.get_children() if c.get_child_visible()]
@@ -142,8 +161,9 @@ class TaskView:
         box.set_size_request(216,-1)
         header=Gtk.Box(spacing=6)
         name=Gtk.Entry();name.set_text(item['name']);name.set_width_chars(14);name.set_max_length(40)
+        self.rename_entries.append((name,item))
         name.get_style_context().add_class('z11-desktop-name');name.get_accessible().set_name('Rename '+item['name'])
-        name.set_tooltip_text('Rename desktop · Enter to save');header.pack_start(name,True,True,0)
+        name.set_tooltip_text('Rename desktop · Enter to save · Escape to cancel');header.pack_start(name,True,True,0)
         name.connect('focus-in-event',lambda *_:setattr(self,'editing',True))
         def rename(*_):
             if not self.alive():return
@@ -153,10 +173,6 @@ class TaskView:
             except ValueError as error:self.notice(str(error));name.set_text(item['name'])
         name.connect('activate',lambda *_:(rename(),self.search.grab_focus()))
         name.connect('focus-out-event',rename)
-        def cancel(_,event):
-            if event.keyval==Gdk.KEY_Escape:name.set_text(item['name']);self.search.grab_focus();return True
-            return False
-        name.connect('key-press-event',cancel)
         close=button('×',lambda:self.remove(index),'z11-desktop-close');close.set_sensitive(len(self.items)>1)
         close.set_tooltip_text('Close desktop; keep its apps open');close.get_accessible().set_name('Close '+item['name'])
         header.pack_end(close,False,False,0);box.pack_start(header,False,False,0)

@@ -39,9 +39,11 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 
 ## GNOME experience
 
-**Snap Layouts:** press Win+Z for the active window. In companion Explorer and Settings, hover over Maximize, right-click it, or focus it and press Down or Shift+F10. Choose a zone to snap; Escape closes the picker. Caption requests resolve the originating window through GNOME, including duplicate Explorer titles, so an XWayland window ID cannot select an unrelated native window. Ambiguous or closed windows are ignored. Third-party maximize-hover integration remains pending.
+**Snap Layouts:** press Win+Z for the active window. In companion Explorer and Settings, hover over Maximize, right-click it, or focus it and press Down or Shift+F10. Choose a zone to snap; Escape closes the picker. Keys 1–6 focus the first available zone in that layout. Initial focus uses an enabled footer control, and moving keyboard focus off a zone clears its target outline. Caption requests resolve the originating window through GNOME, including duplicate Explorer titles, so an XWayland window ID cannot select an unrelated native window. Ambiguous or closed windows are ignored. Third-party maximize-hover integration remains pending.
 
 Task View and Snap Assist refresh visible window cards in the background, with one capture in flight and no new captures after the panel closes. Minimized windows keep cached previews; filtered, scrolled-out and unmapped cards are skipped. GNOME may pause frame callbacks in fully covered applications, so previews reflect the latest frame the compositor provides. No window-preview images are saved to disk.
+
+In Task View, Ctrl+F focuses search and selects the query. Escape cancels an unfinished desktop rename or clears the search before closing the panel. Enter saves a desktop name. Search and rename tooltips explain these shortcuts, and the search field has an explicit accessibility label.
 
 | Component | Integration |
 |---|---|

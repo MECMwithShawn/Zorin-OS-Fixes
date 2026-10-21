@@ -23,6 +23,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Persist Snap Group app/layout recipes across restarts; on-demand relaunch, rename/remove and monitor scaling.
 - [ ] Investigate top-edge snap bar and custom free-form zones without breaking native tiling.
 - [x] Task View: workspace thumbnails plus create, rename and remove desktop actions. Verified 2026-10-18.
+- [x] Task View/Snap Layouts keyboard polish: Escape cancels a desktop rename before focus-out saves it, clears search before closing, Ctrl+F selects search, explicit search accessibility label, enabled-zone number shortcuts and outline cleanup. Native Wayland-session fixtures passed against source and installed runtime 2026-10-21.
 - [x] Task View/Snap Assist: bounded live refresh of visible cards, native Wayland frame updates, hidden/minimized filtering and stale-result rejection across rebuild/close. Installed runtime verified 2026-10-21; compositor-throttled applications retain their latest frame.
 - [x] Task View: reorder desktops and choose separate desktop wallpapers. Drag or Move left/right; local JPEG/PNG per desktop; shared Spotlight fallback. Verified 2026-10-18 on Xfwm and Compiz.
 - [x] Desktop switching: native Compiz slides, individual-picture crossfades, three speeds and reduced-motion controls. Standard Xfwm retains instant switching. Verified 2026-10-18.

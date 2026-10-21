@@ -86,6 +86,17 @@ try:
         js(target,selector+'.dispatchEvent('+event+')')
         wait(lambda:m.window and m.window.get_title()=='Snap layouts')
         assert m.origin==ident
+        wait(lambda:m.window.is_active())
+        footer=m.window.get_focus()
+        assert footer.get_label()=='Customize…' and m.overlay is None
+        m.layout_buttons[0][0].set_sensitive(False)
+        digit=Gdk.Event.new(Gdk.EventType.KEY_PRESS);digit.keyval=Gdk.KEY_1
+        assert m.window.emit('key-press-event',digit)
+        assert m.window.get_focus() is m.layout_buttons[0][1]
+        wait(lambda:m.overlay is not None)
+        footer.grab_focus();wait(lambda:m.overlay is None)
+        m.layout_buttons[0][0].set_sensitive(True)
+        print('PASS picker starts on enabled footer, number key skips disabled zone and footer focus clears outline',flush=True)
         actual=zone_rect(m.area(manager.get(ident)),layouts()[0][1][0])
         m.layout_buttons[0][0].clicked()
         wait(lambda:tuple(manager.get(ident).get_geometry())==actual)

@@ -102,7 +102,9 @@ with tempfile.TemporaryFile() as log:
         return win,box
     m.shell=shell
     m.snap_groups=NS(prune=lambda:None,remember=lambda *_:None,forget=lambda *_:None)
-    m.desktops=NS(current=lambda:0,items=lambda:[dict(id=0,uid='preview-fixture',name='Validation',current=True)],
+    desktop_name=['Validation'];renames=[]
+    def rename(index,name):desktop_name[0]=name;renames.append(name)
+    m.desktops=NS(rename=rename,current=lambda:0,items=lambda:[dict(id=0,uid='preview-fixture',name=desktop_name[0],current=True)],
                   desktop_for=lambda _:0,on=lambda *_:True,busy=False,compiz=False,shared=lambda _:False,
                   dimensions=lambda:(manager.screen.get_width(),manager.screen.get_height(),1,1))
     css=Gtk.CssProvider();css.load_from_path(str(BASE/'multitasking.css'))
@@ -110,6 +112,24 @@ with tempfile.TemporaryFile() as log:
     with patch.object(TaskView,'load_wallpapers',lambda _:None):
         m.show_tasks();wait(lambda:color(m.preview_cache.get(alpha))==(255,0,0))
         flow=m.flow;view=m.task_view
+        assert view.search.get_accessible().get_name()=='Search windows across your desktops'
+        def key(value,state=0):
+            event=Gdk.Event.new(Gdk.EventType.KEY_PRESS);event.keyval=value;event.state=state
+            return m.window.emit('key-press-event',event)
+        entry=view.rename_entries[0][0];entry.grab_focus();entry.set_text('Do not save')
+        assert key(Gdk.KEY_Escape)
+        assert view.alive() and entry.get_text()=='Validation' and not renames
+        assert m.window.get_focus() is view.search
+        entry.grab_focus();entry.set_text('Work');entry.emit('activate')
+        assert renames==['Work'] and desktop_name[0]=='Work'
+        # The fake workspace backend keeps all real desktop names unchanged.
+        wait(lambda:view.revision==view.fingerprint())
+        flow=m.flow
+        view.search.set_text('Beta');view.desktop_buttons[0].grab_focus()
+        assert key(Gdk.KEY_f,Gdk.ModifierType.CONTROL_MASK)
+        assert m.window.get_focus() is view.search and view.search.get_selection_bounds()==(0,4)
+        assert key(Gdk.KEY_Escape);assert not view.search.get_text() and view.alive()
+        print('PASS native GTK Escape cancels desktop draft, Enter saves, Ctrl+F selects search and Escape clears it',flush=True)
         paint(0,0,255,0)
         wait(lambda:color(m.preview_cache.get(alpha))==(0,255,0))
         assert m.flow is flow,'Content update must not rebuild the chooser'
@@ -135,7 +155,8 @@ with tempfile.TemporaryFile() as log:
         view.render();wait(lambda:not m.card_previews.pending)
         paint(1,255,0,255);wait(lambda:color(m.preview_cache.get(beta))==(255,0,255))
         print('PASS rebuilding Task View during capture rejects obsolete results and resumes live previews',flush=True)
-        m.close(False);count=hub.submitted;cache=dict(m.preview_cache)
+        assert key(Gdk.KEY_Escape);assert m.window is None
+        count=hub.submitted;cache=dict(m.preview_cache)
         pump(1.2)
         assert m.card_previews.timer==0 and m.card_previews.flow is None
         assert hub.submitted==count and cache==m.preview_cache
