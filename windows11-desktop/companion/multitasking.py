@@ -1,8 +1,6 @@
 """Fluent-style Snap Layouts and Task View for GNOME and Xfce windows."""
 import json
-import os
 from pathlib import Path
-import subprocess
 import gi
 gi.require_version('Gtk','3.0')
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib, Pango
@@ -62,6 +60,7 @@ class Multitasking:
         tmp.write_text(json.dumps(self.preferences)+'\n');tmp.replace(path)
 
     def close(self,restore=True):
+        if getattr(self,'card_previews',None):self.card_previews.stop()
         self.generation+=1;self.clear_preview()
         if self.window:
             window=self.window;self.window=None;window.destroy()
@@ -230,12 +229,11 @@ class Multitasking:
         columns=max(1,min(4,(width-48)//250));flow.set_min_children_per_line(columns);flow.set_max_children_per_line(columns)
         flow.set_row_spacing(12);flow.set_column_spacing(12);flow.set_homogeneous(True);flow.set_valign(Gtk.Align.START)
         scroll.add(flow);self.flow=flow
-        generation=self.generation
         if view:flow.set_filter_func(view.accepts)
         elif search:
             flow.set_filter_func(lambda child:search.get_text().casefold() in child.search_text)
             search.connect('search-changed',lambda *_:flow.invalidate_filter())
-        for index,w in enumerate(windows):
+        for w in windows:
             title=w.get_name();card=Gtk.Button();card.get_style_context().add_class('z11-window-card')
             card.set_tooltip_text(title);card.get_accessible().set_name(title)
             card.connect('clicked',lambda _,window=w:choose(window))
@@ -257,25 +255,12 @@ class Multitasking:
                 status=desktop_name+' · '+status
             content.pack_start(label(status,'z11-small'),False,False,0)
             child=Gtk.FlowBoxChild();child.search_text=(title+' '+status).casefold();child.xid=w.get_xid()
+            child.preview_image=image
             if view:view.configure_card(card,child,w)
             child.add(card);flow.add(child)
-            if not w.is_minimized() and index<36:
-                def capture(xid=w.get_xid()):
-                    return subprocess.run(['/usr/bin/python3',str(BASE/'window_preview.py'),str(xid)],capture_output=True,timeout=3,check=False).stdout
-                def done(data,img=image,xid=w.get_xid()):
-                    if generation!=self.generation or not data:return
-                    loader=GdkPixbuf.PixbufLoader.new_with_type('png');loader.write(data);loader.close()
-                    pix=loader.get_pixbuf();ratio=min(230/pix.get_width(),136/pix.get_height())
-                    self.preview_cache[xid]=pix
-                    while len(self.preview_cache)>36:self.preview_cache.pop(next(iter(self.preview_cache)))
-                    img.set_from_pixbuf(pix.scale_simple(max(1,int(pix.get_width()*ratio)),max(1,int(pix.get_height()*ratio)),GdkPixbuf.InterpType.BILINEAR))
-                    if view:view.preview_ready(xid,pix)
-                # Let the chooser map before capture. Compiz may temporarily
-                # unredirect an unobscured full-screen-sized application.
-                def begin(task=capture,callback=done):
-                    if generation==self.generation:self.hub.background(task,callback,lambda _:None)
-                    return False
-                GLib.timeout_add(250,begin)
+        from card_previews import CardPreviews
+        if not getattr(self,'card_previews',None):self.card_previews=CardPreviews(self)
+        self.card_previews.watch(scroll,flow,view)
         if not windows and not view:box.pack_start(label('No open windows on this desktop.','z11-muted'),False,False,0)
         return flow
 
