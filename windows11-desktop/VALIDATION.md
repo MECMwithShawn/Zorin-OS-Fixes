@@ -371,3 +371,14 @@ These snapshots provide selective recovery, not automatic repair after every OS 
 - Live native Wayland fixture passed all six snap layouts, compositor PNG previews, and restore on the currently exposed monitor. This run does not establish dual-monitor coverage.
 - Installed switcher module locally after backing up the previous file. Running hub was not restarted because Explorer was open; it loads the fix on its next launch.
 - OneDrive reports up_to_date, pending 0 and no issues. No OneDrive or Explorer changes. Sign-out and sleep testing remain deferred.
+
+
+## Notification keyboard access and reduced motion — 2026-10-21
+
+- GNOME notification bodies are normalized to plain text, retaining line breaks/entities without interpreting links or commands. Two backend tests plus two existing Wayland bridge tests pass.
+- Clear all now opens a modal confirmation with Cancel focused, Tab/Shift+Tab wrapping, inert background controls, and Escape cancellation with focus restoration. A second Escape closes the flyout through the native GTK route. Group expansion reports aria-expanded.
+- Browser tests pass for Quick Settings controls, notification actions, confirmation keyboard behavior, calendar month/day navigation, group expansion, and reduced-motion animation suppression/restoration. Existing Explorer/Quick Settings UI regression passed.
+- Native GTK/WebKit fixture ran on the unlocked Wayland session with fictional notifications. It verified native Escape routing, dialog focus/restoration, reduced-motion preference changes in both directions, fitting content sections and zero script errors. The explicit media-query listener ensures live restyling in WebKit. It changes only the fixture process's GTK preference.
+- Installed only app.py, notifications.py and the rebuilt main.js/main.css bundle; backed up their previous versions in the configured OneDrive Windows 11 Desktop Backups folder. Restarted only the companion after checking Explorer had one OneDrive tab, an empty search and no transfer/dialog indicators. Reopened that tab and restored its geometry. Explorer/OneDrive support-module hashes remained unchanged. The restart also loaded the earlier Alt+Tab modifier fix.
+- Installed UI: a temporary local notification verified plain text, focused Cancel, cancellation/focus restoration and retained history. Removed only that test notification. No real notifications were cleared.
+- OneDrive reports up_to_date, pending 0, no issues after the backup and restart. Sign-out/login, Wi-Fi after sleep, and suspend tests remain deferred; the app lifecycle PR remains draft.

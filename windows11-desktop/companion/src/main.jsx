@@ -48,6 +48,13 @@ function SessionMenu({kind,trigger,onClose,onAction}) {
 }
 
 function App(){
+ useEffect(()=>{
+  const media=window.matchMedia('(prefers-reduced-motion:reduce)');
+  // Restyle immediately when GTK/WebKit updates the live preference.
+  const apply=()=>document.documentElement.toggleAttribute('data-reduced-motion',media.matches);
+  apply();media.addEventListener('change',apply);
+  return()=>media.removeEventListener('change',apply);
+ },[]);
  const [data,setData]=useState(null),[page,setPage]=useState('home'),[query,setQuery]=useState('');
  const [category,setCategory]=useState(null),[appView,setAppView]=useState('Category');
  const [context,setContext]=useState(null),[toast,setToast]=useState(''),[footerMenu,setFooterMenu]=useState(null);

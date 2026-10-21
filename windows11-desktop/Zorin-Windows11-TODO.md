@@ -26,7 +26,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Desktop switching: native Compiz slides, individual-picture crossfades, three speeds and reduced-motion controls. Standard Xfwm retains instant switching. Verified 2026-10-18.
 - [x] Task View: display Snap Groups and per-workspace previews. Includes drag/Move to, cross-desktop search and Win+Ctrl desktop shortcuts; verified on Xfwm and Compiz.
 - [x] Explorer: read-only image/text preview pane with allowlisted content, file/pixel limits, timed decoding and stale-selection rejection. Verified 2026-10-19.
-- [x] Explorer: persistent photo cache and low-priority background Pictures/OneDrive library service, with opt-in online-only downloads and automatic new/changed-photo scans. Verified 2026-10-20.
+- [x] Explorer: persistent photo cache and low-priority local-library scans. Background FUSE/network reads are excluded after suspend testing; OneDrive thumbnails remain on demand. Verified 2026-10-20.
 - [x] Explorer: actual image thumbnails in Large icons and Details, lazy viewport loading, bounded decoding/cache, orientation correction and fallback icons. OneDrive navigation retained; verified 2026-10-20.
 - [x] Explorer: Windows-style context menus, Rename, Properties, Copy as path and drive details.
 - [x] Explorer: copy/move progress, pause/resume/cancel, Replace/Skip/Keep both, folder merge, apply-to-remaining choices and per-item error/retry dialogs. Verified 2026-10-19.
@@ -37,7 +37,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Match corner radii, caption spacing, shadows, controls and hover states across supported window managers.
 - [ ] Acrylic/Mica-inspired translucent surfaces with solid/reduced-effects fallback and reasonable GPU use.
 - [ ] Validate GTK3, GTK4/libadwaita, Qt, Electron and Flatpak differences; avoid fragile global overrides.
-- [ ] Improve notification actions/grouping and animations while respecting DND and logging preferences.
+- [ ] Improve live notification actions and animations while respecting DND and logging preferences.
+- [x] Notification text normalization, keyboard-focused Clear all confirmation, Escape cancellation/focus restoration, accessible group expansion and live reduced motion. Native Wayland/WebKit and installed UI verified 2026-10-21.
 - [x] Quick Settings: supported battery saver with previous-mode restoration, GNOME airplane mode, connected/paired Bluetooth controls and reported device battery. Shared Settings controls and unavailable/hardware-lock states; verified 2026-10-19. AirPods stayed connected during live discovery/cleanup. Searchable pairing groups duplicate names, preserves address selection, handles confirmation/PINs and stops scanning after one minute; new physical pairing through this picker remains pending.
 - [ ] Build a Windows-inspired clock/avatar lock screen while preserving native GNOME/GDM and Xfce authentication.
 - [x] GNOME Task Manager: Mission Center, expandable application groups, program icons, merged usage and supported GPU graphs. Intel and NVIDIA RTX 4090 laptop telemetry verified in Mission Center after the local NVIDIA driver reboot.
@@ -45,7 +46,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] GNOME Event Viewer: Application/System/Kernel journal sources, time/severity filters, loaded-event search, details, Copy event, refresh and optional five-second auto-refresh. Native GTK and installed GNOME/X11 tests passed 2026-10-20.
 - [ ] Device driver-management actions and Disk Management; Task Manager includes Mission Center's Services view.
 - [ ] Polish cursor, emoji input, scaling, accessibility, keyboard navigation and reduced-motion behavior.
-- [ ] Evaluate per-monitor taskbars, wallpapers, snapping and mixed-DPI layouts. Confirm physical output on each screen: laptop 125% / Dell 100% fails with external cropping on the tested Intel/NVIDIA X11 output-sink configuration; Wayland verification is pending.
+- [ ] Evaluate per-monitor taskbars, wallpapers, snapping and mixed-DPI layouts. Confirm physical output on each screen: laptop 125% / Dell 100% fails with external cropping on the tested Intel/NVIDIA X11 output-sink configuration; the user confirmed improved scaling on Wayland and the prior native snapping/preview checks passed; broader mixed-DPI hardware coverage remains pending.
 - [x] Retain existing 4K Spotlight/Bing rotation and Zorin wallpaper catalog; restore Personalize/Background entry points. Verified 2026-10-20.
 
 ## Premium Visual Fidelity — rendering and polish

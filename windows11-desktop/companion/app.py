@@ -175,7 +175,7 @@ class Surface(Gtk.ApplicationWindow):
 
     def on_key(self, window, event):
         if event.keyval == Gdk.KEY_Escape:
-            if self.mode == 'start' and self.ready:
+            if self.mode in ('start','notifications') and self.ready:
                 self.send({'type':'escape'})
             elif self.mode in ('start','quick', 'notifications'):
                 self.hide()
