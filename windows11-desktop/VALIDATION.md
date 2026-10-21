@@ -339,3 +339,15 @@ These snapshots provide selective recovery, not automatic repair after every OS 
 - Existing backup tests passed after exposing the reusable snapshot API. systemd validated the user service/timer. Installed hook/config ownership and modes were checked, and apt-config reported both hooks exactly once.
 - OneDrive remained signed in and mounted, then reported up to date with zero pending transfers and no issues. No sign-out, display/driver change, Explorer/OneDrive replacement or actual package upgrade was needed for validation.
 - Coverage is APT-based transactions, not standalone dpkg, Flatpak/Snap or direct extension/file downloads. Unavailable OneDrive can postpone unattended or offline updates. Repair preserves existing edited files and arbitrary custom values; unsupported versions require review, and restored extension code may need the next normal sign-in.
+
+
+## Wayland follow-up — 2026-10-20
+
+- Native GTK Wayland window: six snap-layout geometries on each of two displays, valid PNG window previews and restore passed.
+- Live Task View rendered window previews; Start rendered on the primary laptop with Dell above it.
+- User confirmed actual screenshot portal capture opens in the Rust editor and actual ScreenCast recording plays.
+- Installed Rust binary passed the isolated ScreenCast/PipeWire video/audio/cleanup/denial suite.
+- 38 desktop/installer tests and 35 selected companion tests passed; motion tests now isolate their backend and never write the live GNOME animation setting.
+- Fixed invisible zero-size helper entries, invalid XWayland root acrylic capture, and preference rollback on rejected GNOME animation writes.
+- OneDrive daemon reports up_to_date, pending=0, issues=[]; FUSE mount intact. No OneDrive/Explorer source changes.
+- Retained limits: GNOME-mediated screenshot selection, solid themed panel fallback, untested suspend/resume and exhaustive application compatibility.

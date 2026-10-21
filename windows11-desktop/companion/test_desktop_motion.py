@@ -10,11 +10,18 @@ import settings_backend
 class MotionTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name)
-        self.patches=[patch.object(motion,'CONFIG',self.root),patch.object(motion,'STATE',self.root/'motion.json')]
+        self.patches=[patch('gnome_bridge.active',return_value=False),patch.object(motion,'CONFIG',self.root),patch.object(motion,'STATE',self.root/'motion.json')]
         for p in self.patches:p.start()
     def tearDown(self):
         for p in reversed(self.patches):p.stop()
         self.temp.cleanup()
+    def test_gnome_failure_restores_preference_without_touching_live_settings(self):
+        previous=b'{"enabled": false, "duration": 480}\n';motion.STATE.write_bytes(previous)
+        with patch('gnome_bridge.active',return_value=True),patch('gi.repository.Gio.Settings.new') as settings:
+            settings.return_value.set_boolean.return_value=False
+            with self.assertRaises(RuntimeError):motion.configure('desktopAnimations',True)
+        self.assertEqual(motion.STATE.read_bytes(),previous)
+
     def test_frame_pacing_uses_connected_output_rates_and_keeps_vsync(self):
         values=motion.profile_values(motion.load(),[239988,60000,0])
         self.assertEqual(values['composite'],{'refresh_rate':200,'detect_refresh_rate':False})

@@ -292,3 +292,19 @@ Disable it without deleting backups:
 pkexec /usr/bin/python3 ~/.local/share/zorin11-hub/install_update_guard.py --system --remove
 /usr/bin/python3 ~/.local/share/zorin11-hub/install_update_guard.py --remove
 ```
+
+### Wayland validation (2026-10-20)
+
+Select **Zorin Desktop on Wayland** at sign-in; GDM remembers the selection. The companion intentionally runs through XWayland for its positioned panels, while its GNOME Shell bridge enumerates, moves and captures native Wayland windows. Do not replace the Shell bridge with X11 window IDs or root-window screenshots.
+
+Live checks on a Dell above a laptop at 100% / 125% passed all six Snap Layouts on each display, original-position restore, native-window PNG previews, Task View and Start on the primary display. Background helper windows with zero-size frames are omitted from task lists without terminating their processes. Acrylic panels use their normal theme background on Wayland: XWayland root captures cannot supply the composited desktop.
+
+Axentra SnippingTool uses GNOME's permission-mediated Screenshot and ScreenCast pickers on Wayland. Actual screenshots and silent video recordings were confirmed locally; the isolated recording test also covers PipeWire encoding, optional audio, cancellation, descriptor handling and cleanup. Wayland selection remains delegated to GNOME; X11 freeform capture is not claimed as native Wayland parity. OneDrive remained mounted, up to date, with no pending operations or reported issues.
+
+To repeat the live window test (creates and closes only its own test window):
+
+```bash
+GDK_BACKEND=x11 /usr/bin/python3 windows11-desktop/companion/test_wayland_live.py
+```
+
+The live test requires an unlocked GNOME Wayland session and briefly focuses its own window. Automated coverage is not a claim that every theme interaction or GPU/suspend combination has been tested.
