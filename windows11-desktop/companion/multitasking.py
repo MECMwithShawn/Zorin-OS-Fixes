@@ -101,10 +101,14 @@ class Multitasking:
         return win,box
 
     def key(self,win,event):
+        view=getattr(self,'task_view',None)
+        if view and view.alive() and view.key(event):return True
         if event.keyval==Gdk.KEY_Escape:self.close();return True
         if win.get_title()=='Snap layouts' and Gdk.KEY_1<=event.keyval<=Gdk.KEY_6:
             index=event.keyval-Gdk.KEY_1
-            if index<len(self.layout_buttons):self.layout_buttons[index][0].grab_focus()
+            if index<len(self.layout_buttons):
+                zone=next((b for b in self.layout_buttons[index] if b.get_sensitive()),None)
+                if zone:zone.grab_focus()
             return True
         return False
 
@@ -165,16 +169,18 @@ class Multitasking:
                 b.connect('enter-notify-event',lambda *_,r=actual:self.preview(r))
                 b.connect('leave-notify-event',lambda *_:self.clear_preview())
                 b.connect('focus-in-event',lambda *_,r=actual:self.preview(r))
+                b.connect('focus-out-event',lambda *_:self.clear_preview())
                 fixed.put(b,rect[0],rect[1]);buttons.append(b)
             group.pack_start(label(f'{index+1}  {name}','z11-small'),False,False,0)
             grid.attach(group,index%3,index//3,1,1);self.layout_buttons.append(buttons)
         foot=Gtk.Box(spacing=8)
         restore=button('Restore size',lambda:self.restore(target.get_xid()))
         restore.set_sensitive(target.get_xid() in self.windows.saved);foot.pack_start(restore,False,False,0)
-        foot.pack_end(button('Customize…',lambda:self.customize(target.get_xid())),False,False,0)
+        customize=button('Customize…',lambda:self.customize(target.get_xid()))
+        foot.pack_end(customize,False,False,0)
         box.pack_start(foot,False,False,0);win.show_all();win.present()
         # Do not draw a preview until the user actually hovers or navigates.
-        restore.grab_focus();self.clear_preview()
+        (restore if restore.get_sensitive() else customize).grab_focus();self.clear_preview()
 
     def restore(self,xid):
         self.snap_groups.forget({xid})
