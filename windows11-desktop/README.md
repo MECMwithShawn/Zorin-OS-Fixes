@@ -77,7 +77,7 @@ Thumbnail decoding accepts regular files up to 32 MiB and 64 megapixels, with a 
 
 GNOME installation enables `zorin11-thumbnail-cache.timer`. After sign-in and every 15 minutes after a completed pass, its low-priority user service walks Pictures and the configured OneDrive folder, reuses existing thumbnails, and creates missing ones. It follows no symlinks and skips hidden/dependency folders. It runs one decoder with a 25% CPU quota, idle I/O priority and a 768 MiB service memory limit. No Explorer window needs to be open.
 
-The library service defaults to locally available photos. To include online-only OneDrive photos, set `{"includeOnline": true}` in `~/.config/zorin11-hub/thumbnail-cache.json`, or run `thumbnail_cache.py --include-online` manually. This reads photo contents through the existing OneDrive mount and may download them. `--root PATH` can be repeated for a manual pass over other folders. Progress counts (without filenames) are saved to `~/.cache/zorin11-hub/thumbnail-status.json`.
+The library service precaches photos on local filesystems. FUSE (including Axentra OneDrive), network and automounted filesystems are excluded before stat, scanning or decoding: a cloud-file open blocked in the kernel can prevent suspend, and a worker timeout cannot reliably cancel it. The legacy `includeOnline` setting and `--include-online` do not override this exclusion. Existing thumbnails remain cached; Explorer still requests cloud previews when browsing. `--root PATH` can be repeated for local folders. Progress counts (without filenames) are saved to `~/.cache/zorin11-hub/thumbnail-status.json`.
 
 Use `systemctl --user start --no-block zorin11-thumbnail-cache.service` to start a pass, or `systemctl --user disable --now zorin11-thumbnail-cache.timer` and `systemctl --user stop zorin11-thumbnail-cache.service` to stop it. GNOME theme restore stops/disables the service and restores its unit files; the disposable thumbnail cache can be removed separately.
 
@@ -308,3 +308,13 @@ GDK_BACKEND=x11 /usr/bin/python3 windows11-desktop/companion/test_wayland_live.p
 ```
 
 The live test requires an unlocked GNOME Wayland session and briefly focuses its own window. Automated coverage is not a claim that every theme interaction or GPU/suspend combination has been tested.
+
+### Suspend/resume diagnostics
+
+`companion/wayland_resume_check.py --watch --output /path/to/private-report` observes logind and captures display geometry, GPU health, panel registration, network state and OneDrive status. It does not initiate sleep or change settings. Start it before requesting suspend. A resume signal also occurs after failed suspend: verify the kernel and systemd-suspend logs before calling a cycle successful.
+
+On the validation machine, the first test failed because a background thumbnail decoder was blocked opening a OneDrive FUSE file. After excluding remote mounts from precaching, two subsequent cycles completed userspace freezing in 0.002 seconds and systemd reported successful sleep return. Both monitors retained their modes and scale in the recorded follow-up.
+
+Wi-Fi recovery separately selected an unusable saved network and waited for credentials. Prefer the intended working profile and disable autoconnect on an unusable profile using NetworkManager's connection editor. This is a per-machine choice: the installer does not change network profiles or embed personal SSIDs/UUIDs. The local preferred priority was set to 100; priority alone was insufficient, so autoconnect on the failing profile was disabled. The latter change still needs a fresh resume validation.
+
+Remaining app lifecycle issues: Mini Media's Soloist child survived sign-out, and OneDrive's tray UI retained invisible windows. The orphaned playback and tray UI were closed locally without stopping the OneDrive sync daemon. Preventing these app-specific lifecycle problems remains separate work; no Mini Media or OneDrive source was replaced.

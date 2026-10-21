@@ -351,3 +351,13 @@ These snapshots provide selective recovery, not automatic repair after every OS 
 - Fixed invisible zero-size helper entries, invalid XWayland root acrylic capture, and preference rollback on rejected GNOME animation writes.
 - OneDrive daemon reports up_to_date, pending=0, issues=[]; FUSE mount intact. No OneDrive/Explorer source changes.
 - Retained limits: GNOME-mediated screenshot selection, solid themed panel fallback, untested suspend/resume and exhaustive application compatibility.
+
+
+## Suspend investigation — 2026-10-20
+
+- Cycle 1 failed: kernel identified a Python decoder in FUSE `fuse_file_open`, parent `thumbnail_cache.py`; OneDrive logs independently identify its on-demand photo request. No evidence implicates RAID.
+- Applied background mount exclusions locally. Six cache tests pass, including no stat/scan on excluded mounts, nested mount pruning, escaped mount names and opt-in bypass prevention. Local service pass completed: 70 examined, 68 cached, 2 created, zero unavailable.
+- Cycles 2 and 3: kernel userspace freezing completed in 0.002 seconds; systemd-suspend exited successfully. Cycle 2 captured both monitors and healthy NVIDIA at 15/45 seconds. Cycle 3 watcher missed the initial sleep signal, so its missing automatic snapshots are not counted as a pass; kernel/systemd logs independently confirm sleep return. NVIDIA ACPI D-Notifier warnings remain recorded, without a demonstrated display failure.
+- NetworkManager selected an unusable saved network awaiting secrets. Raised home profile priority locally; the next attempt still selected the unusable profile, so its autoconnect was disabled. That final profile change has not been sleep-tested.
+- OneDrive was healthy after cycle 2 but lost its session-bus registration after later sign-out. Restarted its existing service; verified up_to_date, pending 0, issues []. Closed only its stuck tray UI afterward; sync remained healthy.
+- Identified and terminated orphaned Soloist playback from an earlier login. Mini Media's persistent cleanup needs a separate app lifecycle fix.

@@ -5,10 +5,27 @@ import json
 import os
 from pathlib import Path
 import signal
+import re
 import threading
 import time
 
 from file_thumbnails import DiskCache, EXTENSIONS, BYTE_LIMIT, locally_available
+
+
+def unsafe_mounts():
+    """Read kernel metadata only: even stat/open on a frozen FUSE mount can hang."""
+    mounts = []
+    for line in Path('/proc/self/mountinfo').read_text().splitlines():
+        left, right = line.split(' - ', 1)
+        kind = right.split()[0]
+        if kind.startswith('fuse') or kind in ('nfs', 'nfs4', 'cifs', 'smb3', 'autofs', '9p'):
+            name = re.sub(r'\\([0-7]{3})', lambda m: chr(int(m[1], 8)), left.split()[4])
+            mounts.append(Path(name))
+    return mounts
+
+
+def beneath(path, roots):
+    return any(path == root or root in path.parents for root in roots)
 
 
 def library_roots():
@@ -22,23 +39,35 @@ def library_roots():
 
 def photos(roots, stopped):
     """Traverse source folders read-only; never follow directory or file links."""
+    # Background prefetch must never initiate FUSE/network requests. A decoder
+    # timeout cannot kill a process stuck in an uninterruptible kernel open.
+    blocked = unsafe_mounts()
     roots = list(dict.fromkeys(Path(p).absolute() for p in roots))
     roots = [p for p in roots if not any(other != p and other in p.parents for other in roots)]
     for root in roots:
-        if root.is_symlink():
+        if beneath(root, blocked):
+            continue
+        try:
+            if root.is_symlink():
+                continue
+        except OSError:
             continue
         for directory, folders, files in os.walk(root, followlinks=False):
             if stopped.is_set():
                 return
             folders[:] = sorted((name for name in folders if not name.startswith('.')
-                                 and name not in ('node_modules', '__pycache__', 'target', 'vendor')),
+                                 and name not in ('node_modules', '__pycache__', 'target', 'vendor')
+                                 and not beneath(Path(directory)/name, blocked)),
                                 key=lambda name: (name.casefold() not in ('photos', 'pictures'), name.casefold()))
             for name in sorted(files):
                 if stopped.is_set():
                     return
                 path = Path(directory)/name
-                if not name.startswith('.') and path.suffix.lower() in EXTENSIONS and not path.is_symlink():
-                    yield path
+                try:
+                    if not beneath(path, blocked) and not name.startswith('.') and path.suffix.lower() in EXTENSIONS and not path.is_symlink():
+                        yield path
+                except OSError:
+                    continue
 
 
 def warm(roots, disk, stopped, include_online=False, report=lambda _: None):
@@ -104,7 +133,7 @@ WantedBy=timers.target
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', action='append', help='Photo folder; repeat for multiple roots')
-    parser.add_argument('--include-online', action='store_true', help='Read online-only photos through OneDrive')
+    parser.add_argument('--include-online', action='store_true', help='Include placeholders on local filesystems; FUSE/network mounts are always excluded')
     args = parser.parse_args()
     config = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home()/'.config')))/'zorin11-hub/thumbnail-cache.json'
     try:
