@@ -135,6 +135,8 @@ The GNOME desktop menu adapter adds **View → Large/Medium/Small icons**, **Aut
 
 The adapter runs from a per-user extension and references the installed Zorin Desktop Icons files without changing them. On GNOME 46, a newly installed extension activates at the **next sign-in**. Wallpaper controls and shortcut routing work immediately; the installer does not restart the desktop or close applications. The adapter requires Zorin 18's Desktop Icons extension.
 
+If the adapter's links to Zorin Desktop Icons or its compiled schema are missing (for example after **Restore**), the extension keeps Zorin's own desktop running: icons stay visible with Zorin's menu instead of the desktop disappearing. It checks at sign-in and before every desktop relaunch. To bring the Windows-style menu back, run `/usr/bin/python3 windows11-desktop/desktop_menu_install.py` from this repository; the menu returns at the next desktop relaunch or sign-in.
+
 **Next desktop background** fetches another image from the selected Spotlight/Bing feed and opens Background settings for status and credits. With **Picture** selected, it opens the picker instead. Wallpaper changes from the menu and companion serialize through a local lock; failed downloads retain the current picture. Daily refresh runs while the companion is signed in.
 
 Downloaded pictures and credits stay in your local account. Both GNOME light/dark wallpaper values are journaled before changing them. Restore preserves a wallpaper you changed later through another tool. No Windows images, proprietary fonts, personal wallpaper exports or account data are committed.
