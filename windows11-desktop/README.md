@@ -318,3 +318,13 @@ On the validation machine, the first test failed because a background thumbnail 
 Wi-Fi recovery separately selected an unusable saved network and waited for credentials. Prefer the intended working profile and disable autoconnect on an unusable profile using NetworkManager's connection editor. This is a per-machine choice: the installer does not change network profiles or embed personal SSIDs/UUIDs. The local preferred priority was set to 100; priority alone was insufficient, so autoconnect on the failing profile was disabled. The latter change still needs a fresh resume validation.
 
 Remaining app lifecycle issues: Mini Media's Soloist child survived sign-out, and OneDrive's tray UI retained invisible windows. The orphaned playback and tray UI were closed locally without stopping the OneDrive sync daemon. Preventing these app-specific lifecycle problems remains separate work; no Mini Media or OneDrive source was replaced.
+
+### App cleanup at sign-out
+
+The GNOME installer enables `zorin11-session-cleanup.service` with `PartOf=graphical-session.target`. At logout it terminates this user's installed Mini Media, its Soloist engine (including matching helper processes), and the OneDrive GUI. It matches exact executable paths, not names or command-line text, and uses pidfds to avoid PID reuse. It allows three seconds for graceful exit before terminating remaining matched processes. No player credentials are read or logged.
+
+For an existing `axentra-onedrive.service`, a small per-user drop-in ties the daemon to the graphical session, and a graphical-session target dependency starts it on subsequent logins. The original unit and app binaries are preserved. Cleanup runs before the sync daemon stops; sync is unavailable while signed out and resumes when signing back in. Suspending does not stop the graphical target or invoke this logout cleanup.
+
+Status: `systemctl --user status zorin11-session-cleanup.service axentra-onedrive.service`. The cleanup service normally reads **active (exited)** while armed. Logs: `journalctl --user -u zorin11-session-cleanup.service`.
+
+To undo this lifecycle integration, disable `zorin11-session-cleanup.service` without `--now` (stopping it invokes cleanup), remove `axentra-onedrive.service.d/zorin11-session.conf` and the added `graphical-session.target.wants/axentra-onedrive.service` symlink, then run `systemctl --user daemon-reload`. Preserve any dependency link that existed before installation. Existing default-target sync startup remains intact.
