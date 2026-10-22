@@ -6,6 +6,8 @@ const Gdk = imports.gi.Gdk;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
 const Prefs = imports.preferences;
+const DesktopIconsUtil = imports.desktopIconsUtil;
+const Enums = imports.enums;
 const Upstream = imports.zorinOriginal.desktopManager;
 
 function menu() {
@@ -41,13 +43,24 @@ function fencedFile() {
         GLib.build_filenamev([GLib.get_user_config_dir(), 'zorin11-hub']);
     return Gio.File.new_for_path(GLib.build_filenamev([config, 'fenced.json']));
 }
+// The PID must still be the same process: same boot and kernel start time.
+function companionAlive(data) {
+    try {
+        const read = path => new TextDecoder().decode(GLib.file_get_contents(path)[1]);
+        const stat = read(`/proc/${data.pid}/stat`);
+        const start = stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19];
+        return read('/proc/sys/kernel/random/boot_id').trim() === data.boot && start === data.start;
+    } catch (e) {
+        return false;
+    }
+}
 function readFenced() {
     try {
         const [ok, bytes] = fencedFile().load_contents(null);
         const data = JSON.parse(new TextDecoder().decode(bytes));
         if (!ok || data.version !== 1 || !Number.isInteger(data.pid) || !Array.isArray(data.paths))
             return new Set();
-        if (!GLib.file_test(`/proc/${data.pid}`, GLib.FileTest.IS_DIR))
+        if (!companionAlive(data))
             return new Set();
         return new Set(data.paths.filter(path => typeof path === 'string'));
     } catch (e) {
@@ -165,6 +178,17 @@ var DesktopManager = class extends Upstream.DesktopManager {
             });
         }
         const fenced = readFenced();
+        // While icons are fenced, notice if the companion goes away (crash,
+        // kill) and bring them back, since then nothing rewrites the list.
+        if (fenced.size && !this._fencedWatch) {
+            this._fencedWatch = GLib.timeout_add_seconds(GLib.PRIORITY_LOW, 5, () => {
+                if (readFenced().size)
+                    return GLib.SOURCE_CONTINUE;
+                this._fencedWatch = 0;
+                this._updateDesktop().catch(logError);
+                return GLib.SOURCE_REMOVE;
+            });
+        }
         if (fenced.size) {
             files = files.filter(file => {
                 if (!fenced.has(file.path))
@@ -174,6 +198,22 @@ var DesktopManager = class extends Upstream.DesktopManager {
             });
         }
         super._drawDesktop(files);
+    }
+
+    onDragDataReceived(context, x, y, selection, info, forceLocal, forceCopy) {
+        // A desktop file dragged out of a fence is already in ~/Desktop: place
+        // it at the drop point instead of asking Files to move it onto itself.
+        if (!forceLocal && (info === Enums.DndTargetInfo.URI_LIST || info === Enums.DndTargetInfo.GNOME_ICON_LIST)) {
+            const files = DesktopIconsUtil.getFilesFromNautilusDnD(selection, info);
+            const desktop = this._desktopDir.get_uri();
+            if (files.length && files.every(uri => Gio.File.new_for_uri(uri).get_parent()?.get_uri() === desktop)) {
+                this.onDragLeave();
+                this.clearFileCoordinates(files, [x, y]);
+                Gtk.drag_finish(context, true, false, Gtk.get_current_event_time());
+                return;
+            }
+        }
+        super.onDragDataReceived(context, x, y, selection, info, forceLocal, forceCopy);
     }
 
     onPressButton(x, y, event, grid) {

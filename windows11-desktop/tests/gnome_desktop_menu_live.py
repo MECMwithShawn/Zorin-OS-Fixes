@@ -154,12 +154,27 @@ try:
     # Fenced icons: skipped while the publishing companion lives, back when it is gone.
     fenced = root/'config/zorin11-hub/fenced.json'
     fenced.parent.mkdir()
-    fenced.write_text(json.dumps({'version': 1, 'pid': os.getpid(), 'paths': [str(root/'desktop/menu-test.txt')]}))
+    boot = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+    started = (lambda stat: stat[stat.rindex(')')+2:].split()[19])(Path('/proc/self/stat').read_text())
+    def publish(**identity):
+        fenced.write_text(json.dumps({'version': 1, 'pid': os.getpid(), 'boot': boot, 'start': started,
+                                      'paths': [str(root/'desktop/menu-test.txt')], **identity}))
+    publish()
     until(lambda: rendered()['files'] == 0)
-    gone = subprocess.Popen(['true']); gone.wait()
-    fenced.write_text(json.dumps({'version': 1, 'pid': gone.pid, 'paths': [str(root/'desktop/menu-test.txt')]}))
+    publish(start='1')  # same PID, different process (reused PID): hides nothing
     until(lambda: rendered()['files'] == 1)
-    fenced.write_text(json.dumps({'version': 1, 'pid': os.getpid(), 'paths': [str(root/'desktop/menu-test.txt')]}))
+    publish()
+    until(lambda: rendered()['files'] == 0)
+    gone = subprocess.Popen(['sleep', '30'])
+    try:
+        # The publishing process dies without rewriting the list: icons return.
+        stat = Path(f'/proc/{gone.pid}/stat').read_text()
+        publish(pid=gone.pid, start=stat[stat.rindex(')')+2:].split()[19])
+        until(lambda: rendered()['files'] == 0)
+    finally:
+        gone.kill(); gone.wait()
+    until(lambda: rendered()['files'] == 1)
+    publish()
     until(lambda: rendered()['files'] == 0)
     fenced.write_text('{not json')
     until(lambda: rendered()['files'] == 1)
@@ -197,7 +212,7 @@ try:
     messages = (root/'shell.log').read_text()
     assert 'JS ERROR' not in messages and 'Exception while Initiating Desktop' not in messages
     assert 'Error while trying to launch DING process' not in messages
-    print('PASS fenced desktop files are skipped only while the publishing companion runs; bad lists hide nothing')
+    print('PASS fenced desktop files are skipped only while the publishing companion runs (PID reuse and crashes return them); bad lists hide nothing')
     print('PASS GNOME login startup, real Zorin desktop rendering, hide/show preserving files, disable/enable and process supervision')
     print('PASS removed adapter links fall back to Zorin desktop at relaunch and login; repair restores the menu')
 finally:

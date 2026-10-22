@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 """React desktop UI hosted by GTK/WebKit, with native Xfce integration."""
 import json
+import signal
 import mimetypes
 import os
 from pathlib import Path
@@ -116,7 +117,11 @@ class Surface(Gtk.ApplicationWindow):
         self.web.connect('web-process-terminated', self.on_web_crash)
         self.add(self.web)
         if self.group_id:
+            self.staged_drop = None
+            self.drag_out = None
             self.web.connect('drag-data-received', self.on_fence_drop)
+            self.web.connect('drag-failed', self.on_fence_drag_failed)
+            self.web.connect('drag-end', self.on_fence_drag_end)
         self.web.load_uri('zorin11://ui/index.html')
 
     def clear_background(self, widget, cr):
@@ -251,11 +256,40 @@ class Surface(Gtk.ApplicationWindow):
         return False
 
     def on_fence_drop(self, web, context, x, y, data, info, time_):
-        # WebKit keeps file paths from page scripts, so read the drop here.
-        # The page still gets its drop event and highlights the fence.
+        # WebKit hides file paths from page scripts and fetches drag data as
+        # soon as a drag hovers. Stage the paths here; the page's drop event
+        # ('fence-drop') commits them, so passing over a fence changes nothing.
+        if Gtk.drag_get_source_widget(context) is self.web:
+            return
         paths = fences.uri_paths(data.get_uris() or (data.get_text() or '').splitlines())
         if paths:
-            GLib.idle_add(lambda: (self.hub.fence_drop(self, paths), False)[1])
+            self.staged_drop = (context, paths)
+
+    def on_fence_drag_failed(self, web, context, result):
+        if self.drag_out:
+            self.drag_out['failed'] = True
+        return False
+
+    def on_fence_drag_end(self, web, context):
+        # A tile left this fence only when GTK reports a completed drop that
+        # another window accepted (the desktop, another fence, an app).
+        drag, self.drag_out = self.drag_out, None
+        if not drag or drag['failed'] or drag.get('internal'):
+            return
+        def settle():
+            if drag.get('internal'):
+                return False
+            try:
+                group = self.hub.store.group(self.group_id)
+            except StopIteration:
+                return False
+            if not group['folder'] and {'kind': 'path', 'path': drag['path']} in group['items']:
+                group['items'].remove({'kind': 'path', 'path': drag['path']})
+                self.hub.store.save()
+                self.hub.broadcast()
+            return False
+        # Let a receiving fence commit first; it moves the item itself.
+        GLib.timeout_add(300, settle)
 
     def drag_group(self, resize=False):
         # Xfwm intentionally disallows its interactive moveresize on DESKTOP
@@ -328,8 +362,11 @@ class Hub(Gtk.Application):
         self.apps = {}
         self.refresh_apps()
         self.store = Store(CONFIG/'layout.json', self.apps, Path.home())
-        # Return fenced icons to the desktop when the companion stops.
+        # Return fenced icons to the desktop when the companion stops, also on
+        # an ordinary kill or logout.
         self.connect('shutdown', lambda *_: fences.write_fenced(CONFIG/'fenced.json', [], os.getpid()))
+        for number in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+            GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, number, lambda *_: (self.quit(), False)[1])
         self.start_preferences = start_preferences.Preferences(CONFIG/'search-start.json', [p['path'] for p in explorer.place_paths()])
         try:
             self.apply_start_button()
@@ -413,7 +450,10 @@ class Hub(Gtk.Application):
         elif '--peek' in args:
             self.peek()
         elif '--toggle-fences' in args:
-            self.toggle_fences()
+            # Only a running desktop can be toggled; starting the companion with
+            # a desktop double-click must not hide everything it just restored.
+            if command.get_is_remote():
+                self.toggle_fences()
         elif '--new-fence' in args:
             offset = args.index('--new-fence')+1
             try:
@@ -899,6 +939,8 @@ class Hub(Gtk.Application):
                 created.update()
 
     def fence_drop(self, surface, paths):
+        if not paths:
+            return
         try:
             self.store.add_paths(surface.group_id, paths)
         except (ValueError, StopIteration) as error:
@@ -1016,11 +1058,13 @@ class Hub(Gtk.Application):
             raise ValueError('This shortcut is no longer available.')
         if Path(path).is_dir():
             self.open_explorer(path)
-        elif path.endswith('.desktop') and Gio.DesktopAppInfo.new_from_filename(path):
-            # Same rule as desktop icons: only launchers the user made executable run.
-            if not os.access(path, os.X_OK):
+        elif path.endswith('.desktop'):
+            # Same rule as desktop icons: only trusted launchers run, and an
+            # untrusted one is never handed to another app either.
+            launcher = Gio.DesktopAppInfo.new_from_filename(path)
+            if not launcher or not fences.launcher_trusted(path):
                 raise ValueError('Right-click this launcher on the desktop and choose Allow Launching first.')
-            Gio.DesktopAppInfo.new_from_filename(path).launch([], Gdk.Display.get_default().get_app_launch_context())
+            launcher.launch([], Gdk.Display.get_default().get_app_launch_context())
         else:
             Gio.AppInfo.launch_default_for_uri(Path(path).as_uri(), Gdk.Display.get_default().get_app_launch_context())
         self.start.hide()
@@ -1130,6 +1174,7 @@ class Hub(Gtk.Application):
             self.peek()
         elif action == 'groups-visible':
             self.store.state['groups_visible'] = bool(message['value'])
+            self.fences_hidden = False
             self.store.save()
             self.sync_groups()
         elif action == 'new-group':
@@ -1140,6 +1185,7 @@ class Hub(Gtk.Application):
                     return
                 folder = paths[0]
             self.store.add_group(message.get('title', 'New group') if not folder else Path(folder).name, folder)
+            self.fences_hidden = False
             self.sync_groups()
         elif action == 'rename-group':
             self.store.group(message['group'])['title'] = str(message['title']).strip()[:60] or 'Untitled group'
@@ -1179,8 +1225,25 @@ class Hub(Gtk.Application):
             self.store.set_style(group['id'], fences.clean_style({**fences.clean_style(group.get('style')), **changes}))
             self.broadcast()
         elif action == 'fence-reorder' and surface.group_id:
-            self.store.reorder_item(surface.group_id, message.get('id'), message.get('target'))
-            self.broadcast()
+            if surface.drag_out:
+                surface.drag_out['internal'] = True
+            if fences.clean_style(self.store.group(surface.group_id).get('style'))['sort'] == 'manual':
+                self.store.reorder_item(surface.group_id, message.get('id'), message.get('target'))
+                self.broadcast()
+        elif action == 'fence-drag-start' and surface.group_id:
+            group = self.store.group(surface.group_id)
+            item = next((i for i in group['items'] if i.get('id', i.get('path')) == message.get('id')), None)
+            # Only desktop files can be dragged out of a fence; other shortcuts
+            # only reorder, so an accepted drop elsewhere never moves a real file.
+            on_desktop = item and item['kind'] == 'path' and Path(item['path']).parent == fences.desktop_dir()
+            surface.drag_out = {'path': item['path'], 'failed': False} if on_desktop else {'path': None, 'failed': False, 'internal': True}
+        elif action == 'fence-drop' and surface.group_id:
+            staged, surface.staged_drop = surface.staged_drop, None
+            if message.get('internal'):
+                if surface.drag_out:
+                    surface.drag_out['internal'] = True
+            elif staged and not self.store.group(surface.group_id)['folder']:
+                self.fence_drop(surface, staged[1])
         elif action == 'fence-move-item' and surface.group_id:
             item = next((i for i in self.store.group(surface.group_id)['items']
                          if i.get('id', i.get('path')) == message.get('id')), None)
@@ -1191,13 +1254,6 @@ class Hub(Gtk.Application):
                 self.store.group(surface.group_id)['items'].remove(item)
                 self.store.save()
             self.broadcast()
-        elif action == 'fence-dropped-out' and surface.group_id:
-            # Dragged onto the desktop or into another app: the item leaves the fence.
-            group = self.store.group(surface.group_id)
-            if not group['folder']:
-                group['items'] = [i for i in group['items'] if i.get('path') != message.get('path')]
-                self.store.save()
-                self.broadcast()
         elif action == 'fence-hover' and surface.group_id:
             group = self.store.group(surface.group_id)
             if group['collapsed'] and fences.clean_style(group.get('style'))['autoRoll']:
@@ -1205,7 +1261,7 @@ class Hub(Gtk.Application):
                 surface.resize(width, max(160, group['height']) if message.get('inside') else 44)
         elif action == 'fence-menu' and surface.group_id:
             fence_menu.show(self, surface, 'item' if message.get('id') else 'fence', message.get('id'),
-                            at_widget=bool(message.get('keyboard')))
+                            message.get('x'), message.get('y'))
         elif action == 'toggle-fences':
             self.toggle_fences()
         elif action == 'new-fence':

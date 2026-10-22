@@ -15,7 +15,7 @@ export function Fence({data,toast}){
  const g=data.group,style={tint:'slate',opacity:.55,iconSize:'medium',sort:'manual',autoRoll:false,...g.style},tints=g.tints||{slate:'#20242a'};
  const [selected,setSelected]=useState(null),[hover,setHover]=useState(false),[dropping,setDropping]=useState(false);
  const [renaming,setRenaming]=useState(false),[title,setTitle]=useState(g.title);
- const dragging=useRef(null),handled=useRef(false),root=useRef(null);
+ const dragging=useRef(null),root=useRef(null);
  useEffect(()=>{const start=()=>{if(!renameRequested)return;renameRequested=false;setTitle(g.title);setRenaming(true);};
   start();window.addEventListener('fence-rename',start);return()=>window.removeEventListener('fence-rename',start);},[g.title]);
  useEffect(()=>{if(!g.items.some(i=>key(i)===selected))setSelected(null);},[g.items,selected]);
@@ -29,11 +29,11 @@ export function Fence({data,toast}){
  return <main ref={root} className={'fence'+(light?' light':'')+(g.collapsed?' rolled':'')+(dropping?' dropping':'')+(data.peeking?' peeking':'')}
   style={{'--fence-bg':`rgba(${r},${gr},${b},${style.opacity})`,'--tile':tile+'px','--icon':icon+'px'}}
   onMouseEnter={()=>hovering(true)} onMouseLeave={()=>hovering(false)}
-  onContextMenu={e=>{e.preventDefault();if(!e.target.closest('.fence-item'))send('fence-menu');}}
-  onKeyDown={e=>{if(e.key==='F10'&&e.shiftKey||e.key==='ContextMenu'){e.preventDefault();send('fence-menu',{id:selected,keyboard:true});}}}
-  onDragOver={e=>{e.preventDefault();if(!internal(e)||dragging.current===null)setDropping(true);}}
+  onContextMenu={e=>{e.preventDefault();if(!e.target.closest('.fence-item'))send('fence-menu',{x:e.clientX,y:e.clientY});}}
+  onKeyDown={e=>{if(e.key==='F10'&&e.shiftKey||e.key==='ContextMenu'){e.preventDefault();send('fence-menu',{id:selected});}}}
+  onDragOver={e=>{if(g.folder&&dragging.current===null)return;e.preventDefault();if(dragging.current===null)setDropping(true);}}
   onDragLeave={e=>{if(!e.relatedTarget||!root.current.contains(e.relatedTarget))setDropping(false);}}
-  onDrop={e=>{e.preventDefault();setDropping(false);handled.current=true;}}>
+  onDrop={e=>{if(g.folder&&dragging.current===null)return;e.preventDefault();setDropping(false);send('fence-drop',{internal:dragging.current!==null});}}>
   <header className="fence-titlebar" onMouseDown={e=>{if(e.button===0&&!e.target.closest('button,input'))send('move');}}
    onDoubleClick={e=>{if(!e.target.closest('button,input'))send('collapse',{group:g.id});}}>
    {renaming?<input className="fence-rename" aria-label="Fence name" value={title} autoFocus maxLength={60}
@@ -42,27 +42,25 @@ export function Fence({data,toast}){
     :<strong title={g.title}>{g.title}</strong>}
    {g.collapsed&&<span className="fence-count">{g.items.length}</span>}
    <span className="fence-actions">
-    <button aria-label="Fence options" title="Fence options" onClick={()=>send('fence-menu')}><More/></button>
+    <button aria-label="Fence options" title="Fence options" onClick={e=>{const r=e.currentTarget.getBoundingClientRect();send('fence-menu',{x:r.left,y:r.bottom});}}><More/></button>
     <button aria-label={g.collapsed?'Unroll fence':'Roll up fence'} title={g.collapsed?'Unroll':'Roll up'} onClick={()=>send('collapse',{group:g.id})}><Chevron up={!g.collapsed}/></button>
    </span>
   </header>
   {showContent&&<><div className="fence-body" onClick={e=>{if(e.target===e.currentTarget)setSelected(null);}}>
    {g.error&&<p className="fence-note">This folder is unavailable. Choose another folder in Manage fences.</p>}
    <div className="fence-grid" role="listbox" aria-label={g.title}>{g.items.map(item=>{
-    const id=key(item),canDrag=item.kind==='path';
+    const id=key(item),canDrag=item.kind==='path'&&item.path.slice(0,item.path.lastIndexOf('/'))===g.desktop;
     return <button key={id} role="option" aria-selected={selected===id} className={'fence-item'+(selected===id?' selected':'')+(item.missing?' missing':'')}
      title={item.missing?item.name+' (missing)':item.name} draggable={!g.folder||canDrag}
      onClick={()=>setSelected(id)} onFocus={()=>setSelected(id)} onDoubleClick={()=>open(item)}
      onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();open(item);}else if(e.key==='Delete'&&!g.folder)send('remove-item',{group:g.id,id});}}
-     onContextMenu={e=>{e.preventDefault();e.stopPropagation();setSelected(id);send('fence-menu',{id});}}
-     onDragStart={e=>{dragging.current=id;handled.current=false;e.dataTransfer.effectAllowed='copyMove';
+     onContextMenu={e=>{e.preventDefault();e.stopPropagation();setSelected(id);send('fence-menu',{id,x:e.clientX,y:e.clientY});}}
+     onDragStart={e=>{dragging.current=id;send('fence-drag-start',{id});e.dataTransfer.effectAllowed='move';
       e.dataTransfer.setData('application/x-zorin11-fence',id);if(canDrag){e.dataTransfer.setData('text/uri-list',fileUri(item.path));e.dataTransfer.setData('text/plain',fileUri(item.path));}}}
      onDragOver={e=>{if(internal(e)&&dragging.current!==null&&!g.folder&&style.sort==='manual'){e.preventDefault();e.currentTarget.classList.add('drop-before');}}}
      onDragLeave={e=>e.currentTarget.classList.remove('drop-before')}
-     onDrop={e=>{e.currentTarget.classList.remove('drop-before');if(dragging.current!==null&&dragging.current!==id&&!g.folder){e.preventDefault();e.stopPropagation();handled.current=true;setDropping(false);send('fence-reorder',{id:dragging.current,target:id});}}}
-     onDragEnd={e=>{const out=e.clientX<0||e.clientY<0||e.clientX>innerWidth||e.clientY>innerHeight;
-      if(!handled.current&&canDrag&&!g.folder&&(out||e.dataTransfer.dropEffect!=='none'))send('fence-dropped-out',{path:item.path});
-      dragging.current=null;setDropping(false);}}>
+     onDrop={e=>{e.currentTarget.classList.remove('drop-before');if(dragging.current!==null&&dragging.current!==id&&!g.folder&&style.sort==='manual'){e.preventDefault();e.stopPropagation();setDropping(false);send('fence-reorder',{id:dragging.current,target:id});}}}
+     onDragEnd={()=>{dragging.current=null;setDropping(false);}}>
      <img src={item.icon} alt="" draggable="false" onError={e=>{e.currentTarget.src='zorin11://icon/file';}}/>
      <span>{item.name}</span>
     </button>;})}</div>

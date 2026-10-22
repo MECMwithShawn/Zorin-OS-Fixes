@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -74,9 +75,21 @@ class FenceTests(unittest.TestCase):
         target = self.root/'config/fenced.json'
         self.assertTrue(fences.write_fenced(target, ['/a'], 42))
         self.assertFalse(fences.write_fenced(target, ['/a'], 42))
-        self.assertEqual(json.loads(target.read_text()), {'version': 1, 'pid': 42, 'paths': ['/a']})
+        published = json.loads(target.read_text())
+        self.assertEqual((published['version'], published['pid'], published['paths']), (1, 42, ['/a']))
+        boot, start = fences.process_identity(os.getpid())
+        self.assertTrue(boot and start.isdigit())
+        self.assertEqual(fences.process_identity(2**30), ('', ''))
         self.assertTrue(fences.write_fenced(target, [], 42))
         self.assertEqual([p.name for p in target.parent.iterdir()], ['fenced.json'])
+
+    def test_untrusted_launchers_never_run(self):
+        launcher = self.desktop/'tool.desktop'
+        launcher.write_text('[Desktop Entry]\nType=Application\nName=Tool\nExec=true\n')
+        self.assertFalse(fences.launcher_trusted(launcher))  # not executable
+        launcher.chmod(0o755)
+        self.assertFalse(fences.launcher_trusted(launcher))  # executable but never marked trusted
+        self.assertFalse(fences.launcher_trusted(self.desktop/'missing.desktop'))
 
     def test_sorting(self):
         items = [{'kind': 'path', 'name': 'b.txt', 'path': '/b.txt', 'modified': 1},

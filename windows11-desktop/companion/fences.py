@@ -79,10 +79,22 @@ def fenced_paths(state, desktop):
     return sorted(found)
 
 
+def process_identity(pid):
+    """Boot ID and kernel start time, so a reused PID never matches a stale list."""
+    try:
+        boot = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+        stat = Path(f'/proc/{pid}/stat').read_text()
+        return boot, stat[stat.rindex(')')+2:].split()[19]
+    except (OSError, ValueError, IndexError):
+        return '', ''
+
+
 def write_fenced(target, paths, pid):
     """Atomically publish the fenced list; returns False when unchanged."""
     target = Path(target)
-    content = json.dumps({'version': 1, 'pid': pid, 'paths': list(paths)}, ensure_ascii=False, indent=1) + '\n'
+    boot, start = process_identity(pid)
+    content = json.dumps({'version': 1, 'pid': pid, 'boot': boot, 'start': start, 'paths': list(paths)},
+                         ensure_ascii=False, indent=1) + '\n'
     try:
         if target.read_text() == content:
             return False
@@ -98,6 +110,23 @@ def write_fenced(target, paths, pid):
         if os.path.exists(temp):
             os.unlink(temp)
     return True
+
+
+def launcher_trusted(path):
+    """Zorin's desktop rule for running a .desktop file: executable, marked
+    trusted with Allow Launching, and not writable by other users."""
+    import stat
+    from gi.repository import Gio
+    try:
+        info = Gio.File.new_for_path(str(path)).query_info(
+            'unix::mode,access::can-execute,metadata::trusted', Gio.FileQueryInfoFlags.NONE, None)
+        folder = Path(path).parent.stat().st_mode
+    except Exception:
+        return False
+    return (info.get_attribute_boolean('access::can-execute')
+            and info.get_attribute_as_string('metadata::trusted') == 'true'
+            and not info.get_attribute_uint32('unix::mode') & stat.S_IWOTH
+            and not folder & stat.S_IWOTH)
 
 
 def sort_items(items, mode):

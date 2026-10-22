@@ -55,12 +55,17 @@ def wait(check, message, seconds=8):
 
 def x(*args): subprocess.run(['xdotool', *map(str, args)], check=True)
 
-def drag(start, end):
+def drag(start, end, release=None, cancel=False):
     x('mousemove', *start); time.sleep(.15); x('mousedown', 1)
-    for step in range(1, 26):
-        x('mousemove', round(start[0] + (end[0]-start[0])*step/25), round(start[1] + (end[1]-start[1])*step/25))
-        time.sleep(.03)
-    time.sleep(.35); x('mouseup', 1); time.sleep(.8)
+    path = [end] + ([release] if release else [])
+    here = start
+    for stop in path:
+        for step in range(1, 26):
+            x('mousemove', round(here[0] + (stop[0]-here[0])*step/25), round(here[1] + (stop[1]-here[1])*step/25))
+            time.sleep(.03)
+        here = stop; time.sleep(.35)
+    if cancel: x('key', 'Escape'); time.sleep(.2)
+    x('mouseup', 1); time.sleep(.8)
 
 def items(group_id): return [i.get('path', i.get('id')) for i in hub.store.group(group_id)['items']]
 
@@ -104,6 +109,12 @@ def verify():
         s1, s2 = hub.surfaces[first], hub.surfaces[second]
         wait(lambda: on_main(lambda: s1.ready and s2.ready) and js(s1, '!!document.querySelector(".fence")') is True, 'fences render')
         assert js(s1, 'document.querySelector(".fence-empty strong").textContent') == 'Drag icons here'
+        # 0. Passing over a fence, or cancelling there, fences nothing.
+        drag((80, 80), (490, 180), release=(1200, 780))
+        time.sleep(.5); assert items(first) == [], 'a drag that only passed over a fence fenced files'
+        drag((80, 80), (490, 180), cancel=True)
+        time.sleep(.5); assert items(first) == [], 'a cancelled drag fenced files'
+        print('Fences: passing over or cancelling over a fence changes nothing', flush=True)
         # 1. Drag two desktop icons into a fence: they join the fence and leave the desktop.
         drag((80, 80), (490, 180))
         wait(lambda: items(first) == [str(desktop/'a.txt'), str(desktop/'b c.pdf')], 'icons dropped into fence')
@@ -117,6 +128,11 @@ def verify():
         drag(tile_center(s1, desktop/'a.txt'), (930, 180))
         wait(lambda: items(second) == [str(desktop/'a.txt')] and items(first) == [str(desktop/'b c.pdf')], 'fence to fence move')
         print('Fences: a tile dragged between fences moved', flush=True)
+        # 2b. Dropping a tile where nothing accepts it keeps it in its fence.
+        wait(lambda: js(s1, 'document.querySelectorAll(".fence-item").length') == 1, 'first fence tile')
+        drag(tile_center(s1, desktop/'b c.pdf'), (1200, 780))
+        time.sleep(.6); assert items(first) == [str(desktop/'b c.pdf')], 'a rejected drag removed the item'
+        print('Fences: a rejected drag-out keeps the item', flush=True)
         # 3. Drag a tile out onto the desktop: the desktop receives it and it leaves the fence.
         wait(lambda: js(s2, 'document.querySelectorAll(".fence-item").length') == 1, 'second fence tile')
         drag(tile_center(s2, desktop/'a.txt'), (520, 660))
@@ -124,6 +140,17 @@ def verify():
         assert received == [(desktop/'a.txt').as_uri()], received
         wait(lambda: json.loads(fenced_file.read_text())['paths'] == [str(desktop/'b c.pdf')], 'un-fenced after drag out')
         print('Fences: a tile dragged onto the desktop target left the fence and was un-fenced', flush=True)
+        # Menus open from mouse requests, which carry no GDK event.
+        on_main(lambda: hub.dispatch(s1, {'action': 'fence-menu', 'x': 40, 'y': 60}))
+        assert on_main(lambda: s1.fence_menu.get_visible()), 'fence menu did not open'
+        labels = on_main(lambda: [c.get_label() for c in s1.fence_menu.get_children() if isinstance(c, Gtk.MenuItem)])
+        assert {'Rename fence', 'Color', 'Transparency', 'Icon size', 'Sort by', 'Delete fence'} <= set(labels), labels
+        on_main(lambda: s1.fence_menu.popdown())
+        on_main(lambda: hub.dispatch(s1, {'action': 'fence-menu', 'id': str(desktop/'b c.pdf'), 'x': 30, 'y': 70}))
+        labels = on_main(lambda: [c.get_label() for c in s1.fence_menu.get_children() if isinstance(c, Gtk.MenuItem)])
+        assert 'Return to desktop' in labels and 'Move to fence' in labels, labels
+        on_main(lambda: s1.fence_menu.popdown())
+        print('Fences: fence and item menus open at the click point', flush=True)
         # 4. Style, roll-up, quick-hide and peek.
         on_main(lambda: hub.dispatch(s1, {'action': 'fence-style', 'changes': {'tint': 'frost', 'opacity': .8, 'iconSize': 'large', 'evil': 1}}))
         assert hub.store.group(first)['style'] == {**fences.DEFAULT_STYLE, 'tint': 'frost', 'opacity': .8, 'iconSize': 'large'}

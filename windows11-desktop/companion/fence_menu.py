@@ -7,7 +7,7 @@ from pathlib import Path
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gdk, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
 import fences
 
@@ -50,7 +50,7 @@ def _key(item):
     return item.get('id', item.get('path'))
 
 
-def show(hub, surface, kind, item_id=None, at_widget=False):
+def show(hub, surface, kind, item_id=None, x=None, y=None):
     group = hub.store.group(surface.group_id)
     style = fences.clean_style(group.get('style'))
     menu = Gtk.Menu()
@@ -110,11 +110,19 @@ def show(hub, surface, kind, item_id=None, at_widget=False):
         _item(menu, 'Delete fence', lambda: _confirm_delete(hub, surface, group))
     menu.show_all()
     menu.attach_to_widget(surface, None)
+    if getattr(surface, 'fence_menu', None):
+        surface.fence_menu.destroy()
     surface.fence_menu = menu  # keep a reference while it is open
-    if at_widget:
-        menu.popup_at_widget(surface, Gdk.Gravity.NORTH_EAST, Gdk.Gravity.NORTH_WEST, None)
-    else:
-        menu.popup_at_pointer(None)
+    # Destroy after close; idle lets the chosen item's handler run first.
+    menu.connect('deactivate', lambda m: GLib.idle_add(lambda: (m.destroy(), setattr(surface, 'fence_menu', None), False)[2]))
+    # Requests arrive from WebKit, not a GDK event, so there is no trigger
+    # event: open at the page's click point (or the top corner for keyboard).
+    try:
+        rect = Gdk.Rectangle()
+        rect.x, rect.y, rect.width, rect.height = int(x or 8), int(y or 36), 1, 1
+    except (TypeError, ValueError):
+        rect.x, rect.y = 8, 36
+    menu.popup_at_rect(surface.get_window(), rect, Gdk.Gravity.NORTH_WEST, Gdk.Gravity.NORTH_WEST, None)
 
 
 def _confirm_delete(hub, surface, group):
