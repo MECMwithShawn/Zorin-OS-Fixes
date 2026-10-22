@@ -44,3 +44,10 @@
 .start-fullscreen .session-menu{top:84px;bottom:auto}
 .start-fullscreen .session-menu.account-menu{left:auto;right:96px}
 .start-fullscreen .session-menu:not(.account-menu){right:48px}
+
+/* Shared Start appearance. The tint sits above the captured backdrop, so lowering it lets
+   the desktop (or the blurred capture on X11) show through. */
+.start-shell:after{opacity:var(--start-tint,1)}
+[data-start-transparent] .start-shell{background:transparent}
+[data-start-corners=rounded] .start-shell{border-radius:8px}
+[data-start-corners=square] .start-shell{border-radius:0}

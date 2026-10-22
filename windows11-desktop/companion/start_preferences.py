@@ -18,6 +18,10 @@ TILE_SIZES = ('small', 'medium', 'wide', 'large')
 LAYOUTS = {'default': (3, 6), 'more-pins': (4, 2), 'more-recommendations': (2, 8)}
 COLUMNS = (6, 7, 8)
 MAX_TABS = 8
+# Shared appearance: tint transparency (percent), corner shape and taskbar Start button image.
+TRANSPARENCY = (0, 20, 40, 60)
+CORNERS = ('style', 'rounded', 'square')
+BUTTONS = ('windows11', 'windows10', 'orb', 'custom')
 
 
 def start_tabs(value):
@@ -86,7 +90,8 @@ class Preferences:
         self.file = Path(file)
         self.defaults = paths(list(defaults))
         self.state = dict(roots=self.defaults[:], exclusions=[], recentDocuments=True, style=STYLES[0], tiles={},
-                          layout='default', columns=COLUMNS[0], showRecommended=True, tabs=[])
+                          layout='default', columns=COLUMNS[0], showRecommended=True, tabs=[],
+                          transparency=0, corners='style', button='windows11')
         try:
             if self.file.stat().st_size <= 524288:
                 data = json.loads(self.file.read_text())
@@ -99,7 +104,10 @@ class Preferences:
                 for key, check, default in (('tiles', tiles, {}), ('tabs', start_tabs, []),
                         ('layout', lambda v: v if v in LAYOUTS else None, 'default'),
                         ('columns', lambda v: v if v in COLUMNS else None, COLUMNS[0]),
-                        ('showRecommended', lambda v: v if isinstance(v, bool) else None, True)):
+                        ('showRecommended', lambda v: v if isinstance(v, bool) else None, True),
+                        ('transparency', lambda v: v if v in TRANSPARENCY and not isinstance(v, bool) else None, 0),
+                        ('corners', lambda v: v if v in CORNERS else None, 'style'),
+                        ('button', lambda v: v if v in BUTTONS else None, 'windows11')):
                     try:
                         value = check(data.get(key, default))
                     except ValueError:
@@ -130,6 +138,12 @@ class Preferences:
             state['columns'] = value
         elif operation == 'show-recommended' and isinstance(value, bool):
             state['showRecommended'] = value
+        elif operation == 'transparency' and value in TRANSPARENCY and not isinstance(value, bool):
+            state['transparency'] = value
+        elif operation == 'corners' and value in CORNERS:
+            state['corners'] = value
+        elif operation == 'button' and value in BUTTONS:
+            state['button'] = value
         elif operation.startswith('tab-'):
             state['tabs'] = self.tab_change(state['tabs'], operation[4:], key, value)
         elif operation in ('add', 'remove') and key in ('roots', 'exclusions'):
