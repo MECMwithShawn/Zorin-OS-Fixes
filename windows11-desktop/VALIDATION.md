@@ -547,3 +547,31 @@ These snapshots provide selective recovery, not automatic repair after every OS 
 - Installed only `app.py`, the new `app_details.py`, and the rebuilt `dist/main.js`/`main.css`, after confirming the replaced files still matched `origin/master`. Their previous copies and a restore record are in the OneDrive backup folder `start-search-apps-20261022-091747`. Restarted only the companion, with `--quit`. The user then confirmed in the real session that Search opens on Apps, the preview icon launches the app and the details list appears.
 - Caution: an automated installed check (Start `--search`, `xdotool type`, then a full AT-SPI tree walk of the companion) coincided with a GNOME Shell segfault in `libgobject` at 09:15:04. The session ended and the user signed back in. No core dump was available, so the cause is unconfirmed. Do not repeat that full AT-SPI walk against the live session; use the Xvfb fixture instead.
 - Follow-up at the user's request: a single click on an app in the left results list now launches it, as in Windows 11. Hovering an app row selects it so the details pane follows the mouse, and arrow keys still move the selection. File, folder and Settings rows keep click-to-select and double-click/Enter to open. The status line reads "Click or press Enter to open" on the Apps filter. `test_search_transfer_live.py` now checks the single-click launch; the full test passed again under Xvfb.
+
+## Fences-style desktop groups — 2026-10-22
+
+- **What changed.** Group windows are now fences:
+  - Desktop icons (X11 `text/uri-list`, as Zorin Desktop Icons offers) can be dragged in. WebKit hides drop paths from page scripts, so the WebView's GTK `drag-data-received` reads the drop.
+  - Tiles can be dragged to reorder, to move between fences, or out to the desktop or other apps.
+  - Fences snap to work-area edges and neighbouring fences.
+  - Double-click rolls a fence up, and an optional setting expands it on hover.
+  - Per-fence tint, transparency, icon size and sort.
+  - Quick-hide: double-click empty desktop. Peek: Win+Shift+F. "New fence here" in the desktop menu.
+  - Native GTK context menus, so menus can extend past small or rolled-up fences.
+  - Real MIME and launcher icons. Launchers only run when executable, which matches desktop "Allow Launching".
+- **How desktop icons are hidden.** A fenced desktop file is skipped by the desktop-icons overlay's `_drawDesktop` filter. Nothing uses `.hidden`, so Files and Explorer still list the file. The companion writes `fenced.json` with its PID. The overlay ignores the list when that process is gone or the JSON is invalid. On shutdown the companion publishes an empty list.
+- **`test_fences.py` (8 tests).** Covers style sanitising, local-only URI parsing, one-fence-per-path moves, portal rejection, reordering, positioned new fences, the fenced-list scope, atomic unchanged-skip writes, sorting and snapping. It found and fixed a duplicate when one drop repeated a path.
+- **`test_fences_live.py`** (Xvfb, private D-Bus, temporary HOME and config, real Hub/WebKit) passed:
+  - real X drag from a stand-in desktop-icon source into a fence;
+  - a WebKit tile dragged to a second fence;
+  - a tile dragged out to a stand-in desktop drop target, which received the URI and un-fenced it;
+  - tint, opacity and icon-size persistence, with unknown keys dropped;
+  - roll-up and hover expand/collapse;
+  - quick-hide and Peek in both directions;
+  - a new fence at a point opening rename (this found and fixed a message race before mount);
+  - delete returning icons;
+  - shutdown clearing the list.
+  The files were never modified.
+- **`tests/gnome_desktop_menu_live.py`** (disposable headless GNOME Shell running the real Zorin desktop): the fenced fixture file was skipped while the publishing PID lived, shown again for a dead PID, and shown for invalid JSON, and the file stayed on disk. A later stage of that script, which removes adapter links and checks the fallback relaunch, timed out in this environment. The same script fails at a similar stage on the unmodified branch. `tests/test_desktop_menu.py` passed with the new "New fence here" item.
+- **Companion unit suites.** 200 of 203 passed. The 3 `test_flyouts` notification failures also occur on the unmodified base branch. `test_ui.cjs` selectors were updated, but it was not run because Playwright is not installed here.
+

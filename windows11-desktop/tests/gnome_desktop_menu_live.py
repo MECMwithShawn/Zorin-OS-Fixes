@@ -151,6 +151,19 @@ try:
     assert (root/'desktop/menu-test.txt').is_file()
     preferences.set_boolean('show-icons', True); Gio.Settings.sync()
     until(lambda: rendered()['files'] == 1)
+    # Fenced icons: skipped while the publishing companion lives, back when it is gone.
+    fenced = root/'config/zorin11-hub/fenced.json'
+    fenced.parent.mkdir()
+    fenced.write_text(json.dumps({'version': 1, 'pid': os.getpid(), 'paths': [str(root/'desktop/menu-test.txt')]}))
+    until(lambda: rendered()['files'] == 0)
+    gone = subprocess.Popen(['true']); gone.wait()
+    fenced.write_text(json.dumps({'version': 1, 'pid': gone.pid, 'paths': [str(root/'desktop/menu-test.txt')]}))
+    until(lambda: rendered()['files'] == 1)
+    fenced.write_text(json.dumps({'version': 1, 'pid': os.getpid(), 'paths': [str(root/'desktop/menu-test.txt')]}))
+    until(lambda: rendered()['files'] == 0)
+    fenced.write_text('{not json')
+    until(lambda: rendered()['files'] == 1)
+    assert (root/'desktop/menu-test.txt').is_file()
     assert extension_action('DisableExtension')
     until(lambda: not command.exists())
     assert extension_action('EnableExtension')
@@ -184,6 +197,7 @@ try:
     messages = (root/'shell.log').read_text()
     assert 'JS ERROR' not in messages and 'Exception while Initiating Desktop' not in messages
     assert 'Error while trying to launch DING process' not in messages
+    print('PASS fenced desktop files are skipped only while the publishing companion runs; bad lists hide nothing')
     print('PASS GNOME login startup, real Zorin desktop rendering, hide/show preserving files, disable/enable and process supervision')
     print('PASS removed adapter links fall back to Zorin desktop at relaunch and login; repair restores the menu')
 finally:

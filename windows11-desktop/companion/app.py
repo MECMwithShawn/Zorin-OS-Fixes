@@ -22,6 +22,8 @@ import file_preview
 import file_thumbnails
 import unified_search
 import app_details
+import fences
+import fence_menu
 import start_preferences
 import file_transfer
 import threading
@@ -113,6 +115,8 @@ class Surface(Gtk.ApplicationWindow):
         self.web.connect('decide-policy', self.on_navigation)
         self.web.connect('web-process-terminated', self.on_web_crash)
         self.add(self.web)
+        if self.group_id:
+            self.web.connect('drag-data-received', self.on_fence_drop)
         self.web.load_uri('zorin11://ui/index.html')
 
     def clear_background(self, widget, cr):
@@ -167,6 +171,9 @@ class Surface(Gtk.ApplicationWindow):
             if self.backdrop:
                 data['backdrop'] = self.backdrop
             self.send({'type': 'state', 'data': data})
+            if getattr(self, 'pending_rename', False):
+                self.pending_rename = False
+                self.send({'type': 'rename-fence'})
 
     def on_message(self, manager, result):
         try:
@@ -243,6 +250,13 @@ class Surface(Gtk.ApplicationWindow):
         self.hub.store.save()
         return False
 
+    def on_fence_drop(self, web, context, x, y, data, info, time_):
+        # WebKit keeps file paths from page scripts, so read the drop here.
+        # The page still gets its drop event and highlights the fence.
+        paths = fences.uri_paths(data.get_uris() or (data.get_text() or '').splitlines())
+        if paths:
+            GLib.idle_add(lambda: (self.hub.fence_drop(self, paths), False)[1])
+
     def drag_group(self, resize=False):
         # Xfwm intentionally disallows its interactive moveresize on DESKTOP
         # windows. Track the pointer while pressed and request geometry directly.
@@ -264,7 +278,7 @@ class Surface(Gtk.ApplicationWindow):
             if resize:
                 self.resize(max(260,width+dx),max(160,height+dy))
             else:
-                self.move(x+dx,y+dy)
+                self.move(*self.hub.snap_group(self, x+dx, y+dy))
             return True
         self.drag_timer = GLib.timeout_add(16, tick)
 
@@ -275,6 +289,7 @@ class Hub(Gtk.Application):
         self.surfaces = {}
         self.modal = False
         self.peeking = False
+        self.fences_hidden = False
         self.context = None
         self.icon_cache = {}
         self.file_monitors = []
@@ -313,6 +328,8 @@ class Hub(Gtk.Application):
         self.apps = {}
         self.refresh_apps()
         self.store = Store(CONFIG/'layout.json', self.apps, Path.home())
+        # Return fenced icons to the desktop when the companion stops.
+        self.connect('shutdown', lambda *_: fences.write_fenced(CONFIG/'fenced.json', [], os.getpid()))
         self.start_preferences = start_preferences.Preferences(CONFIG/'search-start.json', [p['path'] for p in explorer.place_paths()])
         try:
             self.apply_start_button()
@@ -395,6 +412,15 @@ class Hub(Gtk.Application):
             if offset<len(args):self.multitasking.desktop_command(args[offset])
         elif '--peek' in args:
             self.peek()
+        elif '--toggle-fences' in args:
+            self.toggle_fences()
+        elif '--new-fence' in args:
+            offset = args.index('--new-fence')+1
+            try:
+                x, y = int(float(args[offset])), int(float(args[offset+1]))
+            except (IndexError, ValueError):
+                x = y = None
+            self.new_fence(x, y)
         elif '--search' in args:
             self.show_start()
         elif '--groups' in args:
@@ -481,6 +507,9 @@ class Hub(Gtk.Application):
             icon = Gio.ThemedIcon.new(key[6:])
         elif key.startswith('mime:'):
             icon = Gio.content_type_get_icon(key[5:])
+        elif key.startswith('launcher:'):
+            launcher = Gio.DesktopAppInfo.new_from_filename(key[9:]) if key.endswith('.desktop') else None
+            icon = launcher.get_icon() if launcher else None
         elif key in ('thunar.desktop', 'zorin11-explorer.desktop'):
             icon = Gio.ThemedIcon.new('system-file-manager') if (CONFIG/'reference-icons/48/system-file-manager.png').exists() else Gio.FileIcon.new(Gio.File.new_for_path(str(BASE/'explorer.svg')))
         elif key in self.apps:
@@ -521,7 +550,7 @@ class Hub(Gtk.Application):
             try:
                 children = sorted((p for p in Path(group['folder']).iterdir() if not p.name.startswith('.')),
                     key=lambda p: (not p.is_dir(), p.name.casefold()))
-                result['items'] = [self.path_info(p) for p in children[:200]]
+                result['items'] = [self.fence_item(p) for p in children[:200]]
                 result['overflow'] = len(children) > 200
             except OSError as error:
                 result['items'], result['error'] = [], str(error)
@@ -533,9 +562,36 @@ class Hub(Gtk.Application):
                     if app:
                         items.append(dict(app, kind='app'))
                 else:
-                    items.append(self.path_info(item['path']))
+                    items.append(self.fence_item(item['path']))
             result['items'] = items
+        result['style'] = fences.clean_style(group.get('style'))
+        result['tints'] = fences.TINTS
+        result['items'] = fences.sort_items(result['items'], result['style']['sort'])
+        result['desktop'] = str(fences.desktop_dir())
+        result['others'] = [{'id': g['id'], 'title': g['title']} for g in self.store.state['groups']
+                            if g is not group and not g['folder']]
         return result
+
+    def fence_item(self, path):
+        info = self.path_info(path)
+        p = Path(path)
+        try:
+            stat = p.stat()
+            info.update(modified=stat.st_mtime, isDir=p.is_dir())
+        except OSError:
+            return info
+        if p.suffix == '.desktop' and p.is_file():
+            launcher = Gio.DesktopAppInfo.new_from_filename(str(p))
+            if launcher:
+                info.update(name=launcher.get_display_name() or info['name'], launcher=True,
+                            icon='zorin11://icon/' + quote('launcher:' + str(p), safe=''))
+                return info
+        if p.is_dir():
+            content = 'inode/directory'
+        else:
+            content, _ = Gio.content_type_guess(p.name, None)
+        info['icon'] = 'zorin11://icon/' + quote('mime:' + (content or 'application/octet-stream'), safe='')
+        return info
 
     def account_avatar(self):
         """Resolve the system account photo; periodically recheck account changes."""
@@ -647,8 +703,17 @@ class Hub(Gtk.Application):
         return result
 
     def broadcast(self):
+        self.sync_fenced()
         for surface in list(self.surfaces.values()):
             surface.update()
+
+    def sync_fenced(self):
+        if hasattr(self, 'store'):
+            try:
+                fences.write_fenced(CONFIG/'fenced.json',
+                    fences.fenced_paths(self.store.state, fences.desktop_dir()), os.getpid())
+            except OSError as error:
+                print('Fenced icons:', error, file=sys.stderr, flush=True)
 
     def monitor_geometry(self, primary=False):
         display = Gdk.Display.get_default()
@@ -777,7 +842,7 @@ class Hub(Gtk.Application):
                 self.surfaces[key] = Surface(self, key)
             surface = self.surfaces[key]
             self.place_group(surface, group)
-            if self.store.state['groups_visible']:
+            if self.store.state['groups_visible'] and (not self.fences_hidden or self.peeking):
                 surface.show_all()
             else:
                 surface.hide()
@@ -808,9 +873,51 @@ class Hub(Gtk.Application):
             if self.peeking:
                 surface.show_all()
                 surface.present()
-            elif not self.store.state['groups_visible']:
+            elif not self.store.state['groups_visible'] or self.fences_hidden:
                 surface.hide()
         self.broadcast()
+
+    def toggle_fences(self):
+        """Quick-hide: double-click the desktop to hide or show every fence."""
+        if not self.store.state['groups_visible']:
+            return
+        self.fences_hidden = not self.fences_hidden
+        if self.peeking:
+            self.peek()
+        else:
+            self.sync_groups()
+
+    def new_fence(self, x=None, y=None, surface=None):
+        self.fences_hidden = False
+        group_id = self.store.add_group('New fence', x=x, y=y)
+        self.sync_groups()
+        created = self.surfaces.get(group_id)
+        if created:
+            created.present()
+            created.pending_rename = True
+            if created.ready:
+                created.update()
+
+    def fence_drop(self, surface, paths):
+        try:
+            self.store.add_paths(surface.group_id, paths)
+        except (ValueError, StopIteration) as error:
+            surface.send({'type': 'error', 'message': str(error)})
+            return
+        self.broadcast()
+
+    def snap_group(self, surface, x, y):
+        width, height = surface.get_size()
+        monitor = Gdk.Display.get_default().get_monitor_at_point(x + width//2, y + 20)
+        if monitor is None:
+            return x, y
+        area = monitor.get_workarea()
+        others = []
+        for key, other in self.surfaces.items():
+            if other is not surface and other.group_id and other.get_visible():
+                ox, oy = other.get_position()
+                others.append((ox, oy, *other.get_size()))
+        return fences.snap(x, y, width, height, (area.x, area.y, area.width, area.height), others)
 
     def pick(self, surface, folder=False, multiple=False, title=None):
         self.modal = True
@@ -909,6 +1016,11 @@ class Hub(Gtk.Application):
             raise ValueError('This shortcut is no longer available.')
         if Path(path).is_dir():
             self.open_explorer(path)
+        elif path.endswith('.desktop') and Gio.DesktopAppInfo.new_from_filename(path):
+            # Same rule as desktop icons: only launchers the user made executable run.
+            if not os.access(path, os.X_OK):
+                raise ValueError('Right-click this launcher on the desktop and choose Allow Launching first.')
+            Gio.DesktopAppInfo.new_from_filename(path).launch([], Gdk.Display.get_default().get_app_launch_context())
         else:
             Gio.AppInfo.launch_default_for_uri(Path(path).as_uri(), Gdk.Display.get_default().get_app_launch_context())
         self.start.hide()
@@ -1061,6 +1173,44 @@ class Hub(Gtk.Application):
             self.store.save()
             self.place_group(surface, group)
             self.broadcast()
+        elif action == 'fence-style' and surface.group_id:
+            group = self.store.group(surface.group_id)
+            changes = message.get('changes') if isinstance(message.get('changes'), dict) else {}
+            self.store.set_style(group['id'], fences.clean_style({**fences.clean_style(group.get('style')), **changes}))
+            self.broadcast()
+        elif action == 'fence-reorder' and surface.group_id:
+            self.store.reorder_item(surface.group_id, message.get('id'), message.get('target'))
+            self.broadcast()
+        elif action == 'fence-move-item' and surface.group_id:
+            item = next((i for i in self.store.group(surface.group_id)['items']
+                         if i.get('id', i.get('path')) == message.get('id')), None)
+            if item and item['kind'] == 'path':
+                self.store.add_paths(message.get('target'), [item['path']])
+            elif item:
+                self.store.add_item(message.get('target'), item)
+                self.store.group(surface.group_id)['items'].remove(item)
+                self.store.save()
+            self.broadcast()
+        elif action == 'fence-dropped-out' and surface.group_id:
+            # Dragged onto the desktop or into another app: the item leaves the fence.
+            group = self.store.group(surface.group_id)
+            if not group['folder']:
+                group['items'] = [i for i in group['items'] if i.get('path') != message.get('path')]
+                self.store.save()
+                self.broadcast()
+        elif action == 'fence-hover' and surface.group_id:
+            group = self.store.group(surface.group_id)
+            if group['collapsed'] and fences.clean_style(group.get('style'))['autoRoll']:
+                width, _ = surface.get_size()
+                surface.resize(width, max(160, group['height']) if message.get('inside') else 44)
+        elif action == 'fence-menu' and surface.group_id:
+            fence_menu.show(self, surface, 'item' if message.get('id') else 'fence', message.get('id'),
+                            at_widget=bool(message.get('keyboard')))
+        elif action == 'toggle-fences':
+            self.toggle_fences()
+        elif action == 'new-fence':
+            x, y = surface.get_position() if surface.group_id else (None, None)
+            self.new_fence(None if x is None else x + 36, None if y is None else y + 36)
         elif action in ('move', 'resize') and surface.group_id:
             surface.drag_group(resize=action=='resize')
         elif action == 'manage':

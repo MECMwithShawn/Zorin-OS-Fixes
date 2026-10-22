@@ -25,6 +25,36 @@ function item(label, icon, action) {
     if (action) row.connect('activate', action);
     return row;
 }
+function runtimeDir() {
+    return GLib.getenv('ZORIN11_RUNTIME_DIR') ||
+        GLib.build_filenamev([GLib.get_home_dir(), '.local/share/zorin11-hub']);
+}
+function companion(args) {
+    const launcher = new Gio.SubprocessLauncher({flags: Gio.SubprocessFlags.NONE});
+    launcher.setenv('GDK_BACKEND', 'x11', true);
+    launcher.spawnv(['/usr/bin/python3', `${runtimeDir()}/app.py`, ...args]);
+}
+// Desktop files shown inside a fence. The companion publishes the list with
+// its PID; a stale list (companion not running) hides nothing.
+function fencedFile() {
+    const config = GLib.getenv('ZORIN11_CONFIG_DIR') ||
+        GLib.build_filenamev([GLib.get_user_config_dir(), 'zorin11-hub']);
+    return Gio.File.new_for_path(GLib.build_filenamev([config, 'fenced.json']));
+}
+function readFenced() {
+    try {
+        const [ok, bytes] = fencedFile().load_contents(null);
+        const data = JSON.parse(new TextDecoder().decode(bytes));
+        if (!ok || data.version !== 1 || !Number.isInteger(data.pid) || !Array.isArray(data.paths))
+            return new Set();
+        if (!GLib.file_test(`/proc/${data.pid}`, GLib.FileTest.IS_DIR))
+            return new Set();
+        return new Set(data.paths.filter(path => typeof path === 'string'));
+    } catch (e) {
+        return new Set();
+    }
+}
+
 function launch(page) {
     // No shell interpolation and no file-manager or OneDrive routing changes.
     const runtime = GLib.getenv('ZORIN11_RUNTIME_DIR') ||
@@ -88,6 +118,8 @@ var DesktopManager = class extends Upstream.DesktopManager {
         sort.set_submenu(sorts);
         main.append(sort);
         main.append(item('Refresh', 'view-refresh-symbolic', () => this._updateDesktop().catch(logError)));
+        main.append(item('New fence here', 'view-app-grid-symbolic',
+            () => companion(['--new-fence', `${this._clickX}`, `${this._clickY}`])));
         main.append(new Gtk.SeparatorMenuItem());
         const paste = item('Paste', 'edit-paste-symbolic', () => this._doPaste());
         this._pasteMenuItem.bind_property('sensitive', paste, 'sensitive', 2);
@@ -123,6 +155,31 @@ var DesktopManager = class extends Upstream.DesktopManager {
             for (const file of files) file._onDestroy();
             files = [];
         }
+        if (!this._fencedMonitor) {
+            this._fencedMonitor = fencedFile().monitor_file(Gio.FileMonitorFlags.NONE, null);
+            this._fencedMonitor.connect('changed', (monitor, file, other, event) => {
+                if (event === Gio.FileMonitorEvent.CHANGES_DONE_HINT || event === Gio.FileMonitorEvent.CREATED ||
+                    event === Gio.FileMonitorEvent.DELETED || event === Gio.FileMonitorEvent.MOVED_IN ||
+                    event === Gio.FileMonitorEvent.RENAMED)
+                    this._updateDesktop().catch(logError);
+            });
+        }
+        const fenced = readFenced();
+        if (fenced.size) {
+            files = files.filter(file => {
+                if (!fenced.has(file.path))
+                    return true;
+                file._onDestroy();
+                return false;
+            });
+        }
         super._drawDesktop(files);
+    }
+
+    onPressButton(x, y, event, grid) {
+        // Double-click empty desktop: quick-hide or show all fences.
+        if (event.get_event_type() === Gdk.EventType.DOUBLE_BUTTON_PRESS && event.get_button()[1] === 1)
+            companion(['--toggle-fences']);
+        super.onPressButton(x, y, event, grid);
     }
 };
