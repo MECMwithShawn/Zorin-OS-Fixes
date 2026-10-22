@@ -92,6 +92,14 @@ function App(){
  },[context,footerMenu,addTo,startFolder,folderPicker,tabName,data?.mode]);
  useEffect(()=>{if(startFolder||folderPicker)setTimeout(()=>document.querySelector('.start-folder-dialog button,.start-folder-picker button')?.focus(),0);},[startFolder,folderPicker]);
  useEffect(()=>{if(context)setTimeout(()=>document.querySelector('.start-shell>.context-menu button')?.focus(),0);},[context]);
+ // Shared appearance: tint transparency and corner shape apply to every Start style.
+ useEffect(()=>{
+  const look=data?.mode==='start'?data.startAppearance:null,root=document.documentElement;
+  if(!look){root.style.removeProperty('--start-tint');delete root.dataset.startCorners;delete root.dataset.startTransparent;return;}
+  root.style.setProperty('--start-tint',String(1-look.transparency/100));
+  if(look.transparency)root.dataset.startTransparent='';else delete root.dataset.startTransparent;
+  if(look.corners==='style')delete root.dataset.startCorners;else root.dataset.startCorners=look.corners;
+ },[data?.mode,data?.startAppearance?.transparency,data?.startAppearance?.corners]);
  // A cancelled name may never blur; clear the flag whenever a new edit begins.
  useEffect(()=>{if(tabName)nameCancelled.current=false;},[!!tabName]);
  useEffect(()=>{if(startFolder&&data?.startFolders&&!data.startFolders.some(f=>f.id===startFolder))setStartFolder(null);},[data?.startFolders,startFolder]);

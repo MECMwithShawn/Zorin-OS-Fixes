@@ -115,7 +115,12 @@ Pinned shows one page at a time. When there are more pins than fit, dots on the 
 - **Launcher** takes after phone app launchers. It has a large account picture with Settings and Power at the top, then a rounded search box and chips for Pinned, All apps and each app category. The chips choose what fills a large icon grid. The Pinned chip keeps drag-to-reorder and folders.
 - **Full screen** covers the screen's work area (the taskbar stays visible). Search and your account/Settings/Power are along the top. The A–Z list is on the left, and the paged Pinned tabs and Recommended fill the rest.
 
-The selected pin tab is shared by Windows 11, App style with tabs and Full screen. Shared appearance options (transparency, corners, Start button image) are planned.
+The selected pin tab is shared by Windows 11, App style with tabs and Full screen.
+
+Three appearance options on the same Settings page apply to every style:
+- **Transparency** (Off, 20%, 40% or 60%) lets the desktop show through Start. On X11 you see the blurred backdrop capture; on Wayland, where that capture isn't available, you see the desktop itself.
+- **Corners** keeps each style's own corners, or makes them all **Rounded** or **Square**.
+- **Start button** changes the taskbar's Start icon on GNOME: Windows 11 (default), Windows 10, Orb, or **Your image…**. Your image accepts any picture under 8 MB and saves a 64 px copy as `~/.config/zorin11-hub/start-button-custom.png`. The GNOME extension draws the button and watches its `start-button` setting. After updating, sign out and back in once to load the new extension code; later changes apply immediately. If the chosen file goes missing, the default icon returns.
 
 
 Explorer copy/paste now shows progress, transferred bytes, completed/skipped items, **Pause**, **Resume**, and **Cancel transfer**. Collisions offer **Replace the file**, **Keep both**, or **Skip**; matching folders offer **Merge folders** while retaining unrelated destination files. You can apply a choice to remaining file or folder conflicts. File/folder type mismatches and same-file copies cannot replace the original. Failed item operations offer **Retry** or **Skip**; preparation failures show their error.
@@ -201,7 +206,7 @@ The existing Xfce/X11 backend is retained. See [the complete Xfce guide](XFCE.md
 ```bash
 python3 -m unittest discover -s tests -v
 cd companion
-XDG_CURRENT_DESKTOP=XFCE python3 -m unittest -v test_model.py test_explorer.py test_file_preview.py test_file_transfer.py test_unified_search.py test_start_preferences.py test_bluetooth_pairing.py test_hardware_controls.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py test_session_actions.py
+XDG_CURRENT_DESKTOP=XFCE python3 -m unittest -v test_model.py test_explorer.py test_file_preview.py test_file_transfer.py test_unified_search.py test_start_preferences.py test_start_appearance.py test_bluetooth_pairing.py test_hardware_controls.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py test_session_actions.py
 # Frontend: use the pinned lockfile, then rebuild committed dist/ assets.
 corepack pnpm install --frozen-lockfile
 node build.mjs
@@ -218,6 +223,9 @@ python3 companion/test_start_windows10_live.py
 python3 companion/test_start_modern_live.py
 python3 companion/test_start_windows11_options_live.py
 python3 companion/test_start_more_layouts_live.py
+python3 companion/test_start_appearance_live.py
+# Headless GNOME Shell with the real extension and Zorin taskbar; never touches the signed-in session.
+python3 tests/start_button_live.py
 # Power/radio/device services are isolated; this does not change host hardware.
 python3 companion/test_quick_hardware_live.py
 python3 companion/test_bluetooth_pairing_live.py

@@ -27,7 +27,8 @@ class StartPreferencesTests(unittest.TestCase):
         self.assertEqual(reloaded.snapshot()['roots'], [str(other)])
         reloaded.change('reset')
         self.assertEqual(reloaded.snapshot(), dict(roots=[str(self.docs)], exclusions=[], recentDocuments=False, style='windows11', tiles={},
-            layout='default', columns=6, showRecommended=True, tabs=[]))
+            layout='default', columns=6, showRecommended=True, tabs=[],
+            transparency=0, corners='style', button='windows11'))
 
     def test_start_style_persists_and_old_files_default_to_windows11(self):
         self.file.write_text('{"roots": [], "exclusions": [], "recentDocuments": true}')
@@ -88,6 +89,18 @@ class StartPreferencesTests(unittest.TestCase):
         with self.assertRaises(ValueError): p.change('tab-create', value='Ninth')
         self.file.write_text('{"roots": [], "exclusions": [], "recentDocuments": true, "tabs": [{"id": "pinned", "name": "x", "apps": []}]}')
         self.assertEqual(Preferences(self.file, []).snapshot()['tabs'], [])
+
+    def test_appearance_persists_and_bad_values_fall_back(self):
+        self.preferences.change('transparency', value=40)
+        self.preferences.change('corners', value='square')
+        self.preferences.change('button', value='orb')
+        snapshot = Preferences(self.file, []).snapshot()
+        self.assertEqual((snapshot['transparency'], snapshot['corners'], snapshot['button']), (40, 'square', 'orb'))
+        for operation, value in (('transparency', 50), ('transparency', True), ('corners', 'round'), ('button', 'logo')):
+            with self.assertRaises(ValueError): self.preferences.change(operation, value=value)
+        self.file.write_text('{"roots": [], "exclusions": [], "recentDocuments": true, "transparency": 90, "corners": "square", "button": 3}')
+        snapshot = Preferences(self.file, []).snapshot()
+        self.assertEqual((snapshot['transparency'], snapshot['corners'], snapshot['button']), (0, 'square', 'windows11'))
 
     def test_invalid_config_and_folders_do_not_replace_good_state(self):
         self.file.write_text('{broken')

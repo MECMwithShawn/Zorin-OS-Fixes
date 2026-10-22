@@ -18,7 +18,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Start: Modern layout (Start11's two-column style in a dark, square Windows 10 skin) with Pinned/All apps tabs. Xvfb/WebKit tests passed against source and installed runtime 2026-10-22.
 - [x] Start: Windows 11 enhancements: named pin tabs, paged Pinned grid, 6/7/8 columns, More pins/Default/More recommendations, Show Recommended toggle. Xvfb/WebKit tests passed against source and installed runtime 2026-10-22.
 - [x] Start: App style with tabs, Launcher and Full screen layouts (Start11 v2 designs). Xvfb/WebKit tests passed against source and installed runtime 2026-10-22.
-- [ ] Start: Shared appearance options (transparency, corners, Start button image).
+- [x] Start: shared appearance: transparency, corner shape and GNOME taskbar Start button image (bundled or custom), applied live through the extension's `start-button` key. WebKit, unit and headless GNOME Shell tests passed 2026-10-22; the extension change loads at the next sign-in.
 - [x] Search: unified apps, scoped local filenames/folders and settings search with previews, filters and keyboard navigation. Verified 2026-10-19.
 - [x] Search: configurable folders and exclusions through Search & Start settings. Verified 2026-10-19.
 - [ ] Search: optional content indexing beyond bounded filename search.

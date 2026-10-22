@@ -34,6 +34,10 @@ from gnome_bridge import active as is_gnome
 
 BASE = Path(__file__).resolve().parent
 CONFIG = Path(os.environ.get('ZORIN11_CONFIG_DIR', str(Path.home()/'.config/zorin11-hub')))
+# The GNOME extension draws the taskbar Start button and reads its image from this schema.
+EXTENSION_SCHEMAS = Path(os.environ.get('ZORIN11_EXTENSION_SCHEMAS',
+    str(Path.home()/'.local/share/gnome-shell/extensions/zorin11@zorin-os-fixes/schemas')))
+CUSTOM_START_BUTTON = CONFIG/'start-button-custom.png'
 APP_ID = os.environ.get('ZORIN11_APP_ID', 'local.zorin11.DesktopHub')
 LABELS = {'thunar.desktop': 'Thunar', 'zorin11-explorer.desktop': 'File Explorer', 'brave-browser.desktop': 'Brave',
           'xfce-settings-manager.desktop': 'Advanced Settings', 'zorin11-settings.desktop': 'Settings', 'org.gnome.Evince.desktop': 'PDF Viewer',
@@ -310,6 +314,10 @@ class Hub(Gtk.Application):
         self.refresh_apps()
         self.store = Store(CONFIG/'layout.json', self.apps, Path.home())
         self.start_preferences = start_preferences.Preferences(CONFIG/'search-start.json', [p['path'] for p in explorer.place_paths()])
+        try:
+            self.apply_start_button()
+        except GLib.Error as error:
+            print('Start button:', error, file=sys.stderr, flush=True)
         self.recent_manager = Gtk.RecentManager.get_default()
         self.recent_manager.connect('changed', lambda *_: self.refresh_recent_documents())
         self.privacy = Gio.Settings.new('org.gnome.desktop.privacy')
@@ -440,6 +448,16 @@ class Hub(Gtk.Application):
                 key = unquote(uri.path.lstrip('/'))
                 content = self.icon_bytes(key)
                 mime = 'image/png'
+            elif uri.netloc == 'start-button':
+                name = uri.path.lstrip('/')
+                if name == 'custom' and CUSTOM_START_BUTTON.is_file():
+                    content, mime = CUSTOM_START_BUTTON.read_bytes(), 'image/png'
+                elif name in ('windows10', 'orb'):
+                    content, mime = (BASE/'start-buttons'/f'{name}.svg').read_bytes(), 'image/svg+xml'
+                elif name == 'windows11':
+                    content, mime = (BASE/'start.svg').read_bytes(), 'image/svg+xml'
+                else:
+                    raise ValueError('Unknown Start button')
             elif uri.netloc == 'theme-icon':
                 key = unquote(uri.path.lstrip('/'))
                 if not key or any(c not in 'abcdefghijklmnopqrstuvwxyz0123456789-_' for c in key):
@@ -573,6 +591,7 @@ class Hub(Gtk.Application):
             'startStyle': self.start_preferences.snapshot()['style'],
             'startTiles': self.start_preferences.snapshot()['tiles'],
             'startOptions': self.start_options(),
+            'startAppearance': {k: self.start_preferences.snapshot()[k] for k in ('transparency', 'corners')},
             'startPlaces': [self.path_info(p) for p in self.start_place_paths()]}
 
     def start_options(self):
@@ -580,6 +599,41 @@ class Hub(Gtk.Application):
         preferences = self.start_preferences.snapshot()
         return dict(layout=preferences['layout'], columns=preferences['columns'], showRecommended=preferences['showRecommended'],
                     tabs=[dict(tab, apps=[a for a in tab['apps'] if a in self.apps]) for tab in preferences['tabs']])
+
+    def start_button_file(self):
+        button = self.start_preferences.snapshot()['button']
+        if button == 'custom':
+            return str(CUSTOM_START_BUTTON) if CUSTOM_START_BUTTON.is_file() else ''
+        return '' if button == 'windows11' else str(BASE/'start-buttons'/f'{button}.svg')
+
+    def apply_start_button(self):
+        """Point the GNOME extension at the chosen Start button image; '' keeps its default."""
+        if not is_gnome():
+            return
+        try:
+            source = Gio.SettingsSchemaSource.new_from_directory(str(EXTENSION_SCHEMAS), Gio.SettingsSchemaSource.get_default(), False)
+        except GLib.Error:
+            return
+        schema = source.lookup('org.gnome.shell.extensions.zorin11', False)
+        if schema is None or not schema.has_key('start-button'):
+            return
+        settings = Gio.Settings.new_full(schema, None, None)
+        if settings.get_string('start-button') != self.start_button_file():
+            settings.set_string('start-button', self.start_button_file())
+            Gio.Settings.sync()
+
+    def save_custom_start_button(self, path):
+        path = Path(path)
+        if not path.is_file() or path.stat().st_size > 8*1024*1024:
+            raise ValueError('Choose an image file under 8 MB.')
+        try:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(str(path), 64, 64, True)
+        except GLib.Error:
+            raise ValueError('That file is not an image that can be used as the Start button.')
+        CONFIG.mkdir(parents=True, exist_ok=True)
+        temporary = CUSTOM_START_BUTTON.with_name('.start-button-custom.png')
+        pixbuf.savev(str(temporary), 'png', [], [])
+        os.replace(temporary, CUSTOM_START_BUTTON)
 
     def start_place_paths(self):
         """Right-hand folders of the classic Start layouts, in Windows 7 order."""
@@ -639,8 +693,9 @@ class Hub(Gtk.Application):
         size = {'windows7': (456, 620), 'modern': (520, 640), 'windows10': (780, 680), 'tabbed': (800, 680),
                 'launcher': (640, 760)}.get(style, (832, 864))
         if style == 'fullscreen':
-            # Full screen covers the whole work area, leaving the taskbar visible.
-            width, height = geometry.width, geometry.height
+            # Full screen spans the work area, leaving the taskbar visible. The GNOME extension
+            # keeps companion windows 12 px inside the work area, so leave that margin.
+            width, height = geometry.width, geometry.height - 24
         else:
             width, height = min(size[0], geometry.width - 24), min(size[1], geometry.height - 24)
         self.start.set_size_request(width, height)
@@ -650,7 +705,7 @@ class Hub(Gtk.Application):
         bottom = min(anchor[1], geometry.y+geometry.height) if anchor else geometry.y+geometry.height
         y = max(geometry.y+12, bottom-height-12)
         if style == 'fullscreen':
-            x, y = geometry.x, geometry.y
+            x, y = geometry.x, geometry.y + 12
         self.capture_backdrop(self.start, x, y, width, height)
         self.start.move(x, y)
         self.start.show_all()
@@ -757,9 +812,9 @@ class Hub(Gtk.Application):
                 surface.hide()
         self.broadcast()
 
-    def pick(self, surface, folder=False, multiple=False):
+    def pick(self, surface, folder=False, multiple=False, title=None):
         self.modal = True
-        dialog = Gtk.FileChooserDialog(title='Choose a folder' if folder else 'Add file or folder shortcuts',
+        dialog = Gtk.FileChooserDialog(title=title or ('Choose a folder' if folder else 'Add file or folder shortcuts'),
             transient_for=surface, action=Gtk.FileChooserAction.SELECT_FOLDER if folder else Gtk.FileChooserAction.OPEN)
         dialog.add_buttons('Cancel', Gtk.ResponseType.CANCEL, 'Choose', Gtk.ResponseType.OK)
         dialog.set_select_multiple(multiple)
@@ -1238,11 +1293,18 @@ class Hub(Gtk.Application):
                 chosen = self.pick(surface, folder=True)
                 if not chosen: return
                 value = chosen[0]
+            if operation == 'button' and value == 'custom':
+                chosen = self.pick(surface, title='Choose a Start button image')
+                if not chosen: return
+                self.save_custom_start_button(chosen[0])
             self.start_preferences.change(operation,key,value)
+            if operation == 'button':
+                self.apply_start_button()
+                self.settings_data.update(startButtonVersion=time.time_ns())
             if operation == 'style':
                 # The window is sized per style when it opens, so close it now.
                 self.start.hide()
-            if operation in ('style', 'layout', 'columns', 'show-recommended'):
+            if operation in ('style', 'layout', 'columns', 'show-recommended', 'transparency', 'corners'):
                 self.start.update()
             self.settings_generation += 1
             self.search_action(self.start,dict(action='search-cancel'))
