@@ -26,7 +26,7 @@ class StartPreferencesTests(unittest.TestCase):
         reloaded.change('remove', 'roots', str(self.docs))
         self.assertEqual(reloaded.snapshot()['roots'], [str(other)])
         reloaded.change('reset')
-        self.assertEqual(reloaded.snapshot(), dict(roots=[str(self.docs)], exclusions=[], recentDocuments=False, style='windows11'))
+        self.assertEqual(reloaded.snapshot(), dict(roots=[str(self.docs)], exclusions=[], recentDocuments=False, style='windows11', tiles={}))
 
     def test_start_style_persists_and_old_files_default_to_windows11(self):
         self.file.write_text('{"roots": [], "exclusions": [], "recentDocuments": true}')
@@ -38,6 +38,20 @@ class StartPreferencesTests(unittest.TestCase):
             with self.assertRaises(ValueError): self.preferences.change('style', value=value)
         self.file.write_text('{"roots": [], "exclusions": [], "recentDocuments": true, "style": "bogus"}')
         self.assertEqual(Preferences(self.file, []).snapshot()['style'], 'windows11')
+
+    def test_tile_sizes_persist_medium_is_default_and_bad_values_are_dropped(self):
+        self.preferences.change('style', value='windows10')
+        self.preferences.change('tile', 'orion.desktop', 'wide')
+        self.preferences.change('tile', 'nova.desktop', 'large')
+        self.preferences.change('tile', 'nova.desktop', 'medium')
+        reloaded = Preferences(self.file, [])
+        self.assertEqual((reloaded.snapshot()['style'], reloaded.snapshot()['tiles']), ('windows10', {'orion.desktop': 'wide'}))
+        reloaded.snapshot()['tiles']['x'] = 'small'
+        self.assertNotIn('x', reloaded.snapshot()['tiles'])
+        for key, value in (('orion.desktop', 'huge'), ('', 'wide'), (None, 'wide')):
+            with self.assertRaises(ValueError): reloaded.change('tile', key, value)
+        self.file.write_text('{"roots": [], "exclusions": [], "recentDocuments": true, "tiles": {"a": "huge"}}')
+        self.assertEqual(Preferences(self.file, []).snapshot()['tiles'], {})
 
     def test_invalid_config_and_folders_do_not_replace_good_state(self):
         self.file.write_text('{broken')
