@@ -99,6 +99,8 @@ Recent documents appear in Start’s **Recommended** section when desktop file h
 
 Right-click an app in Start (or focus it and press **Shift+F10**) for the actions supplied by its installed desktop entry. Search exposes those same actions beside the selected app. File Explorer includes working **New window** and **This PC** actions in Start and its native GNOME taskbar menu. App-specific recent-file jump lists remain future work.
 
+Choose a Start layout under **Settings → Personalization → Search & Start → Start menu style**. **Windows 11** is the default. **Windows 7** opens a narrower two-column menu. On the left are pinned apps, then up to eight recently opened apps that are not pinned, with **All Programs** below them. All Programs lists apps in expandable category folders. Under it, **Search programs and files** uses the same Apps/Files/Folders/Settings search as Windows 11 Start. The details pane is hidden at this width, and a click still launches a result. The right column shows your account picture, your name (your home folder), Documents, Pictures, Music, Videos and Downloads where they exist, Computer (This PC), Settings and Start settings. **Shut down** acts immediately through the same confirmed session action as the Windows 11 power menu, and the arrow next to it offers Switch user, Sign out, Lock, Restart and Sleep. Right-click menus, pinning, Start folders and app actions are the same in both layouts. The choice is saved with your other Start preferences, so older companions ignore it. Changing it closes Start, which reopens at the new size. More Start11-style layouts (Windows 10, Modern, full screen and others) are planned.
+
 
 Explorer copy/paste now shows progress, transferred bytes, completed/skipped items, **Pause**, **Resume**, and **Cancel transfer**. Collisions offer **Replace the file**, **Keep both**, or **Skip**; matching folders offer **Merge folders** while retaining unrelated destination files. You can apply a choice to remaining file or folder conflicts. File/folder type mismatches and same-file copies cannot replace the original. Failed item operations offer **Retry** or **Skip**; preparation failures show their error.
 
@@ -195,6 +197,7 @@ python3 companion/test_session_actions_live.py
 python3 companion/test_theme_items_live.py
 python3 companion/test_search_transfer_live.py
 python3 companion/test_start_search_live.py
+python3 companion/test_start_classic_live.py
 # Power/radio/device services are isolated; this does not change host hardware.
 python3 companion/test_quick_hardware_live.py
 python3 companion/test_bluetooth_pairing_live.py

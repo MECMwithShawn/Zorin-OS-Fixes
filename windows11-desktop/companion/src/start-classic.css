@@ -1,0 +1,49 @@
+/* Windows 7 Start layout: a light programs pane set into Aero glass, places on the right. */
+.start-classic{flex-direction:row;padding:10px 10px 12px;gap:10px;border-radius:8px;border-color:#ffffff40;box-shadow:0 8px 30px #0008,inset 0 1px #ffffff30}
+.start-classic:after{background:linear-gradient(180deg,#1d3b5acc,#10203acc 55%,#0b1626d9)}
+.classic-left{flex:0 0 63%;min-width:0;display:flex;flex-direction:column;gap:8px}
+.classic-programs{flex:1;min-height:0;display:flex;flex-direction:column;background:#fbfcfd;color:#1e2733;border:1px solid #8aa1b8;border-radius:4px;box-shadow:inset 0 0 0 1px #fff;overflow:hidden}
+.classic-list{flex:1;min-height:0;overflow-y:auto;padding:6px}
+.classic-list hr,.classic-places hr{border:0;height:1px;margin:5px 4px}
+.classic-list hr{background:linear-gradient(90deg,transparent,#c5d0dc,transparent)}
+.classic-item{display:flex;align-items:center;gap:9px;width:100%;padding:4px 7px;min-height:40px;border:1px solid transparent;border-radius:3px;text-align:left;font-size:13px;color:#1e2733}
+.classic-item span:last-child{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.classic-item .app-icon{width:32px;height:32px}
+.classic-item:hover,.classic-item:focus-visible{background:linear-gradient(#eaf4fd,#d5e9fb);border-color:#7da2ce;outline:none}
+.classic-item.missing{opacity:.5}
+.classic-folder-icon{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:#c99a2e;flex-shrink:0}
+.classic-category[aria-expanded=true]{background:#e4eef8}
+.classic-nested{padding-left:22px}
+.classic-nested .classic-item{min-height:30px}
+.classic-nested .classic-item .app-icon{width:20px;height:20px}
+.classic-programs .empty{color:#5a6573;font-size:12px;padding:12px}
+.classic-all{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:3px;font-size:13px;color:#1e2733;background:#fbfcfd;border:1px solid #8aa1b8}
+.classic-all span{flex:1;text-align:left}
+.classic-all:hover,.classic-all:focus-visible{background:linear-gradient(#eaf4fd,#d5e9fb);outline:none}
+.classic-search{margin:0;height:32px;min-height:32px;background:#fff;color:#56606c;border:1px solid #8aa1b8;border-radius:3px}
+.classic-search input{color:#1e2733;font-style:normal}
+.classic-search input::placeholder{color:#7a8592;font-style:italic}
+.classic-search .icon-button{width:24px;height:24px;color:#56606c}
+/* Search results come from the shared search; the details pane does not fit this width. */
+.classic-programs .unified-search{padding:8px;gap:8px}
+.classic-programs .search-detail{display:none}
+.classic-programs .search-filters button{color:#1e2733;background:#eef2f6;border-color:#c5d0dc}
+.classic-programs .search-filters button[aria-pressed=true]{background:#d5e9fb;border-color:#7da2ce}
+.classic-programs .unified-result{min-height:44px;padding:6px;color:#1e2733}
+.classic-programs .unified-result.selected{background:#d5e9fb;box-shadow:inset 3px 0 #3c7fb1}
+.classic-programs .unified-result small,.classic-programs .unified-status,.classic-programs .search-scope{color:#5a6573}
+.classic-right{flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;color:#fff}
+.classic-picture{width:64px;height:64px;padding:3px;margin:0 auto 10px;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#d9e8f5;background:linear-gradient(#ffffff40,#ffffff10);border:1px solid #ffffff50;box-shadow:0 2px 6px #0006}
+.classic-picture img{width:100%;height:100%;object-fit:cover;border-radius:3px}
+.classic-places{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
+.classic-places hr{background:linear-gradient(90deg,transparent,#ffffff40,transparent)}
+.classic-place{display:block;width:100%;padding:7px 10px;text-align:left;font-size:13px;color:#fff;text-shadow:0 1px 2px #000a;border:1px solid transparent;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.classic-place.strong{font-weight:600}
+.classic-place:hover,.classic-place:focus-visible{background:linear-gradient(#ffffff38,#ffffff14);border-color:#ffffff50;outline:none}
+.classic-power{display:flex;margin-top:8px;align-self:flex-end}
+.classic-power button{color:#fff;text-shadow:0 1px 2px #000a;background:linear-gradient(#ffffff30,#ffffff08);border:1px solid #ffffff55;font-size:13px;padding:6px 14px}
+.classic-power button:hover,.classic-power button:focus-visible{background:linear-gradient(#7fc4ff90,#2f7fc690);outline:none}
+.classic-shutdown{border-radius:3px 0 0 3px}
+.classic-power .classic-power-more{border-radius:0 3px 3px 0;border-left:0;padding:6px 7px}
+.classic-power-more[aria-expanded=true]{background:linear-gradient(#7fc4ff90,#2f7fc690)}
+.start-classic .session-menu.classic-menu{bottom:52px;right:12px;left:auto;min-width:170px}

@@ -7,6 +7,7 @@ import './explorer.css';
 import {Settings} from './settings.jsx';
 import {QuickSettings,NotificationCenter} from './flyouts.jsx';
 import './window-chrome.css';
+import './start-classic.css';
 
 window.desktopErrors = [];
 window.addEventListener('error', e => window.desktopErrors.push(e.message));
@@ -38,8 +39,10 @@ function SessionMenu({kind,trigger,onClose,onAction}) {
  useEffect(()=>{menu.current?.querySelector('button')?.focus();},[kind]);
  const items=kind==='account'
   ?[['user','Account settings','accounts'],['lock','Lock','lock'],['switchUser','Switch user','switch-user'],['logout','Sign out','sign-out']]
+  :kind==='classic'
+  ?[['switchUser','Switch user','switch-user'],['logout','Sign out','sign-out'],['lock','Lock','lock'],['restart','Restart','restart'],['sleep','Sleep','sleep']]
   :[['sleep','Sleep','sleep'],['power','Shut down','shutdown'],['restart','Restart','restart']];
- return <div ref={menu} className={'power-menu session-menu '+kind+'-menu'} role="menu" aria-label={kind==='account'?'Account menu':'Power menu'} onClick={e=>e.stopPropagation()} onKeyDown={e=>{
+ return <div ref={menu} className={'power-menu session-menu '+kind+'-menu'} role="menu" aria-label={kind==='account'?'Account menu':kind==='classic'?'Shut down options':'Power menu'} onClick={e=>e.stopPropagation()} onKeyDown={e=>{
   if(e.key==='Escape'){e.preventDefault();e.stopPropagation();onClose();trigger.current?.focus();}
   if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();const buttons=[...menu.current.querySelectorAll('button')],index=buttons.indexOf(document.activeElement);buttons[e.key==='Home'?0:e.key==='End'?buttons.length-1:(index+(e.key==='ArrowUp'?-1:1)+buttons.length)%buttons.length]?.focus();}
  }}>
@@ -60,13 +63,14 @@ function App(){
  const [context,setContext]=useState(null),[toast,setToast]=useState(''),[footerMenu,setFooterMenu]=useState(null);
  const [addTo,setAddTo]=useState(null),[newName,setNewName]=useState(''),[rename,setRename]=useState(null);
  const [startFolder,setStartFolder]=useState(null),[folderPicker,setFolderPicker]=useState(null),[folderName,setFolderName]=useState('');
+ const [openCategory,setOpenCategory]=useState(null),[placeHover,setPlaceHover]=useState(null);
  const search=useRef(null),drag=useRef(null),root=useRef(null);
  const accountButton=useRef(null),powerButton=useRef(null);
  useEffect(()=>{
   window.receive=message=>{
    window.dispatchEvent(new CustomEvent('desktop-message',{detail:message}));
    if(message.type==='state'){window.desktopState=message.data;setData(message.data);}
-   if(message.type==='show'){setPage(message.page||'home');setQuery('');setContext(null);setAddTo(null);setFooterMenu(null);setCategory(null);setStartFolder(null);setFolderPicker(null);setTimeout(()=>search.current?.focus(),40);}
+   if(message.type==='show'){setPage(message.page||'home');setQuery('');setContext(null);setAddTo(null);setFooterMenu(null);setCategory(null);setStartFolder(null);setFolderPicker(null);setOpenCategory(null);setTimeout(()=>search.current?.focus(),40);}
    if(message.type==='escape')window.dispatchEvent(new Event('start-escape'));
    if(message.type==='error'||message.type==='notice'){setToast(message.message);setTimeout(()=>setToast(''),5000);}
   };
@@ -151,6 +155,79 @@ function App(){
   </main>;
  }
 
+ const footerMenuNode=footerMenu&&<SessionMenu kind={footerMenu} trigger={footerMenu==='account'?accountButton:powerButton} onClose={()=>setFooterMenu(null)} onAction={command=>{setFooterMenu(null);if(command==='accounts')send('settings',{page:'accounts'});else send('session-action',{command});}}/>;
+ const overlayNodes=<>
+  {currentFolder&&!folderPicker&&<div className="modal-backdrop" onClick={()=>setStartFolder(null)}><section className="picker start-folder-dialog" role="dialog" aria-modal="true" aria-label={currentFolder.name+' folder'} onClick={e=>e.stopPropagation()} onKeyDown={dialogKeys}>
+   <div className="section-heading"><h2>{currentFolder.name}</h2><button className="icon-button" aria-label="Close folder" onClick={()=>setStartFolder(null)}><Symbol name="close"/></button></div>
+   <form className="start-folder-name" onSubmit={e=>{e.preventDefault();send('start-folder-rename',{folder:currentFolder.id,name:folderName});}}><input aria-label="Folder name" maxLength={60} value={folderName} onChange={e=>setFolderName(e.target.value)}/><button className="small-button" type="submit">Save name</button></form>
+   <div className="start-folder-apps">{currentFolder.apps.map(id=>byId[id]&&tile(byId[id],{folder:currentFolder.id}))}</div>
+   {!currentFolder.apps.some(id=>byId[id])&&<p className="empty">The apps in this folder are currently unavailable.</p>}
+   <p className="hint">Drag to reorder. Right-click an app to move it back to Start.</p>
+   <button className="small-button" onClick={()=>{send('start-folder-remove',{folder:currentFolder.id});setStartFolder(null);}}>Move all apps out of folder</button>
+  </section></div>}
+  {folderPicker&&<div className="modal-backdrop" onClick={()=>setFolderPicker(null)}><section className="picker start-folder-picker" role="dialog" aria-modal="true" aria-label="Move to Start folder" onClick={e=>e.stopPropagation()} onKeyDown={dialogKeys}>
+   <div className="section-heading"><h2>Move {byId[folderPicker]?.name} to a folder</h2><button className="icon-button" aria-label="Close folder picker" onClick={()=>setFolderPicker(null)}><Symbol name="close"/></button></div>
+   {folders.filter(f=>!f.apps.includes(folderPicker)).length>0&&<div className="group-choices">{folders.filter(f=>!f.apps.includes(folderPicker)).map(f=><button key={f.id} onClick={()=>{send('start-folder-add',{id:folderPicker,folder:f.id});setFolderPicker(null);setStartFolder(null);}}><Symbol name="folder"/><span>{f.name}</span></button>)}</div>}
+   <h3>Create a new folder with</h3><div className="picker-apps">{apps.filter(a=>a.id!==folderPicker).map(app=><button className="app-launch" key={app.id} onClick={()=>{send('start-folder-create',{apps:[folderPicker,app.id]});setFolderPicker(null);setStartFolder(null);}}>{icon(app)}<span>{app.name}</span></button>)}</div>
+  </section></div>}
+  {addTo&&<div className="modal-backdrop" onClick={()=>setAddTo(null)}><section className="picker" onClick={e=>e.stopPropagation()}><div className="section-heading"><h2>{addTo.group?'Add an app':'Add to desktop group'}</h2><button className="icon-button" aria-label="Close picker" onClick={()=>setAddTo(null)}><Symbol name="close"/></button></div>
+   {addTo.group?<div className="picker-apps">{apps.map(app=><button className="app-launch" key={app.id} onClick={()=>{send('add-app',{group:addTo.group,id:app.id});setAddTo(null);}}>{icon(app)}<span>{app.name}</span><Symbol name="plus" size={16}/></button>)}</div>:<div className="group-choices">{data.groups.filter(g=>!g.folder).map(g=><button key={g.id} onClick={()=>{send('add-app',{group:g.id,id:addTo.id});setAddTo(null);}}><Symbol name="grid"/><span>{g.title}</span><Symbol name="plus" size={16}/></button>)}{!data.groups.some(g=>!g.folder)&&<p className="empty">Create a shortcut group in Desktop groups first.</p>}</div>}
+  </section></div>}
+ </>;
+ const listKeys=e=>{if(!['ArrowDown','ArrowUp','Home','End'].includes(e.key)||e.target.tagName==='INPUT')return;const buttons=[...e.currentTarget.querySelectorAll('.classic-item')],i=buttons.indexOf(document.activeElement);if(!buttons.length)return;e.preventDefault();buttons[e.key==='Home'?0:e.key==='End'?buttons.length-1:i<0?0:(i+(e.key==='ArrowUp'?-1:1)+buttons.length)%buttons.length]?.focus();};
+ const classicRow=item=><button key={item.id} className={'classic-item'+(item.missing?' missing':'')} title={item.name+(item.missing?' — unavailable':'')}
+   onClick={()=>open(item)} onContextMenu={e=>menu(e,item)} onKeyDown={e=>{if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10'))menu(e,item);}}>
+   {item.kind==='start-folder'?<span className="classic-folder-icon"><Symbol name="folder" size={22}/></span>:icon(item)}<span>{item.name}</span></button>;
+
+ if(data.startStyle==='windows7'){
+  // Windows 7 layout: programs and search on the left, places and power on the right.
+  const pinnedItems=data.pins.map(id=>byId[id]||folderById[id]).filter(Boolean);
+  const frequent=data.recent.filter(id=>!data.pins.includes(id)).map(id=>byId[id]).filter(Boolean).slice(0,8);
+  const places=data.startPlaces||[];
+  const placeName=p=>p.path===places[0]?.path?data.user:p.name;
+  const hover=name=>({onMouseEnter:()=>setPlaceHover(name),onFocus:()=>setPlaceHover(name),onBlur:()=>setPlaceHover(null)});
+  return <main className="start-shell start-classic" style={data.backdrop?{'--panel-backdrop':`url("${data.backdrop}")`}:undefined} ref={root} onClick={()=>{setContext(null);setFooterMenu(null);}}>
+   <div className="classic-left">
+    <div className="classic-programs" onKeyDown={listKeys}>
+     {query.trim()?<UnifiedSearch query={query} input={search}/>:page==='all'?<div className="classic-list" aria-label="All programs">
+      {categories.map(c=><React.Fragment key={c.name}>
+       <button className="classic-item classic-category" aria-expanded={openCategory===c.name} onClick={()=>setOpenCategory(openCategory===c.name?null:c.name)}><span className="classic-folder-icon"><Symbol name="folder" size={22}/></span><span>{c.name}</span></button>
+       {openCategory===c.name&&<div className="classic-nested">{c.apps.map(classicRow)}</div>}
+      </React.Fragment>)}
+     </div>:<div className="classic-list" aria-label="Pinned and frequent programs">
+      {pinnedItems.map(classicRow)}
+      {pinnedItems.length>0&&frequent.length>0&&<hr/>}
+      {frequent.map(classicRow)}
+      {!pinnedItems.length&&!frequent.length&&<p className="empty">Open All Programs and right-click an app to pin it here.</p>}
+     </div>}
+    </div>
+    {!query.trim()&&<button className="classic-all" onClick={()=>{setOpenCategory(null);setPage(page==='all'?'home':'all');}}>{page==='all'?<><Symbol name="back" size={14}/><span>Back</span></>:<><span>All Programs</span><Symbol name="arrow" size={14}/></>}</button>}
+    <div className="search-box classic-search"><input ref={search} aria-label="Search programs and files" placeholder="Search programs and files" value={query} onChange={e=>setQuery(e.target.value)}
+     onKeyDown={e=>{if(query.trim())return;if(e.key==='ArrowUp'){e.preventDefault();[...document.querySelectorAll('.classic-programs .classic-item')].pop()?.focus();}}}/>
+     {query?<button aria-label="Clear search" className="icon-button" onClick={()=>{setQuery('');search.current.focus();}}><Symbol name="close" size={15}/></button>:<Symbol name="search" size={16}/>}
+    </div>
+   </div>
+   <div className="classic-right">
+    <button className="classic-picture" title="Account settings" aria-label="Account settings" onClick={()=>send('settings',{page:'accounts'})}>
+     {placeHover?<Symbol name={placeHover} size={34}/>:data.avatar?<img src={data.avatar} alt=""/>:<Symbol name="user" size={34}/>}
+    </button>
+    <nav className="classic-places" aria-label="Places" onMouseLeave={()=>setPlaceHover(null)}>
+     {places.map((p,index)=><button key={p.id} className={'classic-place'+(index===0?' strong':'')} {...hover('folder')} onClick={()=>open(p)}>{placeName(p)}</button>)}
+     <hr/>
+     <button className="classic-place" {...hover('grid')} onClick={()=>send('open-computer')}>Computer</button>
+     <hr/>
+     <button className="classic-place" {...hover('settings')} onClick={()=>send('settings')}>Settings</button>
+     <button className="classic-place" {...hover('settings')} onClick={()=>send('settings',{page:'search-start'})}>Start settings</button>
+    </nav>
+    <div className="classic-power">
+     <button className="classic-shutdown" onClick={e=>{e.stopPropagation();send('session-action',{command:'shutdown'});}}>Shut down</button>
+     <button ref={powerButton} className="classic-power-more" aria-label="Shut down options" aria-haspopup="menu" aria-expanded={footerMenu==='classic'} onClick={e=>{e.stopPropagation();setContext(null);setFooterMenu(footerMenu==='classic'?null:'classic');}}><Symbol name="arrow" size={13}/></button>
+    </div>
+   </div>
+   {footerMenuNode}{overlayNodes}{contextNode}{toastNode}
+  </main>;
+ }
+
  return <main className="start-shell" style={data.backdrop?{'--panel-backdrop':`url("${data.backdrop}")`}:undefined} ref={root} onClick={()=>{setContext(null);setFooterMenu(null);}}>
   <div className="menu-main">
    <div className="search-box"><Symbol name="search" size={18}/><input ref={search} aria-label="Search apps, files and settings" placeholder="Search apps, files and settings" value={query} onChange={e=>{setQuery(e.target.value);setPage('home');}}
@@ -199,23 +276,8 @@ function App(){
   <footer className="start-footer"><button ref={accountButton} className="profile" title="Account options" aria-label="Account options" aria-haspopup="menu" aria-expanded={footerMenu==='account'} onClick={e=>{e.stopPropagation();setContext(null);setFooterMenu(footerMenu==='account'?null:'account');}}><span className="avatar">{data.avatar?<img src={data.avatar} alt=""/>:<Symbol name="user" size={19}/>}</span><span>{data.user}</span></button>
    <div className="footer-actions"><button className="icon-button" title="Desktop groups" aria-label="Desktop groups" onClick={()=>{setPage('groups');setQuery('');}}><Symbol name="grid" size={20}/></button><button className="icon-button" title="Settings" aria-label="Settings" onClick={()=>send('settings')}><Symbol name="settings" size={20}/></button><button ref={powerButton} className="icon-button" title="Power" aria-label="Power options" aria-haspopup="menu" aria-expanded={footerMenu==='power'} onClick={e=>{e.stopPropagation();setContext(null);setFooterMenu(footerMenu==='power'?null:'power');}}><Symbol name="power" size={20}/></button></div>
   </footer>
-  {footerMenu&&<SessionMenu kind={footerMenu} trigger={footerMenu==='account'?accountButton:powerButton} onClose={()=>setFooterMenu(null)} onAction={command=>{setFooterMenu(null);if(command==='accounts')send('settings',{page:'accounts'});else send('session-action',{command});}}/>}
-  {currentFolder&&!folderPicker&&<div className="modal-backdrop" onClick={()=>setStartFolder(null)}><section className="picker start-folder-dialog" role="dialog" aria-modal="true" aria-label={currentFolder.name+' folder'} onClick={e=>e.stopPropagation()} onKeyDown={dialogKeys}>
-   <div className="section-heading"><h2>{currentFolder.name}</h2><button className="icon-button" aria-label="Close folder" onClick={()=>setStartFolder(null)}><Symbol name="close"/></button></div>
-   <form className="start-folder-name" onSubmit={e=>{e.preventDefault();send('start-folder-rename',{folder:currentFolder.id,name:folderName});}}><input aria-label="Folder name" maxLength={60} value={folderName} onChange={e=>setFolderName(e.target.value)}/><button className="small-button" type="submit">Save name</button></form>
-   <div className="start-folder-apps">{currentFolder.apps.map(id=>byId[id]&&tile(byId[id],{folder:currentFolder.id}))}</div>
-   {!currentFolder.apps.some(id=>byId[id])&&<p className="empty">The apps in this folder are currently unavailable.</p>}
-   <p className="hint">Drag to reorder. Right-click an app to move it back to Start.</p>
-   <button className="small-button" onClick={()=>{send('start-folder-remove',{folder:currentFolder.id});setStartFolder(null);}}>Move all apps out of folder</button>
-  </section></div>}
-  {folderPicker&&<div className="modal-backdrop" onClick={()=>setFolderPicker(null)}><section className="picker start-folder-picker" role="dialog" aria-modal="true" aria-label="Move to Start folder" onClick={e=>e.stopPropagation()} onKeyDown={dialogKeys}>
-   <div className="section-heading"><h2>Move {byId[folderPicker]?.name} to a folder</h2><button className="icon-button" aria-label="Close folder picker" onClick={()=>setFolderPicker(null)}><Symbol name="close"/></button></div>
-   {folders.filter(f=>!f.apps.includes(folderPicker)).length>0&&<div className="group-choices">{folders.filter(f=>!f.apps.includes(folderPicker)).map(f=><button key={f.id} onClick={()=>{send('start-folder-add',{id:folderPicker,folder:f.id});setFolderPicker(null);setStartFolder(null);}}><Symbol name="folder"/><span>{f.name}</span></button>)}</div>}
-   <h3>Create a new folder with</h3><div className="picker-apps">{apps.filter(a=>a.id!==folderPicker).map(app=><button className="app-launch" key={app.id} onClick={()=>{send('start-folder-create',{apps:[folderPicker,app.id]});setFolderPicker(null);setStartFolder(null);}}>{icon(app)}<span>{app.name}</span></button>)}</div>
-  </section></div>}
-  {addTo&&<div className="modal-backdrop" onClick={()=>setAddTo(null)}><section className="picker" onClick={e=>e.stopPropagation()}><div className="section-heading"><h2>{addTo.group?'Add an app':'Add to desktop group'}</h2><button className="icon-button" aria-label="Close picker" onClick={()=>setAddTo(null)}><Symbol name="close"/></button></div>
-   {addTo.group?<div className="picker-apps">{apps.map(app=><button className="app-launch" key={app.id} onClick={()=>{send('add-app',{group:addTo.group,id:app.id});setAddTo(null);}}>{icon(app)}<span>{app.name}</span><Symbol name="plus" size={16}/></button>)}</div>:<div className="group-choices">{data.groups.filter(g=>!g.folder).map(g=><button key={g.id} onClick={()=>{send('add-app',{group:g.id,id:addTo.id});setAddTo(null);}}><Symbol name="grid"/><span>{g.title}</span><Symbol name="plus" size={16}/></button>)}{!data.groups.some(g=>!g.folder)&&<p className="empty">Create a shortcut group in Desktop groups first.</p>}</div>}
-  </section></div>}
+  {footerMenuNode}
+  {overlayNodes}
   {contextNode}{toastNode}
  </main>;
 }
