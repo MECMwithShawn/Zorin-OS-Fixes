@@ -99,7 +99,12 @@ Recent documents appear in Start’s **Recommended** section when desktop file h
 
 Right-click an app in Start (or focus it and press **Shift+F10**) for the actions supplied by its installed desktop entry. Search exposes those same actions beside the selected app. File Explorer includes working **New window** and **This PC** actions in Start and its native GNOME taskbar menu. App-specific recent-file jump lists remain future work.
 
-Choose a Start layout under **Settings → Personalization → Search & Start → Start menu style**. **Windows 11** is the default.
+Choose a Start layout under **Settings → Personalization → Search & Start → Start menu style**. **Windows 11** is the default. With it selected, the same Settings page offers three more options:
+- **Layout**: More pins (4 rows of pins, 2 recommendations), Default (3 rows, 6) or More recommendations (2 rows, 8).
+- **Pinned columns**: 6, 7 or 8.
+- **Show Recommended**: when off, the Recommended section is hidden and Pinned gains two rows.
+
+Pinned shows one page at a time. When there are more pins than fit, dots on the right switch pages, and Page Up/Page Down also work while a pin has focus. Use **+** beside Pinned to add up to eight named **tabs**. Right-click any app and choose **Add to <tab>** to put it in a tab. Inside a tab, right-click an app for **Move to first in <tab>** or **Remove from <tab>**. Rename a tab with its **…** button or a double-click, and remove it with **×**; removing a tab never unpins or uninstalls anything. Press Escape while naming a tab to cancel. Pinned itself keeps drag-to-reorder and Start folders. Tabs, layout, columns and the Recommended setting are saved with your other Start preferences.
 
 **Windows 10** opens a square, darker menu. A narrow rail on the left expands with the menu button. It holds your account (Lock, Switch user, Sign out), Documents, Music, Settings and Power (Sleep, Shut down, Restart). Next comes the app list: up to six **Most used** apps from your recent apps, then every app under A–Z headers, with other characters under **#**. Click a letter header for a letter grid that jumps to that section; letters with no apps are greyed out. Pinned apps appear as **tiles** that you can drag to reorder or drop onto each other to make folders, like the Windows 11 pins. Right-click a tile, or press Shift+F10, and choose **Small**, **Medium**, **Wide** or **Large** to resize it. Sizes are saved per app. **Type here to search** at the top uses the shared search. Tiles show app icons only; there is no live tile content.
 
@@ -206,6 +211,7 @@ python3 companion/test_start_search_live.py
 python3 companion/test_start_classic_live.py
 python3 companion/test_start_windows10_live.py
 python3 companion/test_start_modern_live.py
+python3 companion/test_start_windows11_options_live.py
 # Power/radio/device services are isolated; this does not change host hardware.
 python3 companion/test_quick_hardware_live.py
 python3 companion/test_bluetooth_pairing_live.py

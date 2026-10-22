@@ -572,7 +572,14 @@ class Hub(Gtk.Application):
             'places': [self.path_info(p) for p in [Path.home(), Path.home()/'Documents', Path.home()/'Downloads'] if p.exists()],
             'startStyle': self.start_preferences.snapshot()['style'],
             'startTiles': self.start_preferences.snapshot()['tiles'],
+            'startOptions': self.start_options(),
             'startPlaces': [self.path_info(p) for p in self.start_place_paths()]}
+
+    def start_options(self):
+        """Windows 11 layout options; tabs only list apps that are still installed."""
+        preferences = self.start_preferences.snapshot()
+        return dict(layout=preferences['layout'], columns=preferences['columns'], showRecommended=preferences['showRecommended'],
+                    tabs=[dict(tab, apps=[a for a in tab['apps'] if a in self.apps]) for tab in preferences['tabs']])
 
     def start_place_paths(self):
         """Right-hand folders of the classic Start layouts, in Windows 7 order."""
@@ -920,6 +927,14 @@ class Hub(Gtk.Application):
             self.open_path(message['path'])
         elif action == 'open-computer' and surface.mode == 'start':
             self.open_explorer('::computer')
+        elif action == 'start-tab' and surface.mode == 'start':
+            operation = message.get('operation')
+            if operation not in ('create', 'rename', 'delete', 'add', 'remove', 'move'):
+                raise ValueError('Unknown tab change.')
+            if operation == 'add' and message.get('value') not in self.apps:
+                raise ValueError('Only installed apps can be added to a tab.')
+            self.start_preferences.change('tab-' + operation, message.get('tab'), message.get('value'))
+            self.start.update()
         elif action == 'start-tile-size' and surface.mode == 'start':
             self.start_preferences.change('tile', message.get('id'), message.get('size'))
             self.start.update()
@@ -1219,6 +1234,7 @@ class Hub(Gtk.Application):
             if operation == 'style':
                 # The window is sized per style when it opens, so close it now.
                 self.start.hide()
+            if operation in ('style', 'layout', 'columns', 'show-recommended'):
                 self.start.update()
             self.settings_generation += 1
             self.search_action(self.start,dict(action='search-cancel'))

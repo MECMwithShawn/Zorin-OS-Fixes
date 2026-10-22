@@ -26,7 +26,8 @@ class StartPreferencesTests(unittest.TestCase):
         reloaded.change('remove', 'roots', str(self.docs))
         self.assertEqual(reloaded.snapshot()['roots'], [str(other)])
         reloaded.change('reset')
-        self.assertEqual(reloaded.snapshot(), dict(roots=[str(self.docs)], exclusions=[], recentDocuments=False, style='windows11', tiles={}))
+        self.assertEqual(reloaded.snapshot(), dict(roots=[str(self.docs)], exclusions=[], recentDocuments=False, style='windows11', tiles={},
+            layout='default', columns=6, showRecommended=True, tabs=[]))
 
     def test_start_style_persists_and_old_files_default_to_windows11(self):
         self.file.write_text('{"roots": [], "exclusions": [], "recentDocuments": true}')
@@ -52,6 +53,41 @@ class StartPreferencesTests(unittest.TestCase):
             with self.assertRaises(ValueError): reloaded.change('tile', key, value)
         self.file.write_text('{"roots": [], "exclusions": [], "recentDocuments": true, "tiles": {"a": "huge"}}')
         self.assertEqual(Preferences(self.file, []).snapshot()['tiles'], {})
+
+    def test_windows11_layout_columns_and_recommended_persist(self):
+        self.preferences.change('layout', value='more-pins')
+        self.preferences.change('columns', value=8)
+        self.preferences.change('show-recommended', value=False)
+        snapshot = Preferences(self.file, []).snapshot()
+        self.assertEqual((snapshot['layout'], snapshot['columns'], snapshot['showRecommended']), ('more-pins', 8, False))
+        for operation, value in (('layout', 'tiny'), ('columns', 5), ('columns', True), ('show-recommended', 'no')):
+            with self.assertRaises(ValueError): self.preferences.change(operation, value=value)
+        self.file.write_text('{"roots": [], "exclusions": [], "recentDocuments": true, "columns": 99, "layout": "more-pins"}')
+        snapshot = Preferences(self.file, []).snapshot()
+        self.assertEqual((snapshot['layout'], snapshot['columns']), ('more-pins', 6))
+
+    def test_tabs_create_rename_fill_reorder_and_delete(self):
+        p = self.preferences
+        p.change('tab-create', value='Work'); p.change('tab-create', value=' Games ')
+        self.assertEqual([(t['id'], t['name']) for t in p.snapshot()['tabs']], [('tab1', 'Work'), ('tab2', 'Games')])
+        for app in ('a.desktop', 'b.desktop', 'c.desktop', 'a.desktop'):
+            p.change('tab-add', 'tab1', app)
+        p.change('tab-move', 'tab1', {'id': 'c.desktop', 'target': 'a.desktop'})
+        p.change('tab-remove', 'tab1', 'b.desktop')
+        p.change('tab-rename', 'tab2', 'Play')
+        p.change('tab-delete', 'tab2')
+        p.change('tab-create', value='New')
+        self.assertEqual(Preferences(self.file, []).snapshot()['tabs'],
+                         [dict(id='tab1', name='Work', apps=['c.desktop', 'a.desktop']), dict(id='tab2', name='New', apps=[])])
+        p.snapshot()['tabs'][0]['apps'].append('x')
+        self.assertEqual(p.snapshot()['tabs'][0]['apps'], ['c.desktop', 'a.desktop'])
+        for operation, key, value in (('tab-create', None, ''), ('tab-create', None, 'x'*41), ('tab-rename', 'missing', 'X'),
+                                      ('tab-move', 'tab1', {'id': 'zzz', 'target': 'a.desktop'}), ('tab-bogus', 'tab1', None)):
+            with self.assertRaises(ValueError): p.change(operation, key, value)
+        for n in range(6): p.change('tab-create', value=f'T{n}')
+        with self.assertRaises(ValueError): p.change('tab-create', value='Ninth')
+        self.file.write_text('{"roots": [], "exclusions": [], "recentDocuments": true, "tabs": [{"id": "pinned", "name": "x", "apps": []}]}')
+        self.assertEqual(Preferences(self.file, []).snapshot()['tabs'], [])
 
     def test_invalid_config_and_folders_do_not_replace_good_state(self):
         self.file.write_text('{broken')
