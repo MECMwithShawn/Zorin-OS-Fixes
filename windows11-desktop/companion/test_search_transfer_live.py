@@ -130,6 +130,9 @@ def verify():
             snapshot('unified-search-app.png')
             js('(()=>{document.querySelector(".search-launch").click();return true})()')
             time.sleep(.1);assert opened[-1]==('app','orion.desktop')
+            # A single click on an app row in the left list launches it too.
+            opened.clear();js('(()=>{document.querySelector(".unified-result").click();return true})()')
+            time.sleep(.1);assert opened==[('app','orion.desktop')],opened
             click('All','.search-filters button')
             assert js('document.querySelectorAll(".unified-result").length')==3
             # Arrow keys from the input select the next result; Enter routes its action.
