@@ -1,0 +1,53 @@
+/* Fences-style desktop groups: tinted glass with legible icons on any wallpaper. */
+html:has(.fence),html:has(.fence) body,html:has(.fence) #root{background:transparent;overflow:hidden}
+.fence{--ink:#fff;--ink-soft:#ffffffb8;--line:#ffffff24;--hover:#ffffff14;--accent:#60cdff;
+ position:relative;height:100vh;display:flex;flex-direction:column;border-radius:10px;overflow:hidden;
+ background:linear-gradient(180deg,#ffffff0d,#ffffff00 42px),var(--fence-bg);
+ border:1px solid var(--line);box-shadow:inset 0 1px 0 #ffffff1a;color:var(--ink);
+ transition:background .25s ease,border-color .2s ease;user-select:none}
+.fence.light{--ink:#111;--ink-soft:#1118;--line:#0000001f;--hover:#0000000f;--accent:#005fb8}
+.fence:hover{border-color:color-mix(in srgb,var(--line),var(--ink) 12%)}
+.fence-titlebar{flex:0 0 36px;display:flex;align-items:center;gap:8px;padding:0 6px 0 14px;cursor:grab;
+ background:#00000024;border-bottom:1px solid var(--line)}
+.fence.light .fence-titlebar{background:#ffffff40}
+.fence.rolled .fence-titlebar{flex-basis:42px;border-bottom-color:transparent}
+.fence.rolled:hover .fence-titlebar{border-bottom-color:var(--line)}
+.fence-titlebar strong{flex:1;min-width:0;font-size:13px;font-weight:600;letter-spacing:.01em;text-align:center;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px #0006}
+.fence.light .fence-titlebar strong{text-shadow:none}
+.fence-rename{flex:1;min-width:0;font:inherit;font-size:13px;font-weight:600;text-align:center;color:var(--ink);
+ background:#0000003a;border:1px solid var(--accent);border-radius:5px;padding:4px 6px;outline:none}
+.fence-count{font-size:11px;color:var(--ink-soft);background:var(--hover);border-radius:9px;padding:1px 7px}
+.fence-actions{display:flex;gap:2px;opacity:0;transition:opacity .15s ease}
+.fence:hover .fence-actions,.fence:focus-within .fence-actions{opacity:1}
+.fence-actions button{width:28px;height:26px;display:grid;place-items:center;border-radius:5px;color:var(--ink);background:none;border:0}
+.fence-actions button:hover{background:var(--hover)}
+.fence-body{flex:1;min-height:0;overflow:auto;padding:8px 8px 14px;scrollbar-width:thin;scrollbar-color:#ffffff40 transparent}
+.fence-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--tile),1fr));gap:4px;align-content:start}
+.fence-item{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px 6px;min-width:0;
+ border-radius:6px;border:1px solid transparent;background:none;color:var(--ink);cursor:default;transition:background .12s ease}
+.fence-item:hover{background:var(--hover)}
+.fence-item.selected{background:color-mix(in srgb,var(--accent) 24%,transparent);border-color:color-mix(in srgb,var(--accent) 55%,transparent)}
+.fence-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.fence-item.drop-before{box-shadow:inset 3px 0 0 var(--accent)}
+.fence-item.missing{opacity:.45}
+.fence-item img{width:var(--icon);height:var(--icon);object-fit:contain;filter:drop-shadow(0 2px 3px #0005);pointer-events:none}
+.fence-item span{max-width:100%;font-size:12px;line-height:1.25;text-align:center;overflow-wrap:anywhere;
+ display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-shadow:0 1px 2px #000a}
+.fence.light .fence-item span{text-shadow:none}
+.fence-item.selected span{-webkit-line-clamp:4}
+.fence-empty{height:calc(100% - 8px);min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+ gap:6px;text-align:center;padding:12px;border:1px dashed var(--line);border-radius:8px;color:var(--ink-soft)}
+.fence-empty strong{font-size:13px;color:var(--ink)}
+.fence-empty span{font-size:11.5px;max-width:240px}
+.fence-note{font-size:12px;color:var(--ink-soft);margin:6px 4px}
+.fence-resize{position:absolute;right:0;bottom:0;width:18px;height:18px;border:0;padding:0;cursor:nwse-resize;opacity:0;
+ background:linear-gradient(135deg,transparent 52%,var(--ink-soft) 52%,var(--ink-soft) 60%,transparent 60%,transparent 72%,var(--ink-soft) 72%,var(--ink-soft) 80%,transparent 80%);transition:opacity .15s}
+.fence:hover .fence-resize{opacity:.7}
+.fence.dropping{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent),inset 0 0 40px color-mix(in srgb,var(--accent) 22%,transparent)}
+.fence-drop-hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);pointer-events:none;white-space:nowrap;
+ font-size:12px;padding:5px 12px;border-radius:14px;background:var(--accent);color:#002233;box-shadow:0 4px 12px #0005}
+.fence-peek{position:absolute;top:42px;right:8px;font-size:11px;padding:3px 9px;border-radius:10px;background:#000a;color:#fff;pointer-events:none}
+.fence.rolled .fence-peek{display:none}
+.fence-toast{position:absolute;left:8px;right:8px;bottom:8px;font-size:12px;padding:8px 10px;border-radius:6px;background:#2b1b1bf2;color:#fff;border:1px solid #ff99a4}
+@media (prefers-reduced-motion:reduce){.fence,.fence *{transition:none!important}}

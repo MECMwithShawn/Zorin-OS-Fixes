@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import './style.css';
 import {Explorer} from './explorer.jsx';
 import {UnifiedSearch} from './unified-search.jsx';
+import {Fence} from './fences.jsx';
 import './explorer.css';
 import {Settings} from './settings.jsx';
 import {QuickSettings,NotificationCenter} from './flyouts.jsx';
@@ -167,24 +168,7 @@ function App(){
  if(data.mode==='explorer')return <Explorer data={data} toast={toast}/>;
  if(data.mode==='notifications')return <NotificationCenter data={data} toast={toast}/>;
  if(data.mode==='quick')return <QuickSettings data={data} toast={toast}/>;
- if(data.mode==='group'){
-  const g=data.group;
-  return <main ref={root} className={'desktop-group'+(g.collapsed?' collapsed':'')} onClick={()=>setContext(null)}>
-   <header className="group-titlebar" onMouseDown={e=>{if(e.button===0&&!e.target.closest('button'))send('move');}}>
-    <Symbol name={g.folder?'folder':'grid'} size={16}/><strong>{g.title}</strong>
-    <span className="count">{g.items.length}</span>
-    <button className="icon-button" aria-label="Manage desktop groups" title="Manage group" onClick={()=>send('manage')}><Symbol name="more" size={18}/></button>
-    <button className="icon-button collapse-button" aria-label={g.collapsed?'Expand group':'Collapse group'} onClick={()=>send('collapse',{group:g.id})}><Symbol name={g.collapsed?'down':'back'} size={16}/></button>
-   </header>
-   {!g.collapsed&&<><div className="group-content">
-    {g.error&&<p className="empty">Folder unavailable. Choose a different folder in Desktop groups.</p>}
-    <div className="group-grid">{g.items.map(app=>tile(app,{group:g}))}</div>
-    {!g.items.length&&!g.error&&<button className="empty-add" onClick={()=>send('manage')}><Symbol name="plus"/><span>Add apps, files, or folders</span></button>}
-    {g.overflow&&<p className="empty">Showing the first 200 items. Open the folder to see everything.</p>}
-   </div><button className="resize-handle" title="Drag to resize" aria-label="Resize group" onMouseDown={e=>{if(e.button===0){e.preventDefault();send('resize');}}}><Symbol name="resize" size={15}/></button></>}
-   {contextNode}{toastNode}
-  </main>;
- }
+ if(data.mode==='group')return <Fence data={data} toast={toast}/>;
 
  const footerMenuNode=footerMenu&&<SessionMenu kind={footerMenu} trigger={footerMenu==='account'?accountButton:powerButton} onClose={()=>setFooterMenu(null)} onAction={command=>{setFooterMenu(null);if(command==='accounts')send('settings',{page:'accounts'});else send('session-action',{command});}}/>;
  const overlayNodes=<>

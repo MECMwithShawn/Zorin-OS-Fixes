@@ -59,7 +59,7 @@ Alt+Tab also refreshes only visible, nonminimized window and Snap Group previews
 | Event Viewer | Standalone dark event list, Application/System/Kernel journals, time and severity filters, loaded-event search, details, Copy event and optional auto-refresh |
 | Backgrounds | Windows Spotlight, Bing daily/UHD images, local photos, history, original-background restore **and the installed Zorin wallpaper collection** |
 | Desktop menu | Windows-style View, Sort by, Refresh, Paste, New, Display settings, Personalize and Next desktop background; Zorin actions retained under Show more options |
-| Desktop Groups | Shared movable shortcut groups and folder portals; original files stay in place |
+| Desktop Groups (Fences) | Tinted, see-through fences you drag desktop icons into; roll-up, quick-hide, Peek, folder portals. Files stay in place |
 | Multitasking | Snap Layouts/Assist, Task View, desktop create/rename/reorder/close, per-desktop backgrounds, saved app/layout recipes and Alt+Tab Snap Groups |
 | Terminal | Pinned PowerShell 7.6.7 and WezTerm, PowerShell/Bash profiles, Cascadia Mono, tabs and split panes |
 
@@ -141,6 +141,22 @@ The GTK/WebKit companion runs through XWayland for desktop-surface positioning. 
 
 GNOME notifications are session history, not Xfce's persistent notification log. Notification bodies display as plain text. Clear all opens a keyboard-focused confirmation: Tab stays inside, Escape cancels and restores focus, and a second Escape closes the center. Notification groups expose their expanded state to assistive technology. The companion follows the desktop reduced-motion preference live, including loading indicators. GNOME owns workspace transitions and reduced motion; Zorin's built-in Window Move Effect provides wobbly windows; Compiz workspace-speed controls remain Xfce-only. Taskbar hover previews remain Zorin's native previews; Snap Groups are available through Task View and Alt+Tab. App minimum sizes are enforced by Mutter and may adjust requested snap rectangles. GNOME's idle screen timeout applies to both power sources. GTK4/libadwaita, Qt and Electron applications may keep their own controls and titlebars.
 
+## Desktop fences
+
+Desktop Groups work like Stardock Fences when they are shown (Start → Desktop groups → Show groups):
+
+- **Drag icons in.** Drag icons from the desktop, Files or Explorer into a fence. A desktop file then appears only inside its fence. It stays in `~/Desktop` and stays visible in Files and Explorer, because only the desktop view skips it. Drag it back onto the desktop, or choose **Return to desktop**, to put the icon back.
+- **Arrange.** Drag fences by their title bar; they snap to screen edges and to each other. Resize from the bottom-right corner. Drag tiles to reorder them, or drag a tile to another fence to move it. Double-click a tile or press Enter to open it.
+- **Roll up.** Double-click a title bar to roll the fence up to just its title. With **Expand on hover when rolled up**, it opens while the pointer is over it.
+- **Style.** Right-click a fence (or use **⋯**) for Color (ten tints, including a light Frost), Transparency (glass to opaque), Icon size and Sort by (manual, name, type, date modified).
+- **Create and remove.** Right-click the desktop and choose **New fence here**, or use **New fence** in a fence menu. **Delete fence** removes only the fence, and its desktop icons return to the desktop.
+- **Hide and Peek.** Double-click empty desktop to hide or show all fences. Win+Shift+F brings fences above your windows.
+- **Folder portals.** A folder group mirrors a folder; manage its contents in Explorer.
+
+**Safety.** Fences never move, hide or delete files. The companion publishes the fenced list (`~/.config/zorin11-hub/fenced.json`) with its process ID. If the companion stops or groups are turned off, every icon shows on the desktop again.
+
+Not yet included from Fences: automatic sorting rules, tabbed fences, icon tint/Chameleon, and a blurred-wallpaper (acrylic) background.
+
 ## Backgrounds: keep Zorin and add Spotlight/Bing
 
 Installation leaves your selected wallpaper unchanged and never replaces or deletes files in `/usr/share/backgrounds` or `/usr/share/wallpapers`.
@@ -181,7 +197,8 @@ Downloaded pictures and credits stay in your local account. Both GNOME light/dar
 | Win+Ctrl+Left / Right | Previous / next desktop |
 | Win+Ctrl+F4 | Close desktop, retaining its applications |
 | Alt+Tab / Alt+Shift+Tab | Windows and Snap Groups |
-| Win+Shift+F | Bring Desktop Groups forward / send back |
+| Win+Shift+F | Peek: bring fences above windows / send back (Esc also sends back) |
+| Double-click the desktop | Quick-hide or show all fences |
 
 ## Restore
 
