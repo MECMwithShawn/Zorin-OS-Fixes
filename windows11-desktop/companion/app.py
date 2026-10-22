@@ -635,14 +635,22 @@ class Hub(Gtk.Application):
         anchor = None if is_gnome() else panel_button('Start')
         display = Gdk.Display.get_default()
         geometry = self.work_area(anchor[0], anchor[1]) if anchor else self.monitor_geometry(primary=is_gnome())
-        size = {'windows7': (456, 620), 'modern': (520, 640), 'windows10': (780, 680)}.get(self.start_preferences.snapshot()['style'], (832, 864))
-        width, height = min(size[0], geometry.width - 24), min(size[1], geometry.height - 24)
+        style = self.start_preferences.snapshot()['style']
+        size = {'windows7': (456, 620), 'modern': (520, 640), 'windows10': (780, 680), 'tabbed': (800, 680),
+                'launcher': (640, 760)}.get(style, (832, 864))
+        if style == 'fullscreen':
+            # Full screen covers the whole work area, leaving the taskbar visible.
+            width, height = geometry.width, geometry.height
+        else:
+            width, height = min(size[0], geometry.width - 24), min(size[1], geometry.height - 24)
         self.start.set_size_request(width, height)
         self.start.resize(width, height)
         center = anchor[0]+anchor[2]//2 if anchor else geometry.x+geometry.width//2
         x = max(geometry.x+12, min(center-width//2, geometry.x+geometry.width-width-12))
         bottom = min(anchor[1], geometry.y+geometry.height) if anchor else geometry.y+geometry.height
         y = max(geometry.y+12, bottom-height-12)
+        if style == 'fullscreen':
+            x, y = geometry.x, geometry.y
         self.capture_backdrop(self.start, x, y, width, height)
         self.start.move(x, y)
         self.start.show_all()

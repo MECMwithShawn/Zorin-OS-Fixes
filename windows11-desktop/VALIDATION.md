@@ -1,3 +1,20 @@
+## Start menu styles: App style with tabs, Launcher and Full screen — 2026-10-22
+
+- Phase 5 of the Start11-style layouts, built on the Windows 11 options phase. Stardock describes its v2 designs as follows. **Launcher** draws on mobile launchers: a prominent account icon, a modern search interface and a large application canvas. **App style** opens the All apps list by default beside a medium-sized application canvas, and Stardock lists tabs among the layout features. Start11 also offers a **full-screen** menu. The three are built from those descriptions; Stardock's binaries and artwork are not used.
+- `start_preferences.py` adds `tabbed`, `launcher` and `fullscreen`. In `app.py`, Start opens at 800×680 (tabbed) or 640×760 (launcher). Full screen takes the full work area at the work area's origin, so the taskbar stays visible.
+- `src/main.jsx`: the paged Pinned/tab section and the Recommended section are now shared helpers (`pinnedSection`, `recommendedSection`). So are the A–Z list helpers from Windows 10 (`letterOf`, `w10Row`, `letteredList`), the search input, and the account/Settings/Power buttons. The Windows 11 and Windows 10 output is unchanged. Tab context-menu entries now appear in all three tab-capable styles. The new layouts' styles are in `src/start-more.css`. Menus open under the top bars in Launcher and Full screen. The tabbed and full-screen canvases hide sideways overflow; the first build showed a stray horizontal scrollbar.
+- `test_start_more_layouts_live.py` covers:
+  - the three new style options
+  - App style with tabs: the A–Z list, the tabs, adding to a tab from the list's context menu, no All apps button or Desktop groups button, ArrowDown from search, the power menu, and the search hand-off
+  - Launcher: the chips (Pinned, All apps, Games, Productivity, Utilities) and the canvas for each, launching, the large account picture, and the account and power menus
+  - Full screen: the list, the remembered tab and switching back to Pinned, Recommended, square corners, and both menus
+  - every menu stays on screen, and no session command is sent
+
+  The Windows 10 test now expects seven style options. The Windows 11 options, Modern, Windows 10, Windows 7, Start search, preferences, unified-search, model and native suites pass.
+- Deployment: the installed files matched the Windows 11 options branch before replacement. Backups are in `Windows 11 Desktop Backups/start-menu-more-layouts-20261022-105040`, and the verified snapshot is `2026-10-22_10-50-59_30c3c9c2`. The user had hidden their desktop groups (`groups_visible` false), and they stayed hidden after the companion restarted. All six Start live tests passed against a copy of the installed runtime. OneDrive reported `up_to_date`. The style is still unset (Windows 11), so the user's Start is unchanged. No sign-out, suspend or display changes were made.
+
+Reproduce from `windows11-desktop/companion/`: `/usr/bin/python3 test_start_more_layouts_live.py --output /tmp/start-more-shots`.
+
 ## Start menu styles: Windows 11 enhancements — 2026-10-22
 
 - Phase 4 of the Start11-style work, built on the Modern phase. `start_preferences.py` adds `layout` (`default` / `more-pins` / `more-recommendations`, giving rows per page and recommendation counts), `columns` (6/7/8), `showRecommended` and `tabs`. Tabs allow up to 8, each with a name of up to 40 characters and up to 200 unique app ids; the id `pinned` is reserved. Each value falls back to its default on its own when the stored value is invalid. `snapshot()` now deep-copies, so callers can't change the nested tab lists. `app.py` sends `startOptions` (tabs list only installed apps) and adds a `start-tab` Start action (create/rename/delete/add/remove/move); `add` accepts only installed app ids. Changing layout, columns or Recommended in Settings refreshes Start at once.
