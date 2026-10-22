@@ -68,13 +68,14 @@ function App(){
  const [startFolder,setStartFolder]=useState(null),[folderPicker,setFolderPicker]=useState(null),[folderName,setFolderName]=useState('');
  const [openCategory,setOpenCategory]=useState(null),[placeHover,setPlaceHover]=useState(null);
  const [railOpen,setRailOpen]=useState(false),[letterGrid,setLetterGrid]=useState(false);
- const search=useRef(null),drag=useRef(null),root=useRef(null);
+ const [pinTab,setPinTab]=useState('pinned'),[pinPage,setPinPage]=useState(0),[tabName,setTabName]=useState(null);
+ const search=useRef(null),drag=useRef(null),root=useRef(null),nameCancelled=useRef(false);
  const accountButton=useRef(null),powerButton=useRef(null);
  useEffect(()=>{
   window.receive=message=>{
    window.dispatchEvent(new CustomEvent('desktop-message',{detail:message}));
    if(message.type==='state'){window.desktopState=message.data;setData(message.data);}
-   if(message.type==='show'){setPage(message.page||'home');setQuery('');setContext(null);setAddTo(null);setFooterMenu(null);setCategory(null);setStartFolder(null);setFolderPicker(null);setOpenCategory(null);setRailOpen(false);setLetterGrid(false);setTimeout(()=>search.current?.focus(),40);}
+   if(message.type==='show'){setPage(message.page||'home');setQuery('');setContext(null);setAddTo(null);setFooterMenu(null);setCategory(null);setStartFolder(null);setFolderPicker(null);setOpenCategory(null);setRailOpen(false);setLetterGrid(false);setPinPage(0);setTabName(null);setTimeout(()=>search.current?.focus(),40);}
    if(message.type==='escape')window.dispatchEvent(new Event('start-escape'));
    if(message.type==='error'||message.type==='notice'){setToast(message.message);setTimeout(()=>setToast(''),5000);}
   };
@@ -82,20 +83,26 @@ function App(){
   return ()=>delete window.receive;
  },[]);
  useEffect(()=>{
-  const dismiss=()=>{if(context)setContext(null);else if(folderPicker)setFolderPicker(null);else if(startFolder)setStartFolder(null);else if(addTo)setAddTo(null);else if(footerMenu)setFooterMenu(null);else if(data?.mode==='start')send('close');};
+  const dismiss=()=>{if(context)setContext(null);else if(tabName){nameCancelled.current=true;setTabName(null);}else if(folderPicker)setFolderPicker(null);else if(startFolder)setStartFolder(null);else if(addTo)setAddTo(null);else if(footerMenu)setFooterMenu(null);else if(data?.mode==='start')send('close');};
   const close=e=>{if(e.key==='Escape'){e.preventDefault();dismiss();}};
   document.addEventListener('keydown',close);window.addEventListener('start-escape',dismiss);
   return()=>{document.removeEventListener('keydown',close);window.removeEventListener('start-escape',dismiss);};
- },[context,footerMenu,addTo,startFolder,folderPicker,data?.mode]);
+ },[context,footerMenu,addTo,startFolder,folderPicker,tabName,data?.mode]);
  useEffect(()=>{if(startFolder||folderPicker)setTimeout(()=>document.querySelector('.start-folder-dialog button,.start-folder-picker button')?.focus(),0);},[startFolder,folderPicker]);
  useEffect(()=>{if(context)setTimeout(()=>document.querySelector('.start-shell>.context-menu button')?.focus(),0);},[context]);
+ // A cancelled name may never blur; clear the flag whenever a new edit begins.
+ useEffect(()=>{if(tabName)nameCancelled.current=false;},[!!tabName]);
  useEffect(()=>{if(startFolder&&data?.startFolders&&!data.startFolders.some(f=>f.id===startFolder))setStartFolder(null);},[data?.startFolders,startFolder]);
  if(!data)return <div className="loading">Opening your desktop…</div>;
  const apps=data.apps||[];const byId=Object.fromEntries(apps.map(a=>[a.id,a]));
  const folders=data.startFolders||[],folderById=Object.fromEntries(folders.map(f=>[f.id,{...f,kind:'start-folder'}]));
  const pinnedApps=new Set([...(data.pins||[]),...folders.flatMap(f=>f.apps)]);
  const currentFolder=folderById[startFolder];
- const recommended=[...(data.documents||[]).slice(0,data.recent?.length?3:6),...(data.recent||[]).map(id=>byId[id]).filter(Boolean)].slice(0,6);
+ // Windows 11 layout options: rows of pins per page and recommendation count per layout.
+ const options=data.startOptions||{layout:'default',columns:6,showRecommended:true,tabs:[]};
+ const [pinRows,recommendedCount]={'more-pins':[4,2],'more-recommendations':[2,8]}[options.layout]||[3,6];
+ const activeTab=options.tabs.find(t=>t.id===pinTab)||null;
+ const recommended=[...(data.documents||[]).slice(0,data.recent?.length?Math.ceil(recommendedCount/2):recommendedCount),...(data.recent||[]).map(id=>byId[id]).filter(Boolean)].slice(0,recommendedCount);
  const categoryFor=app=>{const kinds=app.categories||[];return [['Accessibility','Accessibility'],['Graphics','Creativity'],['Development','Developer Tools'],['AudioVideo','Entertainment'],['Game','Games'],['Office','Productivity'],['Network','Internet'],['Education','Education'],['Settings','System Tools'],['System','System Tools'],['Utility','Utilities']].find(([key])=>kinds.includes(key))?.[1]||'Other';};
  const categories=[...new Set(apps.map(categoryFor))].sort().map(name=>({name,apps:apps.filter(a=>categoryFor(a)===name)}));
  const visibleApps=page==='category'?apps.filter(a=>categoryFor(a)===category):page==='recent'?data.recent.map(id=>byId[id]).filter(Boolean):apps;
@@ -136,6 +143,13 @@ function App(){
   {data.mode==='start'&&data.startStyle==='windows10'&&data.pins.includes(context.item.id)&&<div className="context-sizes" role="group" aria-label="Resize">
    {[['small','Small'],['medium','Medium'],['wide','Wide'],['large','Large']].map(([size,label])=><button key={size} aria-pressed={(data.startTiles?.[context.item.id]||'medium')===size} onClick={()=>{send('start-tile-size',{id:context.item.id,size});setContext(null);}}>{label}</button>)}
   </div>}
+  {data.mode==='start'&&(data.startStyle||'windows11')==='windows11'&&byId[context.item.id]&&!context.folder&&<>
+   {activeTab?.apps.includes(context.item.id)&&<>
+    <button onClick={()=>{send('start-tab',{operation:'remove',tab:activeTab.id,value:context.item.id});setContext(null);}}>Remove from {activeTab.name}</button>
+    {activeTab.apps[0]!==context.item.id&&<button onClick={()=>{send('start-tab',{operation:'move',tab:activeTab.id,value:{id:context.item.id,target:activeTab.apps[0]}});setContext(null);}}>Move to first in {activeTab.name}</button>}
+   </>}
+   {options.tabs.filter(t=>!t.apps.includes(context.item.id)).map(t=><button key={t.id} onClick={()=>{send('start-tab',{operation:'add',tab:t.id,value:context.item.id});setContext(null);}}>Add to {t.name}</button>)}
+  </>}
   {context.group&&!context.group.folder&&<button onClick={()=>{send('remove-item',{group:context.group.id,id:context.item.id});setContext(null);}}>Remove shortcut</button>}
  </div>;
 
@@ -317,10 +331,36 @@ function App(){
      <p className="hint">Drag a group’s title to move it. Drag its lower-right corner to resize.<br/>Win + Shift + F brings your groups above open windows.</p>
     </div>
    </>:<>
-    <div className="section-heading"><h2>Pinned</h2><button className="small-button" onClick={()=>setPage('all')}>All apps <Symbol name="arrow" size={13}/></button></div>
-    <div className="pins" aria-label="Pinned apps">{data.pins.map(id=>(byId[id]||folderById[id])&&tile(byId[id]||folderById[id],{pinned:true}))}{!data.pins.length&&<p className="empty">Open All apps and use the pin button to add your favorites.</p>}</div>
-    <div className="section-heading recommended-heading"><h2>{recommended.length?'Recommended':'Quick access'}</h2><div className="recommended-actions">{data.recent.length>0&&<button className="small-button text-button" onClick={()=>setPage('recent')}>Recent apps <Symbol name="arrow" size={13}/></button>}<button className="small-button text-button" aria-label="Search and Start settings" onClick={()=>send('settings',{page:'search-start'})}><Symbol name="settings" size={16}/></button></div></div>
-    <div className="recommended">{(recommended.length?recommended:data.places).map(item=><button className="recommended-item" key={item.id} title={item.name} onClick={()=>open(item)} onContextMenu={e=>menu(e,item)} onKeyDown={e=>{if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10'))menu(e,item);}}>{icon(item)}<span>{item.name}<small>{item.kind==='document'?'Recently opened':item.kind==='path'?'Open folder':'Opened from Start'}</small></span></button>)}</div>
+    {(()=>{
+     // Pinned and named tabs share one paged grid; Pinned keeps drag, folders and reorder.
+     const items=(activeTab?activeTab.apps.map(id=>byId[id]):data.pins.map(id=>byId[id]||folderById[id])).filter(Boolean);
+     const rows=pinRows+(options.showRecommended?0:2),perPage=rows*options.columns,pages=Math.max(1,Math.ceil(items.length/perPage)),current=Math.min(pinPage,pages-1);
+     const choose=id=>{setPinTab(id);setPinPage(0);setTabName(null);};
+     const saveName=()=>{if(nameCancelled.current){nameCancelled.current=false;return;}const name=tabName.value.trim();if(name)send('start-tab',tabName.id?{operation:'rename',tab:tabName.id,value:name}:{operation:'create',value:name});setTabName(null);};
+     return <>
+      <div className="section-heading pin-heading">
+       <div className="pin-tabs" role="tablist" aria-label="Pinned tabs">
+        {[{id:'pinned',name:'Pinned'},...options.tabs].map(t=>tabName?.id===t.id&&t.id!=='pinned'?null:<button key={t.id} role="tab" aria-selected={(activeTab?.id||'pinned')===t.id} onClick={()=>choose(t.id)} onDoubleClick={()=>t.id!=='pinned'&&setTabName({id:t.id,value:t.name})}>{t.name}</button>)}
+        {tabName?<form className="pin-tab-name" onSubmit={e=>{e.preventDefault();saveName();}}><input autoFocus aria-label={tabName.id?'Tab name':'New tab name'} maxLength={40} value={tabName.value} onChange={e=>setTabName({...tabName,value:e.target.value})} onBlur={saveName} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();nameCancelled.current=true;setTabName(null);}}}/></form>
+         :options.tabs.length<8&&<button className="icon-button pin-tab-add" aria-label="New tab" title="New tab" onClick={()=>setTabName({id:null,value:''})}><Symbol name="plus" size={15}/></button>}
+       </div>
+       <div className="recommended-actions">
+        {activeTab&&!tabName&&<><button className="icon-button" aria-label={'Rename '+activeTab.name} title="Rename tab" onClick={()=>setTabName({id:activeTab.id,value:activeTab.name})}><Symbol name="more" size={16}/></button><button className="icon-button" aria-label={'Delete '+activeTab.name} title="Delete tab (keeps your apps)" onClick={()=>{send('start-tab',{operation:'delete',tab:activeTab.id});choose('pinned');}}><Symbol name="close" size={15}/></button></>}
+        <button className="small-button" onClick={()=>setPage('all')}>All apps <Symbol name="arrow" size={13}/></button>
+       </div>
+      </div>
+      <div className="pin-pager">
+       <div className="pins" aria-label={(activeTab?activeTab.name:'Pinned')+' apps'} style={{gridTemplateColumns:`repeat(${options.columns},minmax(0,1fr))`,minHeight:rows*76}}
+        onKeyDown={e=>{if(e.key==='PageDown'||e.key==='PageUp'){e.preventDefault();setPinPage(Math.max(0,Math.min(pages-1,current+(e.key==='PageDown'?1:-1))));setTimeout(()=>document.querySelector('.pins .app-tile')?.focus(),0);}}}>
+        {items.slice(current*perPage,(current+1)*perPage).map(item=>activeTab?tile(item):tile(item,{pinned:true}))}
+        {!items.length&&<p className="empty">{activeTab?'Right-click an app and choose Add to '+activeTab.name+'.':'Open All apps and use the pin button to add your favorites.'}</p>}
+       </div>
+       {pages>1&&<div className="pin-pages" role="group" aria-label="Pinned pages">{Array.from({length:pages},(_,i)=><button key={i} aria-label={'Page '+(i+1)+' of '+pages} aria-current={i===current?'page':undefined} onClick={()=>setPinPage(i)}><i/></button>)}</div>}
+      </div>
+     </>;
+    })()}
+    {options.showRecommended&&<><div className="section-heading recommended-heading"><h2>{recommended.length?'Recommended':'Quick access'}</h2><div className="recommended-actions">{data.recent.length>0&&<button className="small-button text-button" onClick={()=>setPage('recent')}>Recent apps <Symbol name="arrow" size={13}/></button>}<button className="small-button text-button" aria-label="Search and Start settings" onClick={()=>send('settings',{page:'search-start'})}><Symbol name="settings" size={16}/></button></div></div>
+    <div className="recommended">{(recommended.length?recommended:data.places).map(item=><button className="recommended-item" key={item.id} title={item.name} onClick={()=>open(item)} onContextMenu={e=>menu(e,item)} onKeyDown={e=>{if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10'))menu(e,item);}}>{icon(item)}<span>{item.name}<small>{item.kind==='document'?'Recently opened':item.kind==='path'?'Open folder':'Opened from Start'}</small></span></button>)}</div></>}
     <section className="start-all-section" aria-label="All applications by category">
      <div className="section-heading"><h2>All</h2><label className="app-view">View: <select aria-label="App view" value={appView} onChange={e=>setAppView(e.target.value)}><option>Category</option><option>Grid</option><option>List</option></select></label></div>
      {appView==='Category'?<div className="app-categories">{categories.map(c=><button className="app-category" key={c.name} aria-label={'Open '+c.name+' apps'} onClick={()=>{setCategory(c.name);setPage('category');}}><span className="category-preview">{c.apps.slice(0,4).map(app=><span key={app.id}>{icon(app)}</span>)}</span><span>{c.name}</span></button>)}</div>:appView==='Grid'?<div className="all-app-grid">{apps.map(app=>tile(app))}</div>:<div className="all-app-list">{apps.map(app=><button className="app-launch" key={app.id} onClick={()=>open(app)} onContextMenu={e=>menu(e,app)}>{icon(app)}<span>{app.name}</span></button>)}</div>}

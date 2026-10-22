@@ -1,3 +1,22 @@
+## Start menu styles: Windows 11 enhancements — 2026-10-22
+
+- Phase 4 of the Start11-style work, built on the Modern phase. `start_preferences.py` adds `layout` (`default` / `more-pins` / `more-recommendations`, giving rows per page and recommendation counts), `columns` (6/7/8), `showRecommended` and `tabs`. Tabs allow up to 8, each with a name of up to 40 characters and up to 200 unique app ids; the id `pinned` is reserved. Each value falls back to its default on its own when the stored value is invalid. `snapshot()` now deep-copies, so callers can't change the nested tab lists. `app.py` sends `startOptions` (tabs list only installed apps) and adds a `start-tab` Start action (create/rename/delete/add/remove/move); `add` accepts only installed app ids. Changing layout, columns or Recommended in Settings refreshes Start at once.
+- `src/main.jsx`: Pinned and named tabs share one paged grid. Pinned keeps drag, folders and reorder. Tab tiles open the shared context menu, which adds Add to / Move to first in / Remove from entries. Escape while naming a tab cancels the name through the existing dismiss chain, and a flag stops the cancelled name from being saved when the field loses focus. The Settings rows appear only when the Windows 11 style is selected.
+- The Start search live test clicked the first switch on the Settings page, which is now **Show Recommended**. It now targets **Show recently opened documents** by label.
+- `test_start_windows11_options_live.py` (20 pinned apps, 10 recent) covers:
+  - the default 3×6 page with two page dots, the page-2 click and PageUp, and 6 recommendations
+  - 8 columns with More pins (one page, 2 recommendations), and More recommendations (12 pins, 8 recommendations)
+  - Recommended off (section gone, 20 pins on one page)
+  - Escape cancelling a tab name without saving it or closing Start
+  - creating Work, adding two apps from the context menu, the tab's order, no repeated "Add to" entry, Move to first, Remove, and Rename to Office through the … button, all checked against the file on disk
+  - Delete returning to Pinned
+  - the options hiding for the Windows 10 style
+
+  `test_start_preferences.py` adds layout/columns/Recommended and tab life-cycle tests (10 tests). Every other Start suite passes.
+- Deployment: the installed files matched the Modern branch before replacement. Backups are in `Windows 11 Desktop Backups/start-menu-win11-options-20261022-104505`, and the verified snapshot is `2026-10-22_10-45-22_c15bfcea`. The companion restarted, and both desktop groups returned. All five Start live tests passed against a copy of the installed runtime. OneDrive reported `up_to_date`. The user has 13 pins, so the default 3×6 page shows all of them and their Start looks the same as before. The live Start menu was not opened by automation. No sign-out, suspend or display changes were made.
+
+Reproduce from `windows11-desktop/companion/`: `/usr/bin/python3 test_start_windows11_options_live.py --output /tmp/start-w11-shots`.
+
 ## Start menu styles: Modern layout — 2026-10-22
 
 - Phase 3 of the Start11-style layouts, built on the Windows 10 phase. Start11 has no single page that describes its Modern style. Stardock's documentation and reviews describe it as the two-column Windows 7 structure (apps on the left; places and Windows features on the right) with square Windows 10 edges, a translucent background and no live tiles. That is what this phase builds. `modern` joins the styles, and Start opens at 520×640.
