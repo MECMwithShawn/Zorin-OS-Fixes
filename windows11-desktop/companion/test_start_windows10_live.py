@@ -108,7 +108,7 @@ def verify():
     try:
         assert ready.wait(8);time.sleep(.2)
         settings()
-        assert texts('select[aria-label="Start menu style"] option')==['Windows 11','Windows 10','Windows 7']
+        assert texts('select[aria-label="Start menu style"] option')==['Windows 11','Windows 10','Modern','Windows 7']
         choose_style('windows10');assert hidden
         start();wait('!!document.querySelector(".start-w10")')
         assert texts('.w10-list > .w10-item')==['Nova','Orion'],'Most used comes from recent apps'

@@ -15,7 +15,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Start: optional recommended/recent documents from existing local desktop history, respecting search scopes, private entries and exclusions. Verified 2026-10-19.
 - [x] Start: selectable layout (Settings → Search & Start) with a Windows 7 two-column menu: pinned/frequent programs, All Programs categories, bottom search, places column and Shut down split button. Xvfb/WebKit tests passed against source and installed runtime 2026-10-22.
 - [x] Start: Windows 10 layout with rail, Most used, A–Z list with letter jump, and pinned tiles resizable to small/medium/wide/large (saved per app). Xvfb/WebKit tests passed against source and installed runtime 2026-10-22. No live tile content.
-- [ ] Start: more Start11-style layouts: Modern, Windows 11 enhancements (tabs/pages, grid size), full screen, launcher and tabbed. Shared appearance options (transparency, corners, Start button image).
+- [x] Start: Modern layout (Start11's two-column style in a dark, square Windows 10 skin) with Pinned/All apps tabs. Xvfb/WebKit tests passed against source and installed runtime 2026-10-22.
+- [ ] Start: more Start11-style layouts: Windows 11 enhancements (tabs/pages, grid size), full screen, launcher and tabbed. Shared appearance options (transparency, corners, Start button image).
 - [x] Search: unified apps, scoped local filenames/folders and settings search with previews, filters and keyboard navigation. Verified 2026-10-19.
 - [x] Search: configurable folders and exclusions through Search & Start settings. Verified 2026-10-19.
 - [ ] Search: optional content indexing beyond bounded filename search.

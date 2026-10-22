@@ -1,3 +1,22 @@
+## Start menu styles: Modern layout — 2026-10-22
+
+- Phase 3 of the Start11-style layouts, built on the Windows 10 phase. Start11 has no single page that describes its Modern style. Stardock's documentation and reviews describe it as the two-column Windows 7 structure (apps on the left; places and Windows features on the right) with square Windows 10 edges, a translucent background and no live tiles. That is what this phase builds. `modern` joins the styles, and Start opens at 520×640.
+- `src/main.jsx` renders Modern through the Windows 7 code path with a `modern` flag. Pinned/All apps tabs replace the All Programs button, and All apps is a flat alphabetical list instead of category folders. The search placeholder is the Windows 11 wording, and Shut down gets a power icon. `src/start-modern.css` restyles the classic classes inside `.start-modern`, so the Windows 7 look is unchanged.
+- `test_start_modern_live.py` checks:
+  - the style is saved and Start closes
+  - Pinned is selected first, there is no All Programs button, and the list order is right
+  - the panel has square corners and the programs pane is dark (computed styles)
+  - the flat All apps list, launching from it, and Shift+F10 Pin to Start with no tile sizes
+  - the Pinned tab returns, and place routing works
+  - the power menu and Escape, and Shut down sends exactly one recorded `shutdown` action
+  - ArrowUp from search, and the search hand-off (tabs are hidden while searching)
+  - switching to Windows 7 still shows its All Programs button
+
+  The Windows 10 test now expects four style options. The Windows 7, Windows 10, Start search, preferences, unified-search, model and native suites pass.
+- Deployment: the installed files matched the Windows 10 branch before replacement. Backups are in `Windows 11 Desktop Backups/start-menu-modern-20261022-103624`, and the verified snapshot is `2026-10-22_10-36-41_2bf95a79`. The companion restarted, and both desktop groups returned. All four Start live tests passed against a copy of the installed runtime. OneDrive reported `up_to_date` with nothing pending. The saved style is still unset (Windows 11). The live Start menu was not opened by automation. No sign-out, suspend or display changes were made.
+
+Reproduce from `windows11-desktop/companion/`: `/usr/bin/python3 test_start_modern_live.py --output /tmp/start-modern-shots`.
+
 ## Start menu styles: Windows 10 layout — 2026-10-22
 
 - Phase 2 of the Start11-style layouts, built on the Windows 7 phase. `start_preferences.py` adds `windows10` to the styles and a `tiles` map (app id → `small`/`wide`/`large`). Medium is the default and is not stored. The map is capped at 512 entries, and invalid stored values are dropped on load. A new Start action, `start-tile-size`, saves a size and refreshes Start. Start opens at 780×680 in this style.
