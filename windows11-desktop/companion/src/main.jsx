@@ -8,6 +8,7 @@ import {Settings} from './settings.jsx';
 import {QuickSettings,NotificationCenter} from './flyouts.jsx';
 import './window-chrome.css';
 import './start-classic.css';
+import './start-windows10.css';
 
 window.desktopErrors = [];
 window.addEventListener('error', e => window.desktopErrors.push(e.message));
@@ -30,7 +31,8 @@ function Symbol({name,size=20}) {
   lock:<><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></>,
   eye:<><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12"/><circle cx="12" cy="12" r="3"/></>,
   more:<><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,
-  resize:<path d="m9 21 12-12M15 21l6-6"/>};
+  resize:<path d="m9 21 12-12M15 21l6-6"/>,
+  menu:<path d="M4 6h16M4 12h16M4 18h16"/>};
  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]||paths.grid}</svg>;
 }
 
@@ -64,13 +66,14 @@ function App(){
  const [addTo,setAddTo]=useState(null),[newName,setNewName]=useState(''),[rename,setRename]=useState(null);
  const [startFolder,setStartFolder]=useState(null),[folderPicker,setFolderPicker]=useState(null),[folderName,setFolderName]=useState('');
  const [openCategory,setOpenCategory]=useState(null),[placeHover,setPlaceHover]=useState(null);
+ const [railOpen,setRailOpen]=useState(false),[letterGrid,setLetterGrid]=useState(false);
  const search=useRef(null),drag=useRef(null),root=useRef(null);
  const accountButton=useRef(null),powerButton=useRef(null);
  useEffect(()=>{
   window.receive=message=>{
    window.dispatchEvent(new CustomEvent('desktop-message',{detail:message}));
    if(message.type==='state'){window.desktopState=message.data;setData(message.data);}
-   if(message.type==='show'){setPage(message.page||'home');setQuery('');setContext(null);setAddTo(null);setFooterMenu(null);setCategory(null);setStartFolder(null);setFolderPicker(null);setOpenCategory(null);setTimeout(()=>search.current?.focus(),40);}
+   if(message.type==='show'){setPage(message.page||'home');setQuery('');setContext(null);setAddTo(null);setFooterMenu(null);setCategory(null);setStartFolder(null);setFolderPicker(null);setOpenCategory(null);setRailOpen(false);setLetterGrid(false);setTimeout(()=>search.current?.focus(),40);}
    if(message.type==='escape')window.dispatchEvent(new Event('start-escape'));
    if(message.type==='error'||message.type==='notice'){setToast(message.message);setTimeout(()=>setToast(''),5000);}
   };
@@ -129,6 +132,9 @@ function App(){
    <button onClick={()=>{setFolderPicker(context.item.id);setContext(null);}}>Move to Start folder…</button>
    <button onClick={()=>{setAddTo(context.item);setContext(null);}}>Add to desktop group…</button>
   </>}
+  {data.mode==='start'&&data.startStyle==='windows10'&&data.pins.includes(context.item.id)&&<div className="context-sizes" role="group" aria-label="Resize">
+   {[['small','Small'],['medium','Medium'],['wide','Wide'],['large','Large']].map(([size,label])=><button key={size} aria-pressed={(data.startTiles?.[context.item.id]||'medium')===size} onClick={()=>{send('start-tile-size',{id:context.item.id,size});setContext(null);}}>{label}</button>)}
+  </div>}
   {context.group&&!context.group.folder&&<button onClick={()=>{send('remove-item',{group:context.group.id,id:context.item.id});setContext(null);}}>Remove shortcut</button>}
  </div>;
 
@@ -174,10 +180,54 @@ function App(){
    {addTo.group?<div className="picker-apps">{apps.map(app=><button className="app-launch" key={app.id} onClick={()=>{send('add-app',{group:addTo.group,id:app.id});setAddTo(null);}}>{icon(app)}<span>{app.name}</span><Symbol name="plus" size={16}/></button>)}</div>:<div className="group-choices">{data.groups.filter(g=>!g.folder).map(g=><button key={g.id} onClick={()=>{send('add-app',{group:g.id,id:addTo.id});setAddTo(null);}}><Symbol name="grid"/><span>{g.title}</span><Symbol name="plus" size={16}/></button>)}{!data.groups.some(g=>!g.folder)&&<p className="empty">Create a shortcut group in Desktop groups first.</p>}</div>}
   </section></div>}
  </>;
- const listKeys=e=>{if(!['ArrowDown','ArrowUp','Home','End'].includes(e.key)||e.target.tagName==='INPUT')return;const buttons=[...e.currentTarget.querySelectorAll('.classic-item')],i=buttons.indexOf(document.activeElement);if(!buttons.length)return;e.preventDefault();buttons[e.key==='Home'?0:e.key==='End'?buttons.length-1:i<0?0:(i+(e.key==='ArrowUp'?-1:1)+buttons.length)%buttons.length]?.focus();};
+ const listKeys=e=>{if(!['ArrowDown','ArrowUp','Home','End'].includes(e.key)||e.target.tagName==='INPUT')return;const buttons=[...e.currentTarget.querySelectorAll('.classic-item,.w10-item')],i=buttons.indexOf(document.activeElement);if(!buttons.length)return;e.preventDefault();buttons[e.key==='Home'?0:e.key==='End'?buttons.length-1:i<0?0:(i+(e.key==='ArrowUp'?-1:1)+buttons.length)%buttons.length]?.focus();};
  const classicRow=item=><button key={item.id} className={'classic-item'+(item.missing?' missing':'')} title={item.name+(item.missing?' — unavailable':'')}
    onClick={()=>open(item)} onContextMenu={e=>menu(e,item)} onKeyDown={e=>{if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10'))menu(e,item);}}>
    {item.kind==='start-folder'?<span className="classic-folder-icon"><Symbol name="folder" size={22}/></span>:icon(item)}<span>{item.name}</span></button>;
+
+ if(data.startStyle==='windows10'){
+  // Windows 10 layout: a narrow rail, the full app list and resizable live-style tiles.
+  const letterOf=app=>{const c=app.name.trim().charAt(0).toUpperCase();return /[A-Z]/.test(c)?c:'#';};
+  const letters=[...new Set(apps.map(letterOf))];
+  const mostUsed=data.recent.map(id=>byId[id]).filter(Boolean).slice(0,6);
+  const places=data.startPlaces||[];
+  const w10Row=app=><button key={app.id} className="w10-item" title={app.name} onClick={()=>open(app)} onContextMenu={e=>menu(e,app)} onKeyDown={e=>{if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10'))menu(e,app);}}>{icon(app)}<span>{app.name}</span></button>;
+  const railButton=(label,symbol,action,extra={})=><button className="w10-rail-button" title={label} aria-label={label} onClick={e=>{e.stopPropagation();action(e);}} {...extra}>{symbol}<span>{label}</span></button>;
+  return <main className={'start-shell start-w10'+(railOpen?' rail-open':'')} style={data.backdrop?{'--panel-backdrop':`url("${data.backdrop}")`}:undefined} ref={root} onClick={()=>{setContext(null);setFooterMenu(null);setRailOpen(false);}}>
+   <nav className="w10-rail" aria-label="Start">
+    {railButton(railOpen?'Collapse':'Expand',<Symbol name="menu" size={18}/>,()=>setRailOpen(!railOpen),{'aria-expanded':railOpen})}
+    <div className="w10-rail-bottom">
+     {railButton(data.user,<span className="avatar">{data.avatar?<img src={data.avatar} alt=""/>:<Symbol name="user" size={16}/>}</span>,()=>{setRailOpen(false);setContext(null);setFooterMenu(footerMenu==='account'?null:'account');},{ref:accountButton,'aria-haspopup':'menu','aria-expanded':footerMenu==='account'})}
+     {places.slice(1,3).map(p=><React.Fragment key={p.id}>{railButton(p.name,<Symbol name="folder" size={18}/>,()=>open(p))}</React.Fragment>)}
+     {railButton('Settings',<Symbol name="settings" size={18}/>,()=>send('settings'))}
+     {railButton('Power',<Symbol name="power" size={18}/>,()=>{setRailOpen(false);setContext(null);setFooterMenu(footerMenu==='power'?null:'power');},{ref:powerButton,'aria-haspopup':'menu','aria-expanded':footerMenu==='power'})}
+    </div>
+   </nav>
+   <div className="w10-content">
+    <div className="search-box w10-search"><Symbol name="search" size={16}/><input ref={search} aria-label="Type here to search" placeholder="Type here to search" value={query} onChange={e=>{setQuery(e.target.value);setLetterGrid(false);}}
+     onKeyDown={e=>{if(query.trim())return;if(e.key==='ArrowDown'){e.preventDefault();document.querySelector('.w10-list .w10-item')?.focus();}}}/>
+     {query&&<button aria-label="Clear search" className="icon-button" onClick={()=>{setQuery('');search.current.focus();}}><Symbol name="close" size={15}/></button>}
+    </div>
+    {query.trim()?<div className="w10-search-results"><UnifiedSearch query={query} input={search}/></div>:<div className="w10-columns">
+     <div className="w10-list" aria-label="All apps" onKeyDown={listKeys}>
+      {letterGrid?<div className="w10-letter-grid" role="group" aria-label="Jump to letter">{[...'#ABCDEFGHIJKLMNOPQRSTUVWXYZ'].map(l=><button key={l} disabled={!letters.includes(l)} onClick={()=>{setLetterGrid(false);setTimeout(()=>{const h=document.getElementById('w10-letter-'+l),list=h?.closest('.w10-list');if(!h)return;list.scrollTop=h.offsetTop-list.offsetTop;h.focus({preventScroll:true});},0);}}>{l}</button>)}</div>:<>
+       {mostUsed.length>0&&<><h2 className="w10-heading">Most used</h2>{mostUsed.map(w10Row)}</>}
+       {letters.map(l=><section key={l} aria-label={l==='#'?'Other':l}>
+        <button id={'w10-letter-'+l} className="w10-item w10-letter" aria-label={'Apps starting with '+(l==='#'?'other characters':l)+'. Show letters'} onClick={()=>setLetterGrid(true)}>{l}</button>
+        {apps.filter(a=>letterOf(a)===l).map(w10Row)}
+       </section>)}
+      </>}
+     </div>
+     <div className="w10-tiles" aria-label="Pinned tiles">
+      <h2 className="w10-heading">Pinned</h2>
+      <div className="w10-tile-grid">{data.pins.map(id=>{const item=byId[id]||folderById[id];return item&&<div key={id} className={'w10-tile w10-'+(data.startTiles?.[id]||'medium')}>{tile(item,{pinned:true})}</div>;})}</div>
+      {!data.pins.length&&<p className="empty">Right-click an app and choose Pin to Start to add a tile.</p>}
+     </div>
+    </div>}
+   </div>
+   {footerMenuNode}{overlayNodes}{contextNode}{toastNode}
+  </main>;
+ }
 
  if(data.startStyle==='windows7'){
   // Windows 7 layout: programs and search on the left, places and power on the right.

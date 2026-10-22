@@ -1,3 +1,22 @@
+## Start menu styles: Windows 10 layout — 2026-10-22
+
+- Phase 2 of the Start11-style layouts, built on the Windows 7 phase. `start_preferences.py` adds `windows10` to the styles and a `tiles` map (app id → `small`/`wide`/`large`). Medium is the default and is not stored. The map is capped at 512 entries, and invalid stored values are dropped on load. A new Start action, `start-tile-size`, saves a size and refreshes Start. Start opens at 780×680 in this style.
+- `src/main.jsx` + `src/start-windows10.css`: the layout described in the README. Tiles reuse the shared tile button, so dragging, folder creation, the context menu and app actions behave as in Windows 11. The resize choices are a button group in the shared context menu that appears only for pinned items in this style. The first build scrolled the whole Start panel when you jumped to a letter (`scrollIntoView`). It now scrolls only the app list, and the test asserts this.
+- `test_start_windows10_live.py` (Xvfb, real WebKit and `Hub.dispatch`) covers:
+  - the three style options and the switch closing Start
+  - Most used order, and A–Z/# headers
+  - the letter grid, with only populated letters enabled, and focus without scrolling the panel
+  - resizing to Wide by mouse and to Small with Shift+F10, persisted to disk, with the Small label hidden
+  - no resize choices for unpinned apps
+  - rail expansion and its labels, and Documents routing
+  - the power menu (Sleep, Shut down, Restart), with the rail collapsing when it opens; the account menu
+  - ArrowDown/End from search, the search hand-off, and switching back to Windows 11
+
+  The Windows 7, Start search, preferences, unified-search, model and native suites still pass.
+- Deployment: the installed files matched the Windows 7 branch before replacement. Backups and a restore record are in `Windows 11 Desktop Backups/start-menu-windows10-20261022-103026`, and the verified snapshot is `2026-10-22_10-30-44_e9828aba`. The companion restarted, and both desktop groups returned. All three Start live tests passed against a copy of the installed runtime. OneDrive reported `up_to_date` with nothing pending. The saved style was still unset (Windows 11), so the user's Start is unchanged. The live Start menu was not opened by automation. No sign-out, suspend or display changes were made.
+
+Reproduce from `windows11-desktop/companion/`: `/usr/bin/python3 -m unittest -v test_start_preferences.py`, then `/usr/bin/python3 test_start_windows10_live.py --output /tmp/start-w10-shots`.
+
 ## Start menu styles: Windows 7 layout — 2026-10-22
 
 - Phase 1 of the Start11-style layouts. `start_preferences.py` stores a `style` (`windows11` or `windows7`) next to the search folders. Files written before this change, or with an unknown value, load as `windows11`, and **Restore default search folders** leaves the style alone. Start's payload carries `startStyle` plus `startPlaces` (home and the XDG Documents/Pictures/Music/Videos/Download folders that exist). `open-path` accepts those folders. A new `open-computer` action opens This PC. `show_start` sizes the window at 456×620 for Windows 7 and 832×864 for Windows 11.

@@ -571,6 +571,7 @@ class Hub(Gtk.Application):
             'avatar': self.account_avatar_uri(),
             'places': [self.path_info(p) for p in [Path.home(), Path.home()/'Documents', Path.home()/'Downloads'] if p.exists()],
             'startStyle': self.start_preferences.snapshot()['style'],
+            'startTiles': self.start_preferences.snapshot()['tiles'],
             'startPlaces': [self.path_info(p) for p in self.start_place_paths()]}
 
     def start_place_paths(self):
@@ -627,7 +628,7 @@ class Hub(Gtk.Application):
         anchor = None if is_gnome() else panel_button('Start')
         display = Gdk.Display.get_default()
         geometry = self.work_area(anchor[0], anchor[1]) if anchor else self.monitor_geometry(primary=is_gnome())
-        size = (456, 620) if self.start_preferences.snapshot()['style'] == 'windows7' else (832, 864)
+        size = {'windows7': (456, 620), 'windows10': (780, 680)}.get(self.start_preferences.snapshot()['style'], (832, 864))
         width, height = min(size[0], geometry.width - 24), min(size[1], geometry.height - 24)
         self.start.set_size_request(width, height)
         self.start.resize(width, height)
@@ -919,6 +920,9 @@ class Hub(Gtk.Application):
             self.open_path(message['path'])
         elif action == 'open-computer' and surface.mode == 'start':
             self.open_explorer('::computer')
+        elif action == 'start-tile-size' and surface.mode == 'start':
+            self.start_preferences.change('tile', message.get('id'), message.get('size'))
+            self.start.update()
         elif action == 'close':
             surface.on_delete()
         elif action == 'settings':

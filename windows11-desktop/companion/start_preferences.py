@@ -8,7 +8,18 @@ from urllib.parse import quote, unquote, urlparse
 EXCLUDED_NAMES = {'node_modules', '__pycache__', 'venv', 'env', 'target', 'build',
                   'dist', '$RECYCLE.BIN', 'System Volume Information'}
 # Start menu layouts, in the order Settings lists them. The first is the default.
-STYLES = ('windows11', 'windows7')
+STYLES = ('windows11', 'windows10', 'windows7')
+# Windows 10 tile sizes; medium is the default and is not stored.
+TILE_SIZES = ('small', 'medium', 'wide', 'large')
+
+
+def tiles(value):
+    if not isinstance(value, dict) or len(value) > 512:
+        raise ValueError('Too many tile sizes.')
+    for ident, size in value.items():
+        if not isinstance(ident, str) or not ident or len(ident) > 512 or size not in TILE_SIZES[:1] + TILE_SIZES[2:]:
+            raise ValueError('Choose a valid tile size.')
+    return dict(value)
 
 
 def paths(values):
@@ -48,7 +59,7 @@ class Preferences:
     def __init__(self, file, defaults):
         self.file = Path(file)
         self.defaults = paths(list(defaults))
-        self.state = dict(roots=self.defaults[:], exclusions=[], recentDocuments=True, style=STYLES[0])
+        self.state = dict(roots=self.defaults[:], exclusions=[], recentDocuments=True, style=STYLES[0], tiles={})
         try:
             if self.file.stat().st_size <= 524288:
                 data = json.loads(self.file.read_text())
@@ -57,11 +68,15 @@ class Preferences:
                 self.state = dict(roots=paths(data['roots']), exclusions=paths(data['exclusions']),
                                   recentDocuments=data['recentDocuments'] is True,
                                   style=style if style in STYLES else STYLES[0])
+                try:
+                    self.state['tiles'] = tiles(data.get('tiles', {}))
+                except ValueError:
+                    self.state['tiles'] = {}
         except (OSError, ValueError, KeyError, TypeError):
             pass
 
     def snapshot(self):
-        return {k: v[:] if isinstance(v, list) else v for k, v in self.state.items()}
+        return {k: v[:] if isinstance(v, list) else dict(v) if isinstance(v, dict) else v for k, v in self.state.items()}
 
     def change(self, operation, key=None, value=None):
         state = self.snapshot()
@@ -72,6 +87,10 @@ class Preferences:
             state['recentDocuments'] = value
         elif operation == 'style' and value in STYLES:
             state['style'] = value
+        elif operation == 'tile' and isinstance(key, str) and value in TILE_SIZES:
+            state['tiles'].pop(key, None)
+            if value != 'medium':
+                state['tiles'] = tiles({**state['tiles'], key: value})
         elif operation in ('add', 'remove') and key in ('roots', 'exclusions'):
             path = paths([value])[0]
             if operation == 'add':
