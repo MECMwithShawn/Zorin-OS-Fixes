@@ -6,10 +6,11 @@ const send=(action,payload={})=>window.webkit.messageHandlers.desktop.postMessag
 let sequence=0;
 const filters=[['all','All'],['app','Apps'],['file','Files'],['folder','Folders'],['setting','Settings']];
 const labels={app:'App',file:'File',folder:'Folder',setting:'Settings'};
+const detailRows=[['version','Version'],['publisher','Publisher'],['source','Installed from'],['package','Package'],['size','Size on disk']];
 function Icon({item}){return item.kind==='app'?<img src={item.icon} alt=""/>:<Glyph name={item.kind==='setting'?'settings':item.kind==='folder'?'folder':'document'} size={24}/>;}
 
 export function UnifiedSearch({query,input}){
- const [response,setResponse]=useState(null),[filter,setFilter]=useState('all'),[selected,setSelected]=useState(null);
+ const [response,setResponse]=useState(null),[filter,setFilter]=useState('app'),[selected,setSelected]=useState(null);
  const root=useRef(null);
  useEffect(()=>{
   const id=++sequence;setResponse(null);setSelected(null);
@@ -21,6 +22,13 @@ export function UnifiedSearch({query,input}){
  const items=(response?.results||[]).filter(i=>filter==='all'||filter===i.kind);
  const index=Math.max(0,items.findIndex(i=>i.key===selected)),item=items[index];
  const open=(result,location=false)=>result&&send(location?'search-location':'search-open',{key:result.key});
+ const [details,setDetails]=useState(null);
+ useEffect(()=>{
+  setDetails(null);if(item?.kind!=='app')return;
+  const key=item.key,receive=e=>{if(e.detail.type==='app-details'&&e.detail.key===key)setDetails(e.detail);};
+  window.addEventListener('desktop-message',receive);send('search-app-details',{key});
+  return()=>window.removeEventListener('desktop-message',receive);
+ },[item?.key]);
  useEffect(()=>{
   const keys=e=>{
    if(!['ArrowDown','ArrowUp','Enter'].includes(e.key)||!items.length)return;
@@ -39,7 +47,9 @@ export function UnifiedSearch({query,input}){
   <div className="unified-layout"><div className="unified-results" aria-label="Matching items">{items.map((result,i)=><button key={result.key} className={'unified-result'+(i===index?' selected':'')} aria-label={result.name+', '+labels[result.kind]} aria-current={i===index?'true':undefined} onFocus={()=>setSelected(result.key)} onClick={()=>setSelected(result.key)} onDoubleClick={()=>open(result)}>
    <Icon item={result}/><span><strong>{result.name}</strong><small>{labels[result.kind]}{['file','folder'].includes(result.kind)?' · '+result.description:''}</small></span>
   </button>)}</div>
-  {item&&<section className="search-detail" aria-label="Selected result"><div className="search-detail-heading"><Icon item={item}/><h2>{item.name}</h2><p>{item.description||labels[item.kind]}</p></div><div className="search-result-actions"><button onClick={()=>open(item)}>Open</button>{item.path&&<button onClick={()=>open(item,true)}>Open file location</button>}</div>
+  {item&&<section className="search-detail" aria-label="Selected result"><div className="search-detail-heading">{item.kind==='app'?<button className="search-launch" aria-label={'Open '+item.name} title={'Open '+item.name} onClick={()=>open(item)}><Icon item={item}/></button>:<Icon item={item}/>}<h2>{item.name}</h2><p>{item.description||labels[item.kind]}</p></div>
+  {item.kind==='app'?<dl className="search-app-details" aria-busy={details?.key!==item.key}>{details?.key===item.key?detailRows.filter(([id])=>details.details?.[id]).map(([id,label])=><div key={id}><dt>{label}</dt><dd>{details.details[id]}</dd></div>):<div><dt>Details</dt><dd>Loading…</dd></div>}{(item.categories||[]).filter(Boolean).length>0&&<div><dt>Category</dt><dd>{item.categories.filter(Boolean).join(', ')}</dd></div>}</dl>
+  :<div className="search-result-actions"><button onClick={()=>open(item)}>Open</button>{item.path&&<button onClick={()=>open(item,true)}>Open file location</button>}</div>}
   {item.kind==='app'&&<div className="search-app-actions">{(item.actions||[]).map(action=><button key={action.id} onClick={()=>send('app-action',{id:item.id,shortcut:action.id})}>{action.name}</button>)}</div>}
   {item.kind==='file'&&<FilePreview item={item} location={query} actionPrefix="search"/>}
   </section>}</div>

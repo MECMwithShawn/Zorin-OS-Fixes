@@ -436,3 +436,12 @@ These snapshots provide selective recovery, not automatic repair after every OS 
 - Installed only app.py, notifications.py and the rebuilt main.js/main.css bundle; backed up their previous versions in the configured OneDrive Windows 11 Desktop Backups folder. Restarted only the companion after checking Explorer had one OneDrive tab, an empty search and no transfer/dialog indicators. Reopened that tab and restored its geometry. Explorer/OneDrive support-module hashes remained unchanged. The restart also loaded the earlier Alt+Tab modifier fix.
 - Installed UI: a temporary local notification verified plain text, focused Cancel, cancellation/focus restoration and retained history. Removed only that test notification. No real notifications were cleared.
 - OneDrive reports up_to_date, pending 0, no issues after the backup and restart. Sign-out/login, Wi-Fi after sleep, and suspend tests remain deferred; the app lifecycle PR remains draft.
+
+## Start search: Apps by default and app details — 2026-10-22
+
+- Start/taskbar Search now opens on the Apps category instead of All. The other categories are one click away and keep their previous behaviour.
+- For app results, the large icon in the details pane launches the app. The pane's Open button is replaced by a details list: version, publisher, install source, package and size on disk, plus the app's desktop categories. Files and Settings keep Open / Open file location.
+- `app_details.py` resolves the selected app's `.desktop` file through `dpkg-query`, `flatpak info` or `snap info` in a worker thread, each with a 3-second timeout. User-local entries are labelled as local. It never reads `Exec` lines or launch arguments.
+- `test_search_transfer_live.py` gained checks for the Apps default, the single app result, the details list finishing loading (`aria-busy=false`), absence of the Open button for apps, and launch by clicking the preview icon. The search section passed under Xvfb. The file-transfer section of that test fails identically on unmodified `origin/master` on this machine. It stops at the Explorer listing step while `~/OneDrive` reports "Transport endpoint is not connected", and is unrelated to this change. `test_unified_search.py` passed (6 tests).
+- A clean `origin/master` build reproduced the installed `dist/main.js` byte-for-byte before this change was built.
+

@@ -120,6 +120,17 @@ def verify():
         assert ready.wait(8);time.sleep(.3)
         with patch.object(explorer,'place_paths',return_value=[dict(path=str(source),name='Documents',symbol='document')]):
             query('Orion')
+            # Start search opens on Apps; the preview icon launches and the pane lists package details.
+            assert js('document.querySelector(".search-filters button[aria-pressed=true]").textContent')=='Apps'
+            assert js('document.querySelectorAll(".unified-result").length')==1
+            wait('document.querySelector(".search-app-details")?.getAttribute("aria-busy")==="false"')
+            assert 'Built in' in js('document.querySelector(".search-app-details").textContent')
+            assert 'Utility' in js('document.querySelector(".search-app-details").textContent')
+            assert js('!document.querySelector(".search-result-actions")')
+            snapshot('unified-search-app.png')
+            js('(()=>{document.querySelector(".search-launch").click();return true})()')
+            time.sleep(.1);assert opened[-1]==('app','orion.desktop')
+            click('All','.search-filters button')
             assert js('document.querySelectorAll(".unified-result").length')==3
             # Arrow keys from the input select the next result; Enter routes its action.
             js('(()=>{document.querySelector(".search-box input").dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",bubbles:true}));return true})()')
