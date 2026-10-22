@@ -9,6 +9,7 @@ import {QuickSettings,NotificationCenter} from './flyouts.jsx';
 import './window-chrome.css';
 import './start-classic.css';
 import './start-windows10.css';
+import './start-modern.css';
 
 window.desktopErrors = [];
 window.addEventListener('error', e => window.desktopErrors.push(e.message));
@@ -229,18 +230,22 @@ function App(){
   </main>;
  }
 
- if(data.startStyle==='windows7'){
+ if(data.startStyle==='windows7'||data.startStyle==='modern'){
   // Windows 7 layout: programs and search on the left, places and power on the right.
+  // Modern (Start11's) keeps those columns in a dark, square Windows 10 skin, with
+  // Pinned/All apps tabs and a flat alphabetical list in place of category folders.
+  const modern=data.startStyle==='modern';
   const pinnedItems=data.pins.map(id=>byId[id]||folderById[id]).filter(Boolean);
   const frequent=data.recent.filter(id=>!data.pins.includes(id)).map(id=>byId[id]).filter(Boolean).slice(0,8);
   const places=data.startPlaces||[];
   const placeName=p=>p.path===places[0]?.path?data.user:p.name;
   const hover=name=>({onMouseEnter:()=>setPlaceHover(name),onFocus:()=>setPlaceHover(name),onBlur:()=>setPlaceHover(null)});
-  return <main className="start-shell start-classic" style={data.backdrop?{'--panel-backdrop':`url("${data.backdrop}")`}:undefined} ref={root} onClick={()=>{setContext(null);setFooterMenu(null);}}>
+  return <main className={'start-shell start-classic'+(modern?' start-modern':'')} style={data.backdrop?{'--panel-backdrop':`url("${data.backdrop}")`}:undefined} ref={root} onClick={()=>{setContext(null);setFooterMenu(null);}}>
    <div className="classic-left">
+    {modern&&!query.trim()&&<div className="modern-tabs" role="tablist" aria-label="Apps">{[['home','Pinned'],['all','All apps']].map(([id,label])=><button key={id} role="tab" aria-selected={(page==='all')===(id==='all')} onClick={()=>setPage(id)}>{label}</button>)}</div>}
     <div className="classic-programs" onKeyDown={listKeys}>
-     {query.trim()?<UnifiedSearch query={query} input={search}/>:page==='all'?<div className="classic-list" aria-label="All programs">
-      {categories.map(c=><React.Fragment key={c.name}>
+     {query.trim()?<UnifiedSearch query={query} input={search}/>:page==='all'?<div className="classic-list" aria-label={modern?'All apps':'All programs'}>
+      {modern?apps.map(classicRow):categories.map(c=><React.Fragment key={c.name}>
        <button className="classic-item classic-category" aria-expanded={openCategory===c.name} onClick={()=>setOpenCategory(openCategory===c.name?null:c.name)}><span className="classic-folder-icon"><Symbol name="folder" size={22}/></span><span>{c.name}</span></button>
        {openCategory===c.name&&<div className="classic-nested">{c.apps.map(classicRow)}</div>}
       </React.Fragment>)}
@@ -248,11 +253,11 @@ function App(){
       {pinnedItems.map(classicRow)}
       {pinnedItems.length>0&&frequent.length>0&&<hr/>}
       {frequent.map(classicRow)}
-      {!pinnedItems.length&&!frequent.length&&<p className="empty">Open All Programs and right-click an app to pin it here.</p>}
+      {!pinnedItems.length&&!frequent.length&&<p className="empty">Open {modern?'All apps':'All Programs'} and right-click an app to pin it here.</p>}
      </div>}
     </div>
-    {!query.trim()&&<button className="classic-all" onClick={()=>{setOpenCategory(null);setPage(page==='all'?'home':'all');}}>{page==='all'?<><Symbol name="back" size={14}/><span>Back</span></>:<><span>All Programs</span><Symbol name="arrow" size={14}/></>}</button>}
-    <div className="search-box classic-search"><input ref={search} aria-label="Search programs and files" placeholder="Search programs and files" value={query} onChange={e=>setQuery(e.target.value)}
+    {!modern&&!query.trim()&&<button className="classic-all" onClick={()=>{setOpenCategory(null);setPage(page==='all'?'home':'all');}}>{page==='all'?<><Symbol name="back" size={14}/><span>Back</span></>:<><span>All Programs</span><Symbol name="arrow" size={14}/></>}</button>}
+    <div className="search-box classic-search"><input ref={search} aria-label={modern?'Search apps, files and settings':'Search programs and files'} placeholder={modern?'Search apps, files and settings':'Search programs and files'} value={query} onChange={e=>setQuery(e.target.value)}
      onKeyDown={e=>{if(query.trim())return;if(e.key==='ArrowUp'){e.preventDefault();[...document.querySelectorAll('.classic-programs .classic-item')].pop()?.focus();}}}/>
      {query?<button aria-label="Clear search" className="icon-button" onClick={()=>{setQuery('');search.current.focus();}}><Symbol name="close" size={15}/></button>:<Symbol name="search" size={16}/>}
     </div>
@@ -270,7 +275,7 @@ function App(){
      <button className="classic-place" {...hover('settings')} onClick={()=>send('settings',{page:'search-start'})}>Start settings</button>
     </nav>
     <div className="classic-power">
-     <button className="classic-shutdown" onClick={e=>{e.stopPropagation();send('session-action',{command:'shutdown'});}}>Shut down</button>
+     <button className="classic-shutdown" onClick={e=>{e.stopPropagation();send('session-action',{command:'shutdown'});}}>{modern&&<Symbol name="power" size={15}/>}Shut down</button>
      <button ref={powerButton} className="classic-power-more" aria-label="Shut down options" aria-haspopup="menu" aria-expanded={footerMenu==='classic'} onClick={e=>{e.stopPropagation();setContext(null);setFooterMenu(footerMenu==='classic'?null:'classic');}}><Symbol name="arrow" size={13}/></button>
     </div>
    </div>

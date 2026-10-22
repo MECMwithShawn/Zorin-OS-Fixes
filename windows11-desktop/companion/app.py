@@ -628,7 +628,7 @@ class Hub(Gtk.Application):
         anchor = None if is_gnome() else panel_button('Start')
         display = Gdk.Display.get_default()
         geometry = self.work_area(anchor[0], anchor[1]) if anchor else self.monitor_geometry(primary=is_gnome())
-        size = {'windows7': (456, 620), 'windows10': (780, 680)}.get(self.start_preferences.snapshot()['style'], (832, 864))
+        size = {'windows7': (456, 620), 'modern': (520, 640), 'windows10': (780, 680)}.get(self.start_preferences.snapshot()['style'], (832, 864))
         width, height = min(size[0], geometry.width - 24), min(size[1], geometry.height - 24)
         self.start.set_size_request(width, height)
         self.start.resize(width, height)
