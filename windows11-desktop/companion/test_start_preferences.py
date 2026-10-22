@@ -26,7 +26,18 @@ class StartPreferencesTests(unittest.TestCase):
         reloaded.change('remove', 'roots', str(self.docs))
         self.assertEqual(reloaded.snapshot()['roots'], [str(other)])
         reloaded.change('reset')
-        self.assertEqual(reloaded.snapshot(), dict(roots=[str(self.docs)], exclusions=[], recentDocuments=False))
+        self.assertEqual(reloaded.snapshot(), dict(roots=[str(self.docs)], exclusions=[], recentDocuments=False, style='windows11'))
+
+    def test_start_style_persists_and_old_files_default_to_windows11(self):
+        self.file.write_text('{"roots": [], "exclusions": [], "recentDocuments": true}')
+        self.assertEqual(Preferences(self.file, []).snapshot()['style'], 'windows11')
+        self.preferences.change('style', value='windows7')
+        self.preferences.change('reset')
+        self.assertEqual(Preferences(self.file, []).snapshot()['style'], 'windows7')
+        for value in ('vista', None, 7):
+            with self.assertRaises(ValueError): self.preferences.change('style', value=value)
+        self.file.write_text('{"roots": [], "exclusions": [], "recentDocuments": true, "style": "bogus"}')
+        self.assertEqual(Preferences(self.file, []).snapshot()['style'], 'windows11')
 
     def test_invalid_config_and_folders_do_not_replace_good_state(self):
         self.file.write_text('{broken')

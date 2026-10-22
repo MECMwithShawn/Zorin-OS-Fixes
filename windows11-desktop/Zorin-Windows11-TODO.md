@@ -13,6 +13,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Wayland Alt+Tab preview lifecycle: sample only visible/nonminimized clients, discard stale results, skip obsolete queued captures, retain minimized previews and reject oversized images. Native Wayland client/GTK fixtures passed against source and installed runtime 2026-10-21; physical Alt-key state is controlled inside the fixture.
 - [x] Start: app folders with drag/drop creation, persistent ordering, rename, keyboard-accessible move controls and ungrouping. Shared GNOME/Xfce interface; verified 2026-10-19.
 - [x] Start: optional recommended/recent documents from existing local desktop history, respecting search scopes, private entries and exclusions. Verified 2026-10-19.
+- [x] Start: selectable layout (Settings → Search & Start) with a Windows 7 two-column menu: pinned/frequent programs, All Programs categories, bottom search, places column and Shut down split button. Xvfb/WebKit tests passed against source and installed runtime 2026-10-22.
+- [ ] Start: more Start11-style layouts: Windows 10 (app list + tiles), Modern, Windows 11 enhancements (tabs/pages, grid size), full screen, launcher and tabbed. Shared appearance options (transparency, corners, Start button image).
 - [x] Search: unified apps, scoped local filenames/folders and settings search with previews, filters and keyboard navigation. Verified 2026-10-19.
 - [x] Search: configurable folders and exclusions through Search & Start settings. Verified 2026-10-19.
 - [ ] Search: optional content indexing beyond bounded filename search.

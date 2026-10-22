@@ -569,7 +569,20 @@ class Hub(Gtk.Application):
             'groups': [self.group_info(g) for g in state['groups']], 'groupsVisible': state['groups_visible'],
             'user': self.presentation.get('displayName') or (GLib.get_real_name() if GLib.get_real_name() not in ('Unknown', '') else GLib.get_user_name()),
             'avatar': self.account_avatar_uri(),
-            'places': [self.path_info(p) for p in [Path.home(), Path.home()/'Documents', Path.home()/'Downloads'] if p.exists()]}
+            'places': [self.path_info(p) for p in [Path.home(), Path.home()/'Documents', Path.home()/'Downloads'] if p.exists()],
+            'startStyle': self.start_preferences.snapshot()['style'],
+            'startPlaces': [self.path_info(p) for p in self.start_place_paths()]}
+
+    def start_place_paths(self):
+        """Right-hand folders of the classic Start layouts, in Windows 7 order."""
+        special = [GLib.get_user_special_dir(d) for d in (GLib.UserDirectory.DIRECTORY_DOCUMENTS,
+            GLib.UserDirectory.DIRECTORY_PICTURES, GLib.UserDirectory.DIRECTORY_MUSIC,
+            GLib.UserDirectory.DIRECTORY_VIDEOS, GLib.UserDirectory.DIRECTORY_DOWNLOAD)]
+        result = []
+        for path in [Path.home(), *(Path(d) for d in special if d)]:
+            if path not in result and path.is_dir():
+                result.append(path)
+        return result
 
     def broadcast(self):
         for surface in list(self.surfaces.values()):
@@ -614,7 +627,8 @@ class Hub(Gtk.Application):
         anchor = None if is_gnome() else panel_button('Start')
         display = Gdk.Display.get_default()
         geometry = self.work_area(anchor[0], anchor[1]) if anchor else self.monitor_geometry(primary=is_gnome())
-        width, height = min(832, geometry.width - 24), min(864, geometry.height - 24)
+        size = (456, 620) if self.start_preferences.snapshot()['style'] == 'windows7' else (832, 864)
+        width, height = min(size[0], geometry.width - 24), min(size[1], geometry.height - 24)
         self.start.set_size_request(width, height)
         self.start.resize(width, height)
         center = anchor[0]+anchor[2]//2 if anchor else geometry.x+geometry.width//2
@@ -814,7 +828,8 @@ class Hub(Gtk.Application):
         self.background(validate, opened, lambda error:self.start.send(dict(type='error',message=error)))
 
     def open_path(self, path):
-        allowed = {p['path'] for p in self.payload()['places']}
+        payload = self.payload()
+        allowed = {p['path'] for p in payload['places'] + payload['startPlaces']}
         for group in self.store.state['groups']:
             if group['folder']:
                 allowed.add(group['folder'])
@@ -902,6 +917,8 @@ class Hub(Gtk.Application):
             self.broadcast()
         elif action == 'open-path':
             self.open_path(message['path'])
+        elif action == 'open-computer' and surface.mode == 'start':
+            self.open_explorer('::computer')
         elif action == 'close':
             surface.on_delete()
         elif action == 'settings':
@@ -1195,6 +1212,10 @@ class Hub(Gtk.Application):
                 if not chosen: return
                 value = chosen[0]
             self.start_preferences.change(operation,key,value)
+            if operation == 'style':
+                # The window is sized per style when it opens, so close it now.
+                self.start.hide()
+                self.start.update()
             self.settings_generation += 1
             self.search_action(self.start,dict(action='search-cancel'))
             self.refresh_recent_documents(invalidate=True)
