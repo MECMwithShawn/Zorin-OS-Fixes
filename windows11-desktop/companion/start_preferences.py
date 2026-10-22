@@ -9,7 +9,7 @@ from urllib.parse import quote, unquote, urlparse
 EXCLUDED_NAMES = {'node_modules', '__pycache__', 'venv', 'env', 'target', 'build',
                   'dist', '$RECYCLE.BIN', 'System Volume Information'}
 # Start menu layouts, in the order Settings lists them. The first is the default.
-STYLES = ('windows11', 'windows10', 'modern', 'windows7')
+STYLES = ('windows11', 'windows10', 'modern', 'windows7', 'tabbed', 'launcher', 'fullscreen')
 # Windows 10 tile sizes; medium is the default and is not stored.
 TILE_SIZES = ('small', 'medium', 'wide', 'large')
 

@@ -17,7 +17,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Start: Windows 10 layout with rail, Most used, A–Z list with letter jump, and pinned tiles resizable to small/medium/wide/large (saved per app). Xvfb/WebKit tests passed against source and installed runtime 2026-10-22. No live tile content.
 - [x] Start: Modern layout (Start11's two-column style in a dark, square Windows 10 skin) with Pinned/All apps tabs. Xvfb/WebKit tests passed against source and installed runtime 2026-10-22.
 - [x] Start: Windows 11 enhancements: named pin tabs, paged Pinned grid, 6/7/8 columns, More pins/Default/More recommendations, Show Recommended toggle. Xvfb/WebKit tests passed against source and installed runtime 2026-10-22.
-- [ ] Start: more Start11-style layouts: full screen, launcher and tabbed. Shared appearance options (transparency, corners, Start button image).
+- [x] Start: App style with tabs, Launcher and Full screen layouts (Start11 v2 designs). Xvfb/WebKit tests passed against source and installed runtime 2026-10-22.
+- [ ] Start: Shared appearance options (transparency, corners, Start button image).
 - [x] Search: unified apps, scoped local filenames/folders and settings search with previews, filters and keyboard navigation. Verified 2026-10-19.
 - [x] Search: configurable folders and exclusions through Search & Start settings. Verified 2026-10-19.
 - [ ] Search: optional content indexing beyond bounded filename search.
