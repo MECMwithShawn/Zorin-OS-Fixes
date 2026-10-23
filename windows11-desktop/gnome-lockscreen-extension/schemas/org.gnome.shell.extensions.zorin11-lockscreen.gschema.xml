@@ -1,0 +1,11 @@
+<schemalist>
+  <schema id="org.gnome.shell.extensions.zorin11-lockscreen" path="/org/gnome/shell/extensions/zorin11-lockscreen/">
+    <key name="enabled" type="b"><default>true</default><summary>Windows 11 lock screen appearance</summary></key>
+    <key name="source" type="s"><default>'spotlight'</default><choices><choice value="spotlight"/><choice value="bing"/><choice value="zorin"/><choice value="desktop"/><choice value="picture"/></choices><summary>Lock screen wallpaper source</summary></key>
+    <key name="picture-uri" type="s"><default>'file:///usr/share/backgrounds/Zorin.jpg'</default><summary>Cached lock screen picture</summary></key>
+    <key name="picture-title" type="s"><default>'Zorin wallpaper'</default><summary>Wallpaper title</summary></key>
+    <key name="picture-credit" type="s"><default>''</default><summary>Wallpaper attribution</summary></key>
+    <key name="show-credit" type="b"><default>true</default><summary>Show picture title and credit</summary></key>
+    <key name="dimming" type="i"><default>14</default><range min="0" max="45"/><summary>Wallpaper dimming percent</summary></key>
+  </schema>
+</schemalist>
