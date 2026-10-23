@@ -22,7 +22,7 @@ export default class Test extends Base {
  if(p.rebuild)this._sync();
  if(p.overview===false)Main.overview.hide();
  if(p.overview===true)Main.overview.show();
- if(p.focus)global.get_window_actors().map(a=>a.meta_window).find(w=>w.get_title()==='Taskbar motion')?.activate(global.get_current_time());
+ if(p.focus)global.get_window_actors().map(a=>a.meta_window).find(w=>w.get_title()===(p.focus===true?'Taskbar motion':p.focus))?.activate(global.get_current_time());
  if(p.animations!==undefined)this._interface.set_boolean('enable-animations',p.animations);
  if(p.battery!==undefined){this._power={get_cached_property:()=>new GLib.Variant('b',p.battery)};this._refresh();}
  if(p.fullscreen!==undefined){const w=global.get_window_actors().map(a=>a.meta_window).find(w=>w.get_title()==='Taskbar motion');if(w){p.fullscreen?w.make_fullscreen():w.unmake_fullscreen();}}
@@ -44,9 +44,14 @@ PREFS_TEST=r'''
             if(p.period)ranges[1].scale.set_value(p.period);
             if(p.accent){const c=new Gdk.RGBA();c.parse(p.accent);color.set_rgba(c);color.emit('color-set');}
             if(p.defaults)defaults.emit('clicked');
+            if(p.apply)apply.emit('clicked');
+            if(p.revert)revert.emit('clicked');
+            if(p.tab){const visit=w=>{if(w.get_title?.()===p.tab)return w;for(let c=w.get_first_child?.();c;c=c.get_next_sibling()){const found=visit(c);if(found)return found;}return null;};win.visible_page=visit(win);}
+            if(p.panelSize){const visit=w=>{if(w.get_buildable_id?.()==='panel_size_scale')return w;for(let c=w.get_first_child?.();c;c=c.get_next_sibling()){const found=visit(c);if(found)return found;}return null;};visit(win).set_value(p.panelSize);}
+            if(p.close)GLib.idle_add(GLib.PRIORITY_DEFAULT,()=>{win.close();return GLib.SOURCE_REMOVE;});
             if(p.pause!==undefined)preview.set_active(p.pause);
             return JSON.stringify({preset:config.preset,intensity:config.intensity,period:config.period,accent:config.accent,
-                timer:!!timer,status:status.label,selected:[...presets].filter(([id,b])=>b.active).map(([id])=>id)});}});
+                vendor:!!win._settings,page:win.visible_page?.title,timer:!!timer,status:status.label,dirty:settings.get_has_unapplied(),busy,selected:[...presets].filter(([id,b])=>b.active).map(([id])=>id)});}});
         testBus.export(Gio.DBus.session,'/local/zorin11/MotionPrefs');
         Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.MotionPrefs',0,null,null);
 '''
@@ -56,8 +61,8 @@ def session(temp,output):
     ext=temp/'data/gnome-shell/extensions'/UUID
     shutil.copytree(ROOT/'gnome-motion-extension',ext)
     (ext/'extension.js').rename(ext/'motion.js');(ext/'extension.js').write_text(WRAPPER)
-    prefs=(ext/'preferences.js').read_text();assert prefs.count('refresh(); win.present();')==1
-    (ext/'preferences.js').write_text(prefs.replace('refresh(); win.present();','refresh(); win.present();\n'+PREFS_TEST))
+    prefs=(ext/'controls.js').read_text();assert prefs.count('    return root;')==1
+    (ext/'controls.js').write_text(prefs.replace('    return root;',PREFS_TEST+'\n    return root;'))
     subprocess.run(['glib-compile-schemas','--strict',str(ext/'schemas')],check=True)
     apps=temp/'data/applications';apps.mkdir()
     sys.path.insert(0,str(ROOT));import motion_install
@@ -94,7 +99,7 @@ def session(temp,output):
         assert all(r['rect'][2:]==r['panel'] and not r['reactive'] for r in state['panels']),state
         env=dict(os.environ,WAYLAND_DISPLAY='motion-test',GDK_BACKEND='wayland')
         subprocess.run(['dbus-update-activation-environment','WAYLAND_DISPLAY=motion-test','GDK_BACKEND=wayland'],env=env,check=True)
-        start(['/usr/bin/gjs','-m',str(ext/'preferences.js')],env)
+        preferences=start(['/usr/bin/gjs','-m',str(ext/'preferences.js')],env)
         until(lambda:call('MotionPrefs')['preset']=='aurora')
         until(lambda:any(w['title']=='Taskbar motion' for w in call()['windows']))
         call(focus=True)
@@ -111,10 +116,21 @@ def session(temp,output):
             capture(preset)
         call('MotionPrefs',preset='aurora',intensity=35,period=28,accent='#ae80ff')
         state=call('MotionPrefs');assert [state[k] for k in ['intensity','period','accent']]==[35,28,'#ae80ff'],state
+        assert state['dirty'] and 'Preview changes' in state['status'],state
+        assert call()['preset']=='halo','Draft changes must not alter the taskbar'
+        call('MotionPrefs',revert=True)
+        assert call('MotionPrefs')['preset']=='halo' and not call('MotionPrefs')['dirty']
+        call('MotionPrefs',preset='aurora',intensity=35,period=28,accent='#ae80ff',apply=True)
+        until(lambda:call()['preset']=='aurora' and not call('MotionPrefs')['busy'])
+        assert not call('MotionPrefs')['dirty']
+        assert 'Applied to your taskbar' in call('MotionPrefs')['status']
+        capture('applied')
         call('MotionPrefs',pause=True);assert not call('MotionPrefs')['timer']
         assert call()['timer'],'Preview pause must not change the real taskbar'
         call('MotionPrefs',pause=False,defaults=True)
         state=call('MotionPrefs');assert [state[k] for k in ['intensity','period','accent']]==[20,20,'#60cdff'],state
+        assert state['dirty'],'Restore defaults must wait for Apply'
+        call('MotionPrefs',apply=True);until(lambda:not call('MotionPrefs')['busy'])
         call(animations=False);until(lambda:not call()['timer'] and not call('MotionPrefs')['timer'])
         call(animations=True);until(lambda:call()['timer'])
         call(battery=True);assert not call()['timer']
@@ -137,13 +153,49 @@ def session(temp,output):
         assert all(r['layers']==1 for r in call()['panels'])
         taskbar.set_int('panel-size',48);Gio.Settings.sync()
         shellsettings.set_strv('enabled-extensions',enabled[:-1]);Gio.Settings.sync();time.sleep(.5)
-        shellsettings.set_strv('enabled-extensions',enabled);Gio.Settings.sync()
-        until(lambda:call()['tiles']==2)
+        until(lambda:'disabled' in call('MotionPrefs')['status'])
+        call('MotionPrefs',preset='sweep',apply=True)
+        until(lambda:call()['tiles']==2 and call()['preset']=='sweep')
+        until(lambda:not call('MotionPrefs')['busy'])
+        assert 'Applied to your taskbar' in call('MotionPrefs')['status']
+        call('MotionPrefs',close=True);preferences.wait(timeout=5)
+        taskbarPrefs=start(['/usr/bin/gjs','-m',str(ext/'taskbar-settings.js'),'--motion'],env)
+        until(lambda:any(w['title']=='Taskbar settings' for w in call()['windows']))
+        call(focus='Taskbar settings')
+        until(lambda:call('MotionPrefs')['preset']=='sweep' and call('MotionPrefs')['timer'])
+        time.sleep(.6);capture('taskbar-motion')
+        assert call('MotionPrefs')['vendor'],'The installed native taskbar controls must load'
+        for tab in ['Style','Position','Behavior','Action']:
+            call('MotionPrefs',tab=tab)
+            until(lambda:call('MotionPrefs')['page']==tab and not call('MotionPrefs')['timer'])
+            time.sleep(.2)
+        capture('taskbar-action')
+        subprocess.run(['/usr/bin/gjs','-m',str(ext/'taskbar-settings.js'),'--motion'],env=env,check=True,timeout=5,stdout=log,stderr=subprocess.STDOUT)
+        until(lambda:call('MotionPrefs')['page']=='Motion')
+        assert len([w for w in call()['windows'] if w['title']=='Taskbar settings'])==1
+        call('MotionPrefs',panelSize=52)
+        until(lambda:any(r['rect'][3]==52 for r in call()['panels']))
+        call('MotionPrefs',panelSize=48)
+        until(lambda:call('MotionPrefs')['timer'])
+        call('MotionPrefs',preset='edge',apply=True)
+        until(lambda:call()['preset']=='edge' and not call('MotionPrefs')['busy'])
+        call('MotionPrefs',defaults=True,apply=True)
+        until(lambda:call()['preset']=='aurora' and not call('MotionPrefs')['busy'])
         call(battery=False,overview=False)
-        capture('final')
+        time.sleep(.6);capture('final')
+        call('MotionPrefs',close=True);taskbarPrefs.wait(timeout=5)
+        unknown='zorin11-motion-test-missing@zorin-os-fixes'
+        (ext/'controls.js').write_text((ext/'controls.js').read_text().replace(UUID,unknown))
+        unknownPrefs=start(['/usr/bin/gjs','-m',str(ext/'preferences.js')],env)
+        until(lambda:'First activation' in call('MotionPrefs')['status'])
+        call('MotionPrefs',apply=True);until(lambda:not call('MotionPrefs')['busy'])
+        assert 'First activation' in call('MotionPrefs')['status']
+        assert unknown in subprocess.check_output(['gsettings','get','org.gnome.shell','enabled-extensions'],text=True)
+        call('MotionPrefs',preset='edge',close=True);unknownPrefs.wait(timeout=5)
+        assert call()['preset']=='aurora','Closing an unapplied preview must not save it'
         text=(output/'shell.log').read_text()
-        assert 'JS ERROR' not in text and '/motion.js:' not in text and '/preferences.js:' not in text,text[-6000:]
-        print('PASS: two Zorin panels, six styles, active-app geometry, native GTK controls, persistence, reduced motion/battery/overview/fullscreen pauses, rebuild and disable/enable; screenshots captured.')
+        assert 'JS ERROR' not in text and '/motion.js:' not in text and '/preferences.js:' not in text and '/controls.js:' not in text and 'Failed to open preferences' not in text and 'Taskbar preferences:' not in text,text[-6000:]
+        print('PASS: two Zorin panels, six styles, active-app geometry, native Taskbar preferences with Motion, draft/Apply/Revert, persistence, reduced motion/battery/overview/fullscreen pauses, rebuild and disable/enable; screenshots captured.')
     finally:
         for p in reversed(children):
             if p.poll() is None:

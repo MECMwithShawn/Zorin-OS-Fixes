@@ -112,7 +112,7 @@ export default class TaskbarMotion extends Extension {
         this._refresh();
     }
     _preferences() {
-        Gio.Subprocess.new(['/usr/bin/gjs', '-m', `${this.path}/preferences.js`], Gio.SubprocessFlags.NONE);
+        Gio.Subprocess.new(['/usr/bin/gjs', '-m', `${this.path}/taskbar-settings.js`, '--motion'], Gio.SubprocessFlags.NONE);
     }
     _focus(row, width) {
         if (this._config.preset !== 'halo') return null;
