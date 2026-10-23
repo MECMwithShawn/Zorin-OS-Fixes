@@ -88,6 +88,7 @@ def install():
     import snipping_install
     import desktop_menu_install
     import motion_install
+    import lockscreen_install
     import heif_install
     snipping_binary=snipping_install.build()
     heif_install.ensure(DEST/'heif-runtime')
@@ -96,7 +97,7 @@ def install():
     shutil.copytree(ROOT/'companion',DEST,dirs_exist_ok=True,
         ignore=shutil.ignore_patterns('node_modules','__pycache__','test_*','.pnpm*','src','pnpm-lock.yaml','event_logs.py','event_viewer.py'))
     for helper in ('gnome_setup.py','gnome_install.py','snipping_install.py','desktop_menu_install.py',
-                   'desktop_backup.py','motion_install.py','heif_install.py','heif-requirements.txt',
+                   'desktop_backup.py','lockscreen_install.py','motion_install.py','heif_install.py','heif-requirements.txt',
                    'update_guard.py','update_guard_root.py','install_update_guard.py'):
         shutil.copy2(ROOT/helper,DEST/helper)
     extension_files={EXTENSION/p.relative_to(ROOT/'gnome-extension'):p.read_bytes()
@@ -105,6 +106,7 @@ def install():
     files=dict(extension_files)
     files.update(desktop_menu_install.prepare())
     files.update(motion_install.files())
+    files.update(lockscreen_install.files())
     files.update(snipping_install.files(snipping_binary))
     audio_extension=HOME/'.local/share/gnome-shell/extensions/zorin11-audio@zorin-os-fixes'
     files.update({audio_extension/p.name:p.read_bytes() for p in (ROOT/'gnome-audio-extension').iterdir() if p.is_file()})
@@ -157,6 +159,8 @@ def install():
     write_files(files)
     motion_install.compile_schema()
     motion_install.configure()
+    lockscreen_install.compile_schema()
+    lockscreen_install.configure()
     snipping_install.BINARY.chmod(0o755)
     snipping_install.shortcut()
     snipping_install.record_shortcut()
@@ -164,6 +168,7 @@ def install():
     # A running Python daemon keeps its old preset catalog after files are upgraded.
     subprocess.run(['systemctl','--user','try-restart','zorin11-audio-effects.service'],check=True)
     subprocess.run(['systemctl','--user','enable','--now','zorin11-thumbnail-cache.timer'],check=True)
+    subprocess.run(['systemctl','--user','enable','--now',lockscreen_install.UNIT+'.timer'],check=True)
     subprocess.run(['glib-compile-schemas',str(EXTENSION/'schemas')],check=True)
     subprocess.run(['glib-compile-schemas',str(HOME/'.local/share/gnome-shell/extensions'/desktop_menu_install.UUID/'schemas')],check=True)
     subprocess.run(['update-desktop-database',str(apps)],check=True)
@@ -200,11 +205,15 @@ def restore():
     import snipping_install
     import desktop_menu_install
     import motion_install
+    import lockscreen_install
     snipping_install.restore_shortcut()
     snipping_install.restore_record_shortcut()
     subprocess.run(['systemctl','--user','disable','--now','zorin11-audio-effects.service'],capture_output=True)
     subprocess.run(['systemctl','--user','disable','--now','zorin11-thumbnail-cache.timer'],capture_output=True)
     subprocess.run(['systemctl','--user','stop','zorin11-thumbnail-cache.service'],capture_output=True)
+    subprocess.run(['systemctl','--user','disable','--now',lockscreen_install.UNIT+'.timer'],capture_output=True)
+    subprocess.run(['systemctl','--user','stop',lockscreen_install.UNIT+'.service'],capture_output=True)
+    subprocess.run(['gnome-extensions','disable',lockscreen_install.UUID],capture_output=True)
     subprocess.run(['gnome-extensions','disable','zorin11-motion@zorin-os-fixes'],capture_output=True)
     subprocess.run(['gnome-extensions','disable','zorin11-audio@zorin-os-fixes'],capture_output=True)
     subprocess.run(['gnome-extensions','disable',desktop_menu_install.UUID],capture_output=True)
@@ -236,6 +245,7 @@ def restore():
         else:FILES.unlink()
     desktop_menu_install.cleanup()
     motion_install.cleanup()
+    lockscreen_install.cleanup()
     subprocess.run(['systemctl','--user','daemon-reload'],capture_output=True)
     gnome_setup.restore()
 

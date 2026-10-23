@@ -225,6 +225,10 @@ def apply(name,value):
 def launch(tool):
     if tool not in TOOLS:raise ValueError('Unknown settings tool.')
     command=TOOLS[tool]
+    if tool == 'lock' and is_gnome():
+        lockscreen = Path.home()/'.local/share/zorin11-hub/lockscreen_settings.py'
+        if lockscreen.is_file():
+            command = ['/usr/bin/python3', str(lockscreen)]
     if tool == 'panel' and is_gnome():
         taskbar = Path.home()/'.local/share/gnome-shell/extensions/zorin11-motion@zorin-os-fixes/taskbar-settings.js'
         if taskbar.is_file():

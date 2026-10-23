@@ -39,6 +39,18 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 
 ## GNOME experience
 
+
+**Lock screen:** open **Settings → Personalization → Lock screen**, or search **Lock screen settings** in Start. The Windows 11 appearance uses GNOME's real clock, account photo, password entry, accessibility, notifications and unlock gestures. The photo stays clear behind the clock and blurs/dims behind native authentication. Installed media controls remain in the native clock. No authentication method or login-screen/GDM file is replaced.
+
+Choose **Windows Spotlight**, **Bing image of the day**, **Zorin wallpapers**, **Use desktop background**, or a personal **Picture**. Online sources refresh daily through `zorin11-lockscreen-wallpaper.timer`; failures retain the last cached photo and retry on the next hourly check. All installed Zorin backgrounds remain available. Lock-screen choices are independent of the desktop except when explicitly following it. A selected personal picture is copied into the private cache so a cloud mount or removable disk is not needed at unlock. The cache keeps up to 30 recent photos plus the selected one.
+
+Preview source, picture, dimming and photo credits, then choose **Apply**. **Revert** discards the draft; getting another online photo only updates the preview. **Native lock timing and privacy** opens GNOME's controls. Automatic locking, password policy and notification privacy settings are preserved.
+
+For an existing installation, run `python3 lockscreen_install.py` from this directory. It adds only the new extension, preferences, launcher and photo timer, and patches the Settings launch route without rebuilding Explorer or touching OneDrive. First activation requires your **next normal sign-in**; preview works immediately and reports pending activation. An already-running companion picks up the route on its next start, while the Start launcher works immediately. The full installer includes this feature. Backups include its code, cached photos and settings; update repair tracks the extension files and enabled state.
+
+Checks: `/usr/bin/python3 -m unittest discover -s tests -p test_lockscreen.py` and `/usr/bin/python3 tests/lockscreen_live.py`. The latter uses a private two-monitor GNOME 46 Wayland session and renders native authentication widgets without submitting credentials or locking the real session. Physical unlock, sign-out and suspend checks must be done separately when the user is ready.
+
+
 **Taskbar motion:** open **Settings → Personalization → Taskbar → Motion**, or search **Taskbar settings** in Start and choose its **Motion** tab. Five subtle presets are available: Aurora drift, Breathing glow, Light sweep, Edge ribbon and Active app halo, plus Off. The native dark customization window includes a live preview, accent color, intensity (5–50%) and cycle time (8–40 seconds). **Apply to taskbar** saves the previewed preset, accent, intensity and pause preferences and updates the loaded extension. **Revert changes** discards an unapplied preview; Restore defaults also waits for Apply. Closing the window discards unapplied changes. Quick Settings preset selections remain immediate. After the add-on loads, the native GNOME Quick Settings menu also offers a Taskbar motion tile and preset menu. Aurora drift defaults to 20% intensity and a 20-second cycle.
 
 Motion respects GNOME's animation setting and pauses on the lock screen and in Overview. Battery and per-monitor fullscreen pauses are enabled by default and can be changed in the customization window. The preview ignores these two pauses, stops when inactive, and has its own pause button. Active app halo follows the focused app's existing Zorin taskbar icon. Effects are decorative: native icons, previews, clicks, badges and progress remain owned by Zorin. A single 20 fps timer drives all visible panel effects; no animation timer runs while all panels are paused or Off.
@@ -63,6 +75,7 @@ Alt+Tab also refreshes only visible, nonminimized window and Snap Group previews
 | Notifications | GNOME's current session notifications, read/dismiss/clear and calendar; native notification banners remain managed by GNOME |
 | Task Manager | Mission Center provides expandable application/process groups, actual application icons, combined resource usage, and CPU, memory, disk, network and supported GPU graphs |
 | Event Viewer | Standalone dark event list, Application/System/Kernel journals, time and severity filters, loaded-event search, details, Copy event and optional auto-refresh |
+| Lock screen | Windows 11 presentation around native GNOME unlocking, independent Spotlight/Bing, Zorin collection, personal picture, preview/Apply and daily cache |
 | Backgrounds | Windows Spotlight, Bing daily/UHD images, local photos, history, original-background restore **and the installed Zorin wallpaper collection** |
 | Desktop menu | Windows-style View, Sort by, Refresh, Paste, New, Display settings, Personalize and Next desktop background; Zorin actions retained under Show more options |
 | Desktop Groups | Shared movable shortcut groups and folder portals; original files stay in place |
