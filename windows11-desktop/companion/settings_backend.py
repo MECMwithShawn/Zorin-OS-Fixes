@@ -225,5 +225,9 @@ def apply(name,value):
 def launch(tool):
     if tool not in TOOLS:raise ValueError('Unknown settings tool.')
     command=TOOLS[tool]
+    if tool == 'panel' and is_gnome():
+        taskbar = Path.home()/'.local/share/gnome-shell/extensions/zorin11-motion@zorin-os-fixes/taskbar-settings.js'
+        if taskbar.is_file():
+            command = ['gjs', '-m', str(taskbar)]
     if not shutil.which(command[0]):raise ValueError('This settings tool is not installed.')
     subprocess.Popen(command,start_new_session=True)
