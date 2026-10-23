@@ -128,7 +128,8 @@ def current_settings(home=HOME):
                    'org.gnome.settings-daemon.plugins.media-keys',
                    'org.gnome.shell.extensions.zorin-menu', 'org.gnome.shell.extensions.user-theme',
                    'org.gnome.shell.extensions.zorin-desktop-icons',
-                   'org.gnome.shell.extensions.zorin11-desktop'):
+                   'org.gnome.shell.extensions.zorin11-desktop',
+                   'org.gnome.shell.extensions.zorin11-motion'):
         spec = source.lookup(schema, True)
         if spec:
             requests.setdefault(schema, set()).update(spec.list_keys())
