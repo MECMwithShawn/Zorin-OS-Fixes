@@ -17,7 +17,7 @@ HOME = Path.home()
 ROOT = HOME/'.local/state/zorin11-update-guard'
 STATE = ROOT/'state.json'
 MANAGED_EXTENSIONS = {
-    'zorin11@zorin-os-fixes', 'zorin11-audio@zorin-os-fixes',
+    'zorin11@zorin-os-fixes', 'zorin11-audio@zorin-os-fixes', 'zorin11-motion@zorin-os-fixes',
     'zorin11-desktop@zorin-os-fixes', 'zorin-taskbar@zorinos.com',
     'zorin-menu@zorinos.com', 'user-theme@gnome-shell-extensions.gcampax.github.com',
     'zorin-window-move-effect@zorinos.com',
