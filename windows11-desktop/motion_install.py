@@ -4,6 +4,8 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parent
 UUID = 'zorin11-motion@zorin-os-fixes'
+MENU_COMMAND = '/usr/bin/gtk-launch zorin11-taskbar-motion'
+MENU_TITLE = 'Taskbar motion…'
 
 def files(home=None):
     home = home or Path.home()
@@ -13,9 +15,9 @@ def files(home=None):
     result[home/'.local/share/applications/zorin11-taskbar-motion.desktop'] = (
         '[Desktop Entry]\nType=Application\nName=Taskbar motion\n'
         'Comment=Choose subtle taskbar animations, accent and intensity\n'
-        f'Exec=/usr/bin/gjs -m "{extension}/preferences.js"\n'
+        f'Exec=/usr/bin/gjs -m "{extension}/taskbar-settings.js" --motion\n'
         'Icon=preferences-desktop-effects\nTerminal=false\nCategories=Settings;DesktopSettings;\n'
-        'StartupWMClass=local.zorin11.TaskbarMotion\n'
+        'StartupWMClass=local.zorin11.TaskbarSettings\n'
         'Keywords=Taskbar;Animation;Motion;Aurora;Glow;Personalization;\nOnlyShowIn=GNOME;\n').encode()
     result[home/'.local/share/applications/zorin11-taskbar-settings.desktop'] = (
         '[Desktop Entry]\nType=Application\nName=Taskbar settings\n'
@@ -35,25 +37,36 @@ def route_files(home=None):
     marker = "        taskbar = Path.home()/'.local/share/gnome-shell/extensions/zorin11-motion@zorin-os-fixes/taskbar-settings.js'"
     if marker in text:
         return {}
-    before = "    command=TOOLS[tool]\n    if not shutil.which(command[0]):"
-    after = """    command=TOOLS[tool]
-    if tool == 'panel' and is_gnome():
+    anchor = "    command=TOOLS[tool]\n"
+    block = """    if tool == 'panel' and is_gnome():
         taskbar = Path.home()/'.local/share/gnome-shell/extensions/zorin11-motion@zorin-os-fixes/taskbar-settings.js'
         if taskbar.is_file():
             command = ['gjs', '-m', str(taskbar)]
-    if not shutil.which(command[0]):"""
-    if text.count(before) != 1:
+"""
+    if text.count(anchor) != 1:
         raise RuntimeError('Settings launch code has changed; use the Taskbar settings Start entry until its route is updated.')
-    return {path: text.replace(before, after).encode()}
+    return {path: text.replace(anchor, anchor+block).encode()}
+
+
+def context_menu_settings(commands, titles):
+    """Use Zorin's supported menu entries, preserving every unrelated command."""
+    if len(commands) != len(titles):
+        raise RuntimeError('Zorin taskbar context-menu commands and titles have different lengths.')
+    pairs = [(command, title) for command, title in zip(commands, titles) if command != MENU_COMMAND]
+    pairs.append((MENU_COMMAND, MENU_TITLE))
+    return {'panel-context-menu-commands': [p[0] for p in pairs],
+            'panel-context-menu-titles': [p[1] for p in pairs]}
 
 def configure():
     import gnome_setup
     from gi.repository import Gio
     shell = Gio.Settings.new('org.gnome.shell')
+    taskbar = Gio.Settings.new('org.gnome.shell.extensions.zorin-taskbar')
+    menu = context_menu_settings(taskbar.get_strv('panel-context-menu-commands'), taskbar.get_strv('panel-context-menu-titles'))
     gnome_setup.install(gnome_setup.plan({'org.gnome.shell': {
         'enabled-extensions': list(dict.fromkeys(shell.get_strv('enabled-extensions') + [UUID])),
         'disabled-extensions': [x for x in shell.get_strv('disabled-extensions') if x != UUID],
-    }}))
+    }, 'org.gnome.shell.extensions.zorin-taskbar': menu}))
 
 def compile_schema(home=None):
     subprocess.run(['glib-compile-schemas', '--strict', str((home or Path.home())/'.local/share/gnome-shell/extensions'/UUID/'schemas')], check=True)
@@ -72,4 +85,4 @@ if __name__ == '__main__':
     import gnome_install
     gnome_install.write_files({**files(), **route_files()})
     compile_schema(); configure()
-    print('Installed Taskbar settings → Motion. Apply saves preview changes; first activation needs your next sign-in. Existing Settings processes use the new route on their next start.')
+    print('Installed Taskbar settings → Motion and right-click Taskbar motion. Apply at startup restores the saved effect at sign-in; updated Shell code loads at the next sign-in.')
