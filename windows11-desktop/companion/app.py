@@ -21,6 +21,7 @@ import explorer
 import file_preview
 import file_thumbnails
 import unified_search
+import app_details
 import start_preferences
 import file_transfer
 import threading
@@ -1324,7 +1325,13 @@ class Hub(Gtk.Application):
         else:
             item=getattr(surface,'search_results',{}).get(message.get('key'))
             if not item:raise ValueError('Search again to use this result.')
-            if action=='search-preview' and item['kind']=='file':
+            if action=='search-app-details' and item['kind']=='app':
+                app=self.apps.get(item['id'])
+                desktop_file=app.get_filename() if app and hasattr(app,'get_filename') else None
+                self.background(lambda:app_details.details(desktop_file),
+                                lambda result:surface.send(dict(type='app-details',key=item['key'],details=result)),
+                                lambda _:surface.send(dict(type='app-details',key=item['key'],details={})))
+            elif action=='search-preview' and item['kind']=='file':
                 self.preview_file(surface,dict(path=item['path'],id=message.get('id'),location=surface.location))
             elif action in ('search-open','search-location'):
                 if item['kind']=='app':self.launch(item['id'])
