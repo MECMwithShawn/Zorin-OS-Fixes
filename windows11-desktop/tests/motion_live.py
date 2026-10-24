@@ -15,11 +15,16 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 const XML='<node><interface name="local.zorin11.MotionTest"><method name="Call"><arg type="s" direction="in"/><arg type="s" direction="out"/></method><method name="Capture"><arg type="s" direction="out"/></method></interface></node>';
 export default class Test extends Base {
- enable(){super.enable();this.keyboard=Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);this.bus=Gio.DBusExportedObject.wrapJSObject(XML,this);this.bus.export(Gio.DBus.session,'/local/zorin11/MotionTest');this.owner=Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.MotionTest',0,null,null);}
+ enable(){const manager=global.zorinTaskbar,panels=manager?.panels;this.emptyStartup=!!manager;if(manager)manager.panels=[];super.enable();if(manager){manager.panels=panels;manager.emit('panels-created');}this.keyboard=Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);this.bus=Gio.DBusExportedObject.wrapJSObject(XML,this);this.bus.export(Gio.DBus.session,'/local/zorin11/MotionTest');this.owner=Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.MotionTest',0,null,null);}
  Call(text){const p=JSON.parse(text);
  if(p.preset)this._menus[0].options.get(p.preset).activate(null);
  if(p.toggle)this._menus[0].tile.emit('clicked',1);
  if(p.rebuild)this._sync();
+ if(p.emptyStartup){const manager=global.zorinTaskbar,panels=manager.panels;super.disable();manager.panels=[];super.enable();manager.panels=panels;this.emptyStartup=true;manager.emit('panels-created');}
+ if(p.startup!==undefined)this._menus[0].startup.emit('toggled',p.startup);
+ if(p.context!==undefined){const entry=this._panels[p.context].entry;Main.layoutManager.setDummyCursorGeometry(entry.monitor.x+200,entry.monitor.y+entry.monitor.height-20,0,0);entry.showAppsIconWrapper.popupMenu(Main.layoutManager.dummyCursor);}
+ if(p.launchMotion){this._panels[p.launchMotion-1].entry.showAppsIconWrapper._menu._getMenuItems().find(i=>i.label?.text==='Taskbar motion…').activate(null);}
+ if(p.closeContext)for(const row of this._panels)row.entry.showAppsIconWrapper?._menu?.close();
  if(p.overview===false)Main.overview.hide();
  if(p.overview===true)Main.overview.show();
  if(p.focus)global.get_window_actors().map(a=>a.meta_window).find(w=>w.get_title()===(p.focus===true?'Taskbar motion':p.focus))?.activate(global.get_current_time());
@@ -27,7 +32,7 @@ export default class Test extends Base {
  if(p.battery!==undefined){this._power={get_cached_property:()=>new GLib.Variant('b',p.battery)};this._refresh();}
  if(p.fullscreen!==undefined){const w=global.get_window_actors().map(a=>a.meta_window).find(w=>w.get_title()==='Taskbar motion');if(w){p.fullscreen?w.make_fullscreen():w.unmake_fullscreen();}}
  if(p.menu){Main.panel.statusArea.quickSettings.menu.open();this._menus[0].tile.menu.open();}
- return JSON.stringify({timer:!!this._timer,preset:this._config.preset,tiles:this._menus.length,
+ return JSON.stringify({startup:this._settings.get_boolean('apply-at-startup'),startupMenus:this._menus.map(m=>m.startup.state),emptyStartup:this.emptyStartup,contextMenus:this._panels.map(r=>r.entry.showAppsIconWrapper?._menu?._getMenuItems().map(i=>i.label?.text).filter(Boolean)),timer:!!this._timer,preset:this._config.preset,tiles:this._menus.length,
   subtitle:this._menus[0]?.tile.subtitle,checked:this._menus[0]?.tile.checked,
   panels:this._panels.filter(r=>!r.dead).map(r=>({visible:r.moving,mapped:r.actor.mapped,reason:r.reason,focus:this._focus(r,r.actor.width),
    rect:[...r.actor.get_transformed_position(),...r.actor.get_transformed_size()],panel:[r.panel.width,r.panel.height],reactive:r.actor.reactive,layers:r.panel.get_children().filter(c=>c.name==='zorin11-motion-layer').length})),
@@ -43,6 +48,7 @@ PREFS_TEST=r'''
             if(p.intensity)ranges[0].scale.set_value(p.intensity);
             if(p.period)ranges[1].scale.set_value(p.period);
             if(p.accent){const c=new Gdk.RGBA();c.parse(p.accent);color.set_rgba(c);color.emit('color-set');}
+            if(p.startup!==undefined)settings.set_boolean('apply-at-startup',p.startup);
             if(p.defaults)defaults.emit('clicked');
             if(p.apply)apply.emit('clicked');
             if(p.revert)revert.emit('clicked');
@@ -50,7 +56,7 @@ PREFS_TEST=r'''
             if(p.panelSize){const visit=w=>{if(w.get_buildable_id?.()==='panel_size_scale')return w;for(let c=w.get_first_child?.();c;c=c.get_next_sibling()){const found=visit(c);if(found)return found;}return null;};visit(win).set_value(p.panelSize);}
             if(p.close)GLib.idle_add(GLib.PRIORITY_DEFAULT,()=>{win.close();return GLib.SOURCE_REMOVE;});
             if(p.pause!==undefined)preview.set_active(p.pause);
-            return JSON.stringify({preset:config.preset,intensity:config.intensity,period:config.period,accent:config.accent,
+            return JSON.stringify({startup:settings.get_boolean('apply-at-startup'),preset:config.preset,intensity:config.intensity,period:config.period,accent:config.accent,
                 vendor:!!win._settings,page:win.visible_page?.title,timer:!!timer,status:status.label,dirty:settings.get_has_unapplied(),busy,selected:[...presets].filter(([id,b])=>b.active).map(([id])=>id)});}});
         testBus.export(Gio.DBus.session,'/local/zorin11/MotionPrefs');
         Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.MotionPrefs',0,null,null);
@@ -68,6 +74,10 @@ def session(temp,output):
     sys.path.insert(0,str(ROOT));import motion_install
     launcher=temp/'.local/share/applications/zorin11-taskbar-motion.desktop'
     (apps/launcher.name).write_bytes(motion_install.files(temp)[launcher])
+    # The isolated desktop entry must point at the private extension.
+    (apps/launcher.name).write_text((apps/launcher.name).read_text().replace(str(temp/'.local/share/gnome-shell/extensions'/UUID),str(ext)))
+    taskbar=Gio.Settings.new('org.gnome.shell.extensions.zorin-taskbar')
+    for key,value in motion_install.context_menu_settings(['/usr/bin/true'],['My custom action']).items():taskbar.set_strv(key,value)
     shellsettings=Gio.Settings.new('org.gnome.shell')
     theme='user-theme@gnome-shell-extensions.gcampax.github.com'
     enabled=[theme,'zorin-taskbar@zorinos.com',UUID]
@@ -75,6 +85,8 @@ def session(temp,output):
     shellsettings.set_strv('disabled-extensions',[p.name for p in Path('/usr/share/gnome-shell/extensions').iterdir() if p.is_dir() and p.name not in enabled])
     shellsettings.set_strv('favorite-apps',['zorin11-taskbar-motion.desktop','org.gnome.Nautilus.desktop'])
     shellsettings.set_string('welcome-dialog-last-shown-version','46.0')
+    Gio.Settings.new('org.gnome.desktop.media-handling').set_boolean('automount',False)
+    Gio.Settings.new('org.gnome.desktop.media-handling').set_boolean('automount-open',False)
     Gio.Settings.new('org.gnome.desktop.interface').set_boolean('enable-animations',True)
     Gio.Settings.new('org.gnome.desktop.interface').set_string('color-scheme','prefer-dark')
     Gio.Settings.new('org.gnome.shell.extensions.user-theme').set_string('name','ZorinBlue-Dark')
@@ -85,17 +97,20 @@ def session(temp,output):
         p=subprocess.Popen(args,env=env,stdout=log,stderr=subprocess.STDOUT);children.append(p);return p
     bus=Gio.bus_get_sync(Gio.BusType.SESSION,None)
     def call(target='MotionTest',**p):
+        # Process settings notifications while driving this fixture synchronously.
+        while GLib.MainContext.default().pending():GLib.MainContext.default().iteration(False)
         return json.loads(bus.call_sync('local.zorin11.'+target,'/local/zorin11/'+target,'local.zorin11.'+target,'Call',GLib.Variant('(s)',(json.dumps(p),)),None,0,3000,None).unpack()[0])
     def capture(name):
         data=bus.call_sync('local.zorin11.MotionTest','/local/zorin11/MotionTest','local.zorin11.MotionTest','Capture',None,None,0,5000,None).unpack()[0]
         (output/(name+'.png')).write_bytes(base64.b64decode(data))
     try:
         start(['/usr/bin/python3',__file__,'--systemd-fixture']);time.sleep(.3)
-        start(['gnome-shell','--headless','--wayland','--virtual-monitor','1280x900','--virtual-monitor','1024x768','--wayland-display','motion-test'])
-        until(lambda:call()['panels']);time.sleep(1)
+        shellargs=['gnome-shell','--headless','--wayland','--virtual-monitor','1280x900','--virtual-monitor','1024x768','--wayland-display','motion-test']
+        shell=start(shellargs)
+        until(lambda:len(call()['panels'])==2);call(emptyStartup=True);until(lambda:len(call()['panels'])==2);time.sleep(1)
         call(overview=False,battery=False)
         state=until(lambda:(s if (s:=call())['timer'] and all(r['mapped'] for r in s['panels']) else None))
-        assert len(state['panels'])==2,state
+        assert len(state['panels'])==2 and state['emptyStartup'],state
         assert all(r['rect'][2:]==r['panel'] and not r['reactive'] for r in state['panels']),state
         env=dict(os.environ,WAYLAND_DISPLAY='motion-test',GDK_BACKEND='wayland')
         subprocess.run(['dbus-update-activation-environment','WAYLAND_DISPLAY=motion-test','GDK_BACKEND=wayland'],env=env,check=True)
@@ -104,7 +119,12 @@ def session(temp,output):
         until(lambda:any(w['title']=='Taskbar motion' for w in call()['windows']))
         call(focus=True)
         until(lambda:call('MotionPrefs')['timer']);capture('preferences')
-        until(lambda:'Applied' in call('MotionPrefs')['status'])
+        until(lambda:'is ready' in call('MotionPrefs')['status'])
+        assert call('MotionPrefs')['startup']
+        call('MotionPrefs',startup=False);assert call()['startup'] and call('MotionPrefs')['dirty']
+        call('MotionPrefs',revert=True);assert call('MotionPrefs')['startup']
+        call(startup=False);until(lambda:not call('MotionPrefs')['startup']);assert call()['startupMenus']==[False,False]
+        call(startup=True);until(lambda:call('MotionPrefs')['startup']);assert call()['startupMenus']==[True,True]
         for preset in ['off','aurora','breathe','sweep','edge','halo']:
             call(preset=preset)
             state=until(lambda:(s if (s:=call('MotionPrefs'))['preset']==preset else None))
@@ -144,14 +164,14 @@ def session(temp,output):
         for _ in range(3):call(rebuild=True)
         assert call()['tiles']==2
         taskbar=Gio.Settings.new('org.gnome.shell.extensions.zorin-taskbar')
-        taskbar.set_int('panel-size',56);Gio.Settings.sync()
+        taskbar.set_string('panel-sizes',json.dumps({'0':56,'1':56}));Gio.Settings.sync()
         until(lambda:all(r['rect'][3]==56 for r in call()['panels']))
         taskbar.set_boolean('multi-monitors',False);Gio.Settings.sync()
         until(lambda:call()['tiles']==1)
         taskbar.set_boolean('multi-monitors',True);Gio.Settings.sync()
         until(lambda:call()['tiles']==2)
         assert all(r['layers']==1 for r in call()['panels'])
-        taskbar.set_int('panel-size',48);Gio.Settings.sync()
+        taskbar.set_string('panel-sizes',json.dumps({'0':48,'1':48}));Gio.Settings.sync()
         shellsettings.set_strv('enabled-extensions',enabled[:-1]);Gio.Settings.sync();time.sleep(.5)
         until(lambda:'disabled' in call('MotionPrefs')['status'])
         call('MotionPrefs',preset='sweep',apply=True)
@@ -159,7 +179,12 @@ def session(temp,output):
         until(lambda:not call('MotionPrefs')['busy'])
         assert 'Applied to your taskbar' in call('MotionPrefs')['status']
         call('MotionPrefs',close=True);preferences.wait(timeout=5)
-        taskbarPrefs=start(['/usr/bin/gjs','-m',str(ext/'taskbar-settings.js'),'--motion'],env)
+        for index in range(2):
+            call(context=index);state=call();items=state['contextMenus'][index]
+            assert items.count('Taskbar motion…')==1 and 'My custom action' in items and 'Taskbar Settings' in items,state
+            time.sleep(.2);capture('taskbar-context-'+str(index));call(closeContext=True)
+        call(context=0,launchMotion=1)
+        taskbarPrefs=None
         until(lambda:any(w['title']=='Taskbar settings' for w in call()['windows']))
         call(focus='Taskbar settings')
         until(lambda:call('MotionPrefs')['preset']=='sweep' and call('MotionPrefs')['timer'])
@@ -183,7 +208,39 @@ def session(temp,output):
         until(lambda:call()['preset']=='aurora' and not call('MotionPrefs')['busy'])
         call(battery=False,overview=False)
         time.sleep(.6);capture('final')
-        call('MotionPrefs',close=True);taskbarPrefs.wait(timeout=5)
+        call('MotionPrefs',close=True);until(lambda:not any(w['title']=='Taskbar settings' for w in call()['windows']))
+        # Real Shell-process restarts exercise persistence; never restart the host.
+        schema=Gio.SettingsSchemaSource.new_from_directory(str(ext/'schemas'),Gio.SettingsSchemaSource.get_default(),False).lookup('org.gnome.shell.extensions.zorin11-motion',False)
+        saved=Gio.Settings.new_full(schema,None,None)
+        saved.set_string('preset','edge');saved.set_boolean('apply-at-startup',False);Gio.Settings.sync()
+        def restart_shell():
+            nonlocal shell
+            shell.terminate();shell.wait(timeout=8)
+            shell=start(shellargs)
+            try:until(lambda:len(call()['panels'])==2)
+            except Exception:
+                print('Cold startup settings:',subprocess.check_output(['gsettings','get','org.gnome.shell','enabled-extensions'],text=True),subprocess.check_output(['gsettings','get','org.gnome.shell','disable-user-extensions'],text=True))
+                print('Extension:',bus.call_sync('org.gnome.Shell','/org/gnome/Shell','org.gnome.Shell.Extensions','GetExtensionInfo',GLib.Variant('(s)',(UUID,)),None,0,3000,None).unpack())
+                try:print('Test state:',call())
+                except Exception as error:print('Test call:',str(error))
+                raise
+            call(overview=False,battery=False)
+        restart_shell()
+        state=call();assert state['preset']=='edge' and not state['timer'] and not state['checked'] and not state['startup'],state
+        manual=start(['/usr/bin/gjs','-m',str(ext/'preferences.js')],env)
+        until(lambda:call('MotionPrefs')['preset']=='edge');assert not call('MotionPrefs')['dirty']
+        call('MotionPrefs',apply=True);until(lambda:call()['timer'])
+        assert call()['preset']=='edge' and not call()['startup'],'Apply must start an unchanged preset without enabling startup'
+        call('MotionPrefs',close=True);manual.wait(timeout=5)
+        restart_shell();assert not call()['timer']
+        call(preset='edge')
+        try:until(lambda:call()['timer'])
+        except AssertionError:raise AssertionError(('Selecting the same preset must start it for this session',call()))
+        shellsettings.set_strv('enabled-extensions',enabled[:-1]);Gio.Settings.sync();time.sleep(.3)
+        shellsettings.set_strv('enabled-extensions',enabled);Gio.Settings.sync();until(lambda:call()['panels']);call(battery=False)
+        assert call()['timer'],'Re-enabling in the same Shell must retain manual activation'
+        call(startup=True);restart_shell();until(lambda:call()['timer']);assert call()['preset']=='edge'
+        call(preset='aurora')
         unknown='zorin11-motion-test-missing@zorin-os-fixes'
         (ext/'controls.js').write_text((ext/'controls.js').read_text().replace(UUID,unknown))
         unknownPrefs=start(['/usr/bin/gjs','-m',str(ext/'preferences.js')],env)
@@ -195,7 +252,7 @@ def session(temp,output):
         assert call()['preset']=='aurora','Closing an unapplied preview must not save it'
         text=(output/'shell.log').read_text()
         assert 'JS ERROR' not in text and '/motion.js:' not in text and '/preferences.js:' not in text and '/controls.js:' not in text and 'Failed to open preferences' not in text and 'Taskbar preferences:' not in text,text[-6000:]
-        print('PASS: two Zorin panels, six styles, active-app geometry, native Taskbar preferences with Motion, draft/Apply/Revert, persistence, reduced motion/battery/overview/fullscreen pauses, rebuild and disable/enable; screenshots captured.')
+        print('PASS: cold Shell startup on/off, manual Apply and same-preset activation, empty-panel startup ordering, two native context menus and launcher, two Zorin panels, six styles, active-app geometry, native Taskbar preferences with Motion, draft/Apply/Revert, persistence, reduced motion/battery/overview/fullscreen pauses, rebuild and disable/enable; screenshots captured.')
     finally:
         for p in reversed(children):
             if p.poll() is None:
@@ -212,8 +269,10 @@ if __name__=='__main__':
         with tempfile.TemporaryDirectory(prefix='zorin11-motion-') as directory:
             temp=Path(directory)
             for name in ('data','config','cache','runtime'):(temp/name).mkdir(mode=0o700)
-            env=dict(os.environ,XDG_DATA_HOME=str(temp/'data'),XDG_CONFIG_HOME=str(temp/'config'),XDG_CACHE_HOME=str(temp/'cache'),XDG_RUNTIME_DIR=str(temp/'runtime'),GSETTINGS_BACKEND='keyfile',XDG_CURRENT_DESKTOP='GNOME',XDG_SESSION_TYPE='wayland',GTK_USE_PORTAL='0',WAYLAND_DISPLAY='motion-test',DISPLAY='',XAUTHORITY='')
-            result=subprocess.run(['dbus-run-session','--','/usr/bin/python3',__file__,'--session',str(temp),str(output)],env=env,capture_output=True,text=True,timeout=100)
+            # A private dconf service/database supports concurrent Shell/GTK
+            # writes without the keyfile backend's whole-file overwrite race.
+            env=dict(os.environ,XDG_DATA_HOME=str(temp/'data'),XDG_CONFIG_HOME=str(temp/'config'),XDG_CACHE_HOME=str(temp/'cache'),XDG_RUNTIME_DIR=str(temp/'runtime'),GSETTINGS_BACKEND='dconf',XDG_CURRENT_DESKTOP='GNOME',XDG_SESSION_TYPE='wayland',GTK_USE_PORTAL='0',WAYLAND_DISPLAY='motion-test',DISPLAY='',XAUTHORITY='')
+            result=subprocess.run(['dbus-run-session','--','/usr/bin/python3',__file__,'--session',str(temp),str(output)],env=env,capture_output=True,text=True,timeout=160)
             print(result.stdout)
             if result.returncode:print(result.stderr[-4000:]);print((output/'shell.log').read_text()[-6000:])
             raise SystemExit(result.returncode)

@@ -19,10 +19,17 @@ class MotionInstallTests(unittest.TestCase):
             self.assertNotEqual(source,legacy)
             path.parent.mkdir(parents=True);path.write_text(legacy)
             result=motion.route_files(home)
-            self.assertEqual(result[path].decode(),source+'\n# Local companion customization\n')
+            self.assertEqual(result[path].decode(),legacy.replace('    command=TOOLS[tool]\n','    command=TOOLS[tool]\n'+block))
             path.write_bytes(result[path]);self.assertEqual(motion.route_files(home),{})
             path.write_text('unknown custom launch structure')
             with self.assertRaises(RuntimeError):motion.route_files(home)
+
+    def test_context_menu_preserves_custom_commands_without_duplicates(self):
+        settings=motion.context_menu_settings(['/usr/bin/true',motion.MENU_COMMAND,motion.MENU_COMMAND], ['My custom action','Old motion','Duplicate'])
+        self.assertEqual(settings['panel-context-menu-commands'],['/usr/bin/true',motion.MENU_COMMAND])
+        self.assertEqual(settings['panel-context-menu-titles'],['My custom action',motion.MENU_TITLE])
+        self.assertEqual(settings,motion.context_menu_settings(settings['panel-context-menu-commands'],settings['panel-context-menu-titles']))
+        with self.assertRaises(RuntimeError):motion.context_menu_settings(['broken'],[])
 
     def test_addon_install_backup_inventory_and_conservative_cleanup(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -34,9 +41,10 @@ class MotionInstallTests(unittest.TestCase):
             motion.compile_schema(home)
             launcher=home/'.local/share/applications/zorin11-taskbar-motion.desktop'
             subprocess.run(['desktop-file-validate',str(launcher)],check=True)
+            self.assertIn('taskbar-settings.js" --motion',launcher.read_text())
             subprocess.run(['desktop-file-validate',str(launcher.with_name('zorin11-taskbar-settings.desktop'))],check=True)
             records=[r for r in desktop_backup.current_settings(home) if r['schema']=='org.gnome.shell.extensions.zorin11-motion']
-            self.assertEqual(len(records),6)
+            self.assertEqual(len(records),8)
             sources=desktop_backup.collect(home)
             self.assertIn('home/'+str(extension.relative_to(home))+'/extension.js',sources)
             self.assertTrue(update_guard.protected_file('home/'+str(extension.relative_to(home))+'/extension.js'))

@@ -9,17 +9,28 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {PRESETS, normalize, pauseReason} from './model.js';
 import {paint} from './renderer.js';
 
+// This survives extension disable/enable (including a lock cycle), but a new
+// GNOME Shell process starts a fresh login session. The saved preset is retained.
+const session = {active: undefined, request: null};
 const SCHEMA = 'org.gnome.shell.extensions.zorin11-motion';
 export default class TaskbarMotion extends Extension {
     enable() {
         this._settings = this.getSettings(SCHEMA); this._interface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
         this._signals = []; this._panelSignals = []; this._panels = []; this._menus = []; this._timer = 0; this._pending = 0; this._alive = true;
-        this._connect(this._settings, 'changed', () => this._refresh());
+        const request = this._settings.get_string('activation-request');
+        if (session.active === undefined) session.active = this._settings.get_boolean('apply-at-startup');
+        else if (session.request !== request) session.active = true;
+        session.request = request;
+        this._connect(this._settings, 'changed', (_settings, key) => {
+            if (key === 'activation-request') {session.active = true; session.request = this._settings.get_string(key);}
+            this._refresh();
+        });
         this._connect(this._interface, 'changed::enable-animations', () => this._refresh());
         this._connect(Main.extensionManager, 'extension-state-changed', (_manager, extension) => {
             if (extension.uuid === 'zorin-taskbar@zorinos.com') this._schedule();
         });
         this._connect(Main.layoutManager, 'monitors-changed', () => this._schedule());
+        this._connect(Main.layoutManager, 'startup-complete', () => this._schedule());
         this._connect(Main.overview, 'showing', () => this._refresh());
         this._connect(Main.overview, 'hidden', () => this._refresh());
         this._connect(Main.sessionMode, 'updated', () => this._refresh());
@@ -61,10 +72,11 @@ export default class TaskbarMotion extends Extension {
     _sync() {
         const manager = global.zorinTaskbar;
         const panels = manager?.panels || [{panel: Main.panel, monitor: {index: Main.layoutManager.primaryIndex}}];
-        if (this._panels.length === panels.length && this._panels.every((r, i) => !r.dead && r.entry === panels[i])) {
+        if (this._manager === manager && this._panels.length === panels.length && this._panels.every((r, i) => !r.dead && r.entry === panels[i])) {
             this._refresh(); return;
         }
         this._disconnect(this._panelSignals);
+        this._manager = manager;
         for (const r of this._panels) if (!r.dead) r.actor.destroy();
         this._destroyMenus();
         this._panels = []; this._menus = [];
@@ -96,20 +108,26 @@ export default class TaskbarMotion extends Extension {
                 const options = new Map();
                 for (const [id, name] of PRESETS) {
                     const item = new PopupMenu.PopupMenuItem(name);
-                    item.connect('activate', () => this._settings.set_string('preset', id));
+                    item.connect('activate', () => this._activate(id));
                     tile.menu.addMenuItem(item); options.set(id, item);
                 }
                 tile.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+                const startup = new PopupMenu.PopupSwitchMenuItem('Apply at startup', this._settings.get_boolean('apply-at-startup'));
+                startup.connect('toggled', (_item, state) => this._settings.set_boolean('apply-at-startup', state));
+                tile.menu.addMenuItem(startup);
                 tile.menu.addAction('Customize motion…', () => {settings.menu.close(); this._preferences();});
-                tile.connect('clicked', () => this._settings.set_string('preset', this._config.preset === 'off' ? this._lastPreset || 'aurora' : 'off'));
+                tile.connect('clicked', () => this._activate(!session.active && this._config.preset !== 'off' ? this._config.preset : this._config.preset === 'off' ? this._lastPreset || 'aurora' : 'off'));
                 indicator.quickSettingsItems.push(tile); settings.addExternalIndicator(indicator);
-                const menu = {tile, indicator, options, panel: row, tileDead: false, indicatorDead: false};
+                const menu = {tile, indicator, options, startup, panel: row, tileDead: false, indicatorDead: false};
                 tile.connect('destroy', () => {menu.tileDead = true;});
                 indicator.connect('destroy', () => {menu.indicatorDead = true;});
                 this._menus.push(menu);
             }
         }
         this._refresh();
+    }
+    _activate(preset) {
+        session.active = true; this._settings.set_string('preset', preset); this._refresh();
     }
     _preferences() {
         Gio.Subprocess.new(['/usr/bin/gjs', '-m', `${this.path}/taskbar-settings.js`, '--motion'], Gio.SubprocessFlags.NONE);
@@ -134,16 +152,17 @@ export default class TaskbarMotion extends Extension {
         let moving = false;
         for (const row of this._panels) {
             if (row.dead) continue;
-            row.reason = pauseReason(this._config, {animations: this._interface.get_boolean('enable-animations'), battery,
+            row.reason = !session.active && this._config.preset !== 'off' ? 'Not started · Choose a preset or Apply' : pauseReason(this._config, {animations: this._interface.get_boolean('enable-animations'), battery,
                 locked: Main.sessionMode.isLocked, overview: Main.overview.visible,
                 fullscreen: global.display.get_monitor_in_fullscreen(row.entry.monitor.index)});
             row.moving = !row.reason && row.panel.mapped;
             row.actor.opacity = row.moving ? 255 : 0;
             if (row.moving) {moving = true; row.allocate(); row.actor.queue_repaint();}
         }
-        for (const {tile, options, panel, tileDead} of this._menus) {
+        for (const {tile, options, startup, panel, tileDead} of this._menus) {
             if (tileDead) continue;
-            tile.checked = this._config.preset !== 'off';
+            tile.checked = session.active && this._config.preset !== 'off';
+            startup.setToggleState(this._settings.get_boolean('apply-at-startup'));
             tile.subtitle = panel.reason || PRESETS.find(p => p[0] === this._config.preset)[1];
             for (const [id, item] of options) item.setOrnament(id === this._config.preset ? PopupMenu.Ornament.DOT : PopupMenu.Ornament.NONE);
         }
@@ -162,6 +181,6 @@ export default class TaskbarMotion extends Extension {
         this._timer = 0; this._pending = 0; this._disconnect(this._signals); this._disconnect(this._panelSignals);
         for (const row of this._panels) if (!row.dead) row.actor.destroy();
         this._destroyMenus();
-        this._panels = []; this._menus = []; this._power = null;
+        this._panels = []; this._menus = []; this._power = null; this._manager = undefined;
     }
 }

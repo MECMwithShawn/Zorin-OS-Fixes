@@ -86,16 +86,17 @@ export function buildMotionControls(win) {
     accentRow.append(color);
     const preview = new Gtk.ToggleButton({label: 'Pause preview', active: false, margin_start: 12});
     preview.connect('toggled', () => refresh()); accentRow.append(preview); controls.append(accentRow);
-    for (const [key, text] of [['pause-on-battery','Pause on battery power'],['pause-fullscreen','Pause for fullscreen apps']]) {
+    for (const [key, text] of [['apply-at-startup','Apply at startup'],['pause-on-battery','Pause on battery power'],['pause-fullscreen','Pause for fullscreen apps']]) {
         const row = new Gtk.Box({spacing: 12}); const textLabel = label(text); textLabel.hexpand = true; row.append(textLabel);
         const toggle = new Gtk.Switch({valign: Gtk.Align.CENTER}); row.append(toggle);
         toggle.update_property([Gtk.AccessibleProperty.LABEL], [text]);
         settings.bind(key, toggle, 'active', Gio.SettingsBindFlags.DEFAULT); controls.append(row);
+        if (key === 'apply-at-startup') controls.append(label('Restore your selected effect when you sign in. Off keeps it manual; Apply still starts it for this session.', 'motion-muted'));
     }
     const status = label('', 'motion-muted'); root.append(status);
     const footer = new Gtk.Box({spacing: 8, halign: Gtk.Align.END});
     const defaults = new Gtk.Button({label: 'Restore defaults'});
-    defaults.connect('clicked', () => {for (const key of settings.settings_schema.list_keys()) settings.reset(key);});
+    defaults.connect('clicked', () => {for (const key of settings.settings_schema.list_keys()) if (key !== 'activation-request') settings.reset(key);});
     const revert = new Gtk.Button({label: 'Revert changes'});
     revert.connect('clicked', () => settings.revert());
     const apply = new Gtk.Button({label: 'Apply to taskbar'}); apply.add_css_class('suggested-action');
@@ -121,6 +122,7 @@ export function buildMotionControls(win) {
         const reduced = !desktop.get_boolean('enable-animations');
         const dirty = settings.get_has_unapplied();
         status.label = dirty ? 'Preview changes · Apply to update your taskbar.' : activation;
+        if (!dirty) status.label += settings.get_boolean('apply-at-startup') ? ' Restores at sign-in.' : ' Startup is off; Apply starts motion for this session.';
         if (reduced) status.label += ' Motion is paused by Reduced motion.';
         revert.sensitive = dirty && !busy; apply.sensitive = !busy;
         apply.label = busy ? 'Applying…' : 'Apply to taskbar';
@@ -162,7 +164,7 @@ export function buildMotionControls(win) {
             const state = info.state?.unpack();
             activation = shell.get_boolean('disable-user-extensions')
                 ? 'Saved · Enable extensions in GNOME Extensions to activate taskbar motion.'
-                : state === 1 ? 'Applied to your taskbar · Battery and fullscreen pauses still apply.'
+                : state === 1 ? (enable ? 'Applied to your taskbar' : 'Taskbar motion is ready') + ' · Battery and fullscreen pauses still apply.'
                 : !info.uuid ? 'Saved · First activation needs your next sign-in. The preview works now.'
                 : state === 2 ? 'Saved · Taskbar motion is disabled. Apply to activate it.'
                 : 'Saved · Taskbar motion could not start. Check GNOME Extensions for details.';
@@ -177,7 +179,12 @@ export function buildMotionControls(win) {
         busy = true;
         settings.apply(); Gio.Settings.sync(); refresh();
         await checkActivation(true);
-        if (!closed) { busy = false; refresh(); }
+        if (!closed) {
+            // An explicit request also starts an unchanged preset when startup
+            // is off, including when Apply just enabled the extension.
+            settings.set_string('activation-request', GLib.uuid_string_random());
+            settings.apply(); Gio.Settings.sync(); busy = false; refresh();
+        }
     }
     const signals = [settings.connect('changed', refresh),
         settings.connect('notify::has-unapplied', refresh),
