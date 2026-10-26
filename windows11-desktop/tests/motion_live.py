@@ -12,6 +12,7 @@ WRAPPER=r'''
 import Base from './motion.js';
 import Gio from 'gi://Gio';import GLib from 'gi://GLib';import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
+import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 const XML='<node><interface name="local.zorin11.MotionTest"><method name="Call"><arg type="s" direction="in"/><arg type="s" direction="out"/></method><method name="Capture"><arg type="s" direction="out"/></method></interface></node>';
 export default class Test extends Base {
@@ -21,6 +22,7 @@ export default class Test extends Base {
  if(p.toggle)this._menus[0].tile.emit('clicked',1);
  if(p.rebuild)this._sync();
  if(p.emptyStartup){const manager=global.zorinTaskbar,panels=manager.panels;super.disable();manager.panels=[];super.enable();manager.panels=panels;this.emptyStartup=true;manager.emit('panels-created');}
+ if(p.layout){for(const actor of this.layoutActors||[])actor.destroy();this.layoutActors=[];for(const r of this._panels){if(p.layout.apps){const actor=new St.Widget({width:p.layout.apps,height:32});r.entry.taskbar._box.add_child(actor);this.layoutActors.push(actor);}for(let i=0;i<p.layout.tray;i++){const actor=new St.Widget({width:28,height:32});r.panel._rightBox.add_child(actor);this.layoutActors.push(actor);}}}
  if(p.startup!==undefined)this._menus[0].startup.emit('toggled',p.startup);
  if(p.context!==undefined){const entry=this._panels[p.context].entry;Main.layoutManager.setDummyCursorGeometry(entry.monitor.x+200,entry.monitor.y+entry.monitor.height-20,0,0);entry.showAppsIconWrapper.popupMenu(Main.layoutManager.dummyCursor);}
  if(p.launchMotion){this._panels[p.launchMotion-1].entry.showAppsIconWrapper._menu._getMenuItems().find(i=>i.label?.text==='Taskbar motion…').activate(null);}
@@ -32,7 +34,7 @@ export default class Test extends Base {
  if(p.battery!==undefined){this._power={get_cached_property:()=>new GLib.Variant('b',p.battery)};this._refresh();}
  if(p.fullscreen!==undefined){const w=global.get_window_actors().map(a=>a.meta_window).find(w=>w.get_title()==='Taskbar motion');if(w){p.fullscreen?w.make_fullscreen():w.unmake_fullscreen();}}
  if(p.menu){Main.panel.statusArea.quickSettings.menu.open();this._menus[0].tile.menu.open();}
- return JSON.stringify({startup:this._settings.get_boolean('apply-at-startup'),startupMenus:this._menus.map(m=>m.startup.state),emptyStartup:this.emptyStartup,contextMenus:this._panels.map(r=>r.entry.showAppsIconWrapper?._menu?._getMenuItems().map(i=>i.label?.text).filter(Boolean)),timer:!!this._timer,preset:this._config.preset,tiles:this._menus.length,
+ return JSON.stringify({layout:this._panels.map(r=>{const a=r.entry.allocationMap?.taskbar?.actor,t=r.panel._rightBox;return a?{appX:a.get_transformed_position()[0],appWidth:a.width,trayX:t.get_transformed_position()[0],trayWidth:t.width,panelWidth:r.panel.width}:null;}),startup:this._settings.get_boolean('apply-at-startup'),startupMenus:this._menus.map(m=>m.startup.state),emptyStartup:this.emptyStartup,contextMenus:this._panels.map(r=>r.entry.showAppsIconWrapper?._menu?._getMenuItems().map(i=>i.label?.text).filter(Boolean)),timer:!!this._timer,preset:this._config.preset,tiles:this._menus.length,
   subtitle:this._menus[0]?.tile.subtitle,checked:this._menus[0]?.tile.checked,
   panels:this._panels.filter(r=>!r.dead).map(r=>({visible:r.moving,mapped:r.actor.mapped,reason:r.reason,focus:this._focus(r,r.actor.width),
    rect:[...r.actor.get_transformed_position(),...r.actor.get_transformed_size()],panel:[r.panel.width,r.panel.height],reactive:r.actor.reactive,layers:r.panel.get_children().filter(c=>c.name==='zorin11-motion-layer').length})),
@@ -71,12 +73,13 @@ def session(temp,output):
     (ext/'controls.js').write_text(prefs.replace('    return root;',PREFS_TEST+'\n    return root;'))
     subprocess.run(['glib-compile-schemas','--strict',str(ext/'schemas')],check=True)
     apps=temp/'data/applications';apps.mkdir()
-    sys.path.insert(0,str(ROOT));import motion_install
+    sys.path.insert(0,str(ROOT));import motion_install,gnome_setup
     launcher=temp/'.local/share/applications/zorin11-taskbar-motion.desktop'
     (apps/launcher.name).write_bytes(motion_install.files(temp)[launcher])
     # The isolated desktop entry must point at the private extension.
     (apps/launcher.name).write_text((apps/launcher.name).read_text().replace(str(temp/'.local/share/gnome-shell/extensions'/UUID),str(ext)))
     taskbar=Gio.Settings.new('org.gnome.shell.extensions.zorin-taskbar')
+    taskbar.set_string('panel-element-positions',gnome_setup.appearance(['0','1'])[gnome_setup.TASKBAR]['panel-element-positions'])
     for key,value in motion_install.context_menu_settings(['/usr/bin/true'],['My custom action']).items():taskbar.set_strv(key,value)
     shellsettings=Gio.Settings.new('org.gnome.shell')
     theme='user-theme@gnome-shell-extensions.gcampax.github.com'
@@ -112,6 +115,25 @@ def session(temp,output):
         state=until(lambda:(s if (s:=call())['timer'] and all(r['mapped'] for r in s['panels']) else None))
         assert len(state['panels'])==2 and state['emptyStartup'],state
         assert all(r['rect'][2:]==r['panel'] and not r['reactive'] for r in state['panels']),state
+        # Exercise native sizing with synthetic app/tray content; production
+        # relies on Zorin's allocator, not a replacement allocation function.
+        def layout(apps,tray):
+            call(layout=dict(apps=apps,tray=tray));time.sleep(.25)
+            rows=call()['layout'];assert len(rows)==2 and all(rows),rows
+            for r in rows:assert 0<=r['appWidth']<=r['panelWidth'] and r['appX']+r['appWidth']<=r['trayX']+1,rows
+            return rows
+        small=layout(96,0)
+        many=layout(2000,0)
+        assert all(b['appWidth']>a['appWidth'] for a,b in zip(small,many)),(small,many)
+        crowded=layout(2000,10)
+        assert all(b['trayWidth']>a['trayWidth'] and b['appWidth']<a['appWidth'] for a,b in zip(many,crowded)),(many,crowded)
+        restored=layout(2000,0)
+        assert all(abs(a['appWidth']-b['appWidth'])<2 for a,b in zip(many,restored)),(many,restored)
+        small_again=layout(96,0)
+        assert all(abs(a['appWidth']-b['appWidth'])<2 for a,b in zip(small,small_again)),(small,small_again)
+        layout(0,0)
+        print('PASS: automatic app/tray growth and shrinkage without overlap on two native Zorin panels.',flush=True)
+        if os.environ.get('ZORIN11_LAYOUT_ONLY')=='1':return
         env=dict(os.environ,WAYLAND_DISPLAY='motion-test',GDK_BACKEND='wayland')
         subprocess.run(['dbus-update-activation-environment','WAYLAND_DISPLAY=motion-test','GDK_BACKEND=wayland'],env=env,check=True)
         preferences=start(['/usr/bin/gjs','-m',str(ext/'preferences.js')],env)
@@ -252,7 +274,7 @@ def session(temp,output):
         assert call()['preset']=='aurora','Closing an unapplied preview must not save it'
         text=(output/'shell.log').read_text()
         assert 'JS ERROR' not in text and '/motion.js:' not in text and '/preferences.js:' not in text and '/controls.js:' not in text and 'Failed to open preferences' not in text and 'Taskbar preferences:' not in text,text[-6000:]
-        print('PASS: cold Shell startup on/off, manual Apply and same-preset activation, empty-panel startup ordering, two native context menus and launcher, two Zorin panels, six styles, active-app geometry, native Taskbar preferences with Motion, draft/Apply/Revert, persistence, reduced motion/battery/overview/fullscreen pauses, rebuild and disable/enable; screenshots captured.')
+        print('PASS: automatic app/tray growth and shrinkage without overlap on two panels, cold Shell startup on/off, manual Apply and same-preset activation, empty-panel startup ordering, two native context menus and launcher, two Zorin panels, six styles, active-app geometry, native Taskbar preferences with Motion, draft/Apply/Revert, persistence, reduced motion/battery/overview/fullscreen pauses, rebuild and disable/enable; screenshots captured.')
     finally:
         for p in reversed(children):
             if p.poll() is None:

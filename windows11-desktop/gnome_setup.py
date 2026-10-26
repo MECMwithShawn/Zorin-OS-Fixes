@@ -39,7 +39,7 @@ def appearance(monitors):
     center = ['leftBox', 'showAppsButton', 'activitiesButton', 'taskbar']
     right = ['centerBox', 'rightBox', 'systemMenu', 'dateMenu', 'desktopButton']
     positions = [dict(element=name, visible=name not in ('showAppsButton','activitiesButton'),
-                      position='centerMonitor' if name in center else 'stackedBR')
+                      position='centered' if name in center else 'stackedBR')
                  for name in center + right]
     return {
         'org.gnome.desktop.interface': {

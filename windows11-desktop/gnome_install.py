@@ -88,6 +88,7 @@ def install():
     import snipping_install
     import desktop_menu_install
     import motion_install
+    import update_agent_install
     import lockscreen_install
     import heif_install
     snipping_binary=snipping_install.build()
@@ -97,7 +98,7 @@ def install():
     shutil.copytree(ROOT/'companion',DEST,dirs_exist_ok=True,
         ignore=shutil.ignore_patterns('node_modules','__pycache__','test_*','.pnpm*','src','pnpm-lock.yaml','event_logs.py','event_viewer.py'))
     for helper in ('gnome_setup.py','gnome_install.py','snipping_install.py','desktop_menu_install.py',
-                   'desktop_backup.py','lockscreen_install.py','motion_install.py','heif_install.py','heif-requirements.txt',
+                   'desktop_backup.py','lockscreen_install.py','motion_install.py','update_agent_install.py','heif_install.py','heif-requirements.txt',
                    'update_guard.py','update_guard_root.py','install_update_guard.py'):
         shutil.copy2(ROOT/helper,DEST/helper)
     extension_files={EXTENSION/p.relative_to(ROOT/'gnome-extension'):p.read_bytes()
@@ -106,6 +107,7 @@ def install():
     files=dict(extension_files)
     files.update(desktop_menu_install.prepare())
     files.update(motion_install.files())
+    files.update(update_agent_install.files())
     files.update(lockscreen_install.files())
     files.update(snipping_install.files(snipping_binary))
     audio_extension=HOME/'.local/share/gnome-shell/extensions/zorin11-audio@zorin-os-fixes'
@@ -165,6 +167,7 @@ def install():
     snipping_install.shortcut()
     snipping_install.record_shortcut()
     subprocess.run(['systemctl','--user','daemon-reload'],check=True)
+    subprocess.run(['systemctl','--user','enable','--now','zorin11-update-agent.service'],check=True)
     # A running Python daemon keeps its old preset catalog after files are upgraded.
     subprocess.run(['systemctl','--user','try-restart','zorin11-audio-effects.service'],check=True)
     subprocess.run(['systemctl','--user','enable','--now','zorin11-thumbnail-cache.timer'],check=True)
@@ -209,6 +212,7 @@ def restore():
     snipping_install.restore_shortcut()
     snipping_install.restore_record_shortcut()
     subprocess.run(['systemctl','--user','disable','--now','zorin11-audio-effects.service'],capture_output=True)
+    subprocess.run(['systemctl','--user','disable','--now','zorin11-update-agent.service'],capture_output=True)
     subprocess.run(['systemctl','--user','disable','--now','zorin11-thumbnail-cache.timer'],capture_output=True)
     subprocess.run(['systemctl','--user','stop','zorin11-thumbnail-cache.service'],capture_output=True)
     subprocess.run(['systemctl','--user','disable','--now',lockscreen_install.UNIT+'.timer'],capture_output=True)

@@ -62,5 +62,8 @@ with tempfile.TemporaryDirectory() as temp:
     def test_layout_uses_detected_monitors_and_keeps_wallpaper(self):
         changes=gnome_setup.appearance(['panel-a','panel-b'])
         self.assertEqual(set(json.loads(changes[gnome_setup.TASKBAR]['panel-element-positions'])),{'panel-a','panel-b'})
+        positions=json.loads(changes[gnome_setup.TASKBAR]['panel-element-positions'])['panel-a']
+        self.assertEqual(next(p['position'] for p in positions if p['element']=='taskbar'),'centered')
+        self.assertEqual(next(p['position'] for p in positions if p['element']=='rightBox'),'stackedBR')
         self.assertFalse(any('picture-uri' in entries for entries in changes.values()))
 if __name__=='__main__':unittest.main()
