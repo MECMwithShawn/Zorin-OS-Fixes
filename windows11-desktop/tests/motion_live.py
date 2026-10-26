@@ -34,7 +34,7 @@ export default class Test extends Base {
  if(p.battery!==undefined){this._power={get_cached_property:()=>new GLib.Variant('b',p.battery)};this._refresh();}
  if(p.fullscreen!==undefined){const w=global.get_window_actors().map(a=>a.meta_window).find(w=>w.get_title()==='Taskbar motion');if(w){p.fullscreen?w.make_fullscreen():w.unmake_fullscreen();}}
  if(p.menu){Main.panel.statusArea.quickSettings.menu.open();this._menus[0].tile.menu.open();}
- return JSON.stringify({layout:this._panels.map(r=>{const a=r.entry.allocationMap?.taskbar?.actor,t=r.panel._rightBox;return a?{appX:a.get_transformed_position()[0],appWidth:a.width,trayX:t.get_transformed_position()[0],trayWidth:t.width,panelWidth:r.panel.width}:null;}),startup:this._settings.get_boolean('apply-at-startup'),startupMenus:this._menus.map(m=>m.startup.state),emptyStartup:this.emptyStartup,contextMenus:this._panels.map(r=>r.entry.showAppsIconWrapper?._menu?._getMenuItems().map(i=>i.label?.text).filter(Boolean)),timer:!!this._timer,preset:this._config.preset,tiles:this._menus.length,
+ return JSON.stringify({layout:this._panels.map(r=>{const a=r.entry.allocationMap?.taskbar?.actor,t=r.panel._rightBox;return a?{appX:a.get_transformed_position()[0],appWidth:a.width,trayX:t.get_transformed_position()[0],trayWidth:t.width,panelX:r.panel.get_transformed_position()[0],panelWidth:r.panel.width}:null;}),startup:this._settings.get_boolean('apply-at-startup'),startupMenus:this._menus.map(m=>m.startup.state),emptyStartup:this.emptyStartup,contextMenus:this._panels.map(r=>r.entry.showAppsIconWrapper?._menu?._getMenuItems().map(i=>i.label?.text).filter(Boolean)),timer:!!this._timer,preset:this._config.preset,tiles:this._menus.length,
   subtitle:this._menus[0]?.tile.subtitle,checked:this._menus[0]?.tile.checked,
   panels:this._panels.filter(r=>!r.dead).map(r=>({visible:r.moving,mapped:r.actor.mapped,reason:r.reason,focus:this._focus(r,r.actor.width),
    rect:[...r.actor.get_transformed_position(),...r.actor.get_transformed_size()],panel:[r.panel.width,r.panel.height],reactive:r.actor.reactive,layers:r.panel.get_children().filter(c=>c.name==='zorin11-motion-layer').length})),
@@ -123,9 +123,17 @@ def session(temp,output):
             for r in rows:assert 0<=r['appWidth']<=r['panelWidth'] and r['appX']+r['appWidth']<=r['trayX']+1,rows
             return rows
         small=layout(96,0)
+        one_more=layout(144,0)
+        for a,b in zip(small,one_more):
+            assert abs((b['appWidth']-a['appWidth'])-48)<2,(a,b)
+            assert abs((b['appX']-a['appX'])+24)<2,(a,b)
+        # The complete Start/apps group, including the leftBox, stays at the
+        # monitor center; adding a tray icon must not move a fitting app group.
+        tray_more=layout(96,1)
+        assert all(abs(a['appX']-b['appX'])<2 for a,b in zip(small,tray_more)),(small,tray_more)
         many=layout(2000,0)
         assert all(b['appWidth']>a['appWidth'] for a,b in zip(small,many)),(small,many)
-        crowded=layout(2000,10)
+        crowded=layout(2000,4)
         assert all(b['trayWidth']>a['trayWidth'] and b['appWidth']<a['appWidth'] for a,b in zip(many,crowded)),(many,crowded)
         restored=layout(2000,0)
         assert all(abs(a['appWidth']-b['appWidth'])<2 for a,b in zip(many,restored)),(many,restored)

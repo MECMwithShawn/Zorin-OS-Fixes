@@ -452,3 +452,11 @@ These snapshots provide selective recovery, not automatic repair after every OS 
 - Installed only app.py, notifications.py and the rebuilt main.js/main.css bundle; backed up their previous versions in the configured OneDrive Windows 11 Desktop Backups folder. Restarted only the companion after checking Explorer had one OneDrive tab, an empty search and no transfer/dialog indicators. Reopened that tab and restored its geometry. Explorer/OneDrive support-module hashes remained unchanged. The restart also loaded the earlier Alt+Tab modifier fix.
 - Installed UI: a temporary local notification verified plain text, focused Cancel, cancellation/focus restoration and retained history. Removed only that test notification. No real notifications were cleared.
 - OneDrive reports up_to_date, pending 0, no issues after the backup and restart. Sign-out/login, Wi-Fi after sleep, and suspend tests remain deferred; the app lifecycle PR remains draft.
+
+
+### October 26: monitor-centered taskbar and update status
+
+- Restored native monitor-centered app placement. Private two-monitor GNOME/Wayland checks verify that adding one 48 px item grows the app area by 48 px and moves its left edge by 24 px; adding a tray item leaves the fitting app group in place. Growth, constrained scrolling space, shrinkage and non-overlap passed with four additional tray items. Extremely crowded trays remain subject to Zorin's native allocation limits.
+- Update alerts rearm after a clear inventory, allowing a subsequent identical restart-required condition to notify again. Schedule status reads the saved policy without changing an unsaved form. Fourteen updater unit tests, eight GNOME setup tests and the private GTK interface test passed.
+- Applied centering to the existing laptop and Dell profiles; installed only updater Python files and the matching setup defaults. The live updater window shows the daily 03:00 policy and retains its tray-only taskbar behavior. The root scheduling policy was unchanged.
+- OneDrive remained active and synced; its executable and the companion app/frontend were unchanged. No sign-out, sleep or reboot testing was performed.

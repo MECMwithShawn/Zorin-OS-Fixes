@@ -113,6 +113,9 @@ class App(Gtk.Application):
             text = 'Restart required' if report['reboot'] else f'{count} package updates available' if count else 'No pending APT updates'
             self.summary.set_label(text)
             self.indicator.set_icon_full('software-update-urgent' if report['reboot'] else 'software-update-available' if count else str(ROOT/'update.svg'), text)
+            if model.clear_notification(report, self.prefs):
+                self.save_prefs()
+                self.withdraw_notification('updates')
             note = model.notification(report, self.prefs)
             if note:
                 key, title, body = note
@@ -284,7 +287,7 @@ class App(Gtk.Application):
             report=self.report; packages=report['packages']
             security=sum(p['security'] for p in packages)
             self.headline.set_text('Restart required — restart when you are ready' if report['reboot'] else f'{len(packages)} package updates available' if packages else 'No pending APT updates')
-            self.details.set_text(f"Inventory checked: {date(report['checked'])}\nLast successful repository refresh: {date(report['refreshed'])}\n{security} security updates · {sum(p['held'] for p in packages)} held packages · Zorin background installs currently {'enabled' if report['system_auto'] else 'disabled'}")
+            self.details.set_text(f"Inventory checked: {date(report['checked'])}\nLast successful repository refresh: {date(report['refreshed'])}\n{security} security updates · {sum(p['held'] for p in packages)} held packages\n{model.policy_summary(read_json(scheduler.CONFIG, scheduler.DEFAULT), report['system_auto'])}")
             self.packages.set_text('\n'.join(p['name']+' → '+p['version']+(' · security' if p['security'] else '')+(' · held' if p['held'] else '') for p in packages[:100])+ ('\n…See the native updater for all packages.' if len(packages)>100 else '') or 'No package upgrades in the current APT cache.')
         history=read_json(scheduler.STATE/'history.json',[])
         self.history.set_text('\n'.join(date(row['time'])+' · '+row['message'] for row in reversed(history[-12:])) or 'No Axentra scheduled runs yet. Existing Zorin updates are recorded by the native updater.')
