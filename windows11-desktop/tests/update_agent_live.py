@@ -38,6 +38,11 @@ def session(folder):
     app.mode.set_active_id('weekly');assert app.day.get_sensitive()
     app.day.set_active_id('Sat');app.hour.set_value(9);app.minute.set_value(25)
     app.scope.set_active_id('all')
+    # A background policy refresh must not discard the user's unsaved controls.
+    agent.scheduler.CONFIG.write_text(json.dumps(dict(agent.scheduler.DEFAULT,mode='daily',scope='all',hour=3)))
+    app.render()
+    assert 'Daily at 03:00' in app.details.get_text()
+    assert app.mode.get_active_id()=='weekly' and app.hour.get_value_as_int()==9
     commands=[]
     def run(command,**kwargs):
         commands.append(command)

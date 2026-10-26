@@ -65,6 +65,26 @@ class UpdateAgentTests(unittest.TestCase):
         self.assertEqual(model.notification(report,dict(notified=note[0]),100)[1],'Restart required')
         self.assertIsNone(model.notification(dict(packages=[],reboot=False),{},100))
 
+    def test_resolved_restart_rearms_identical_alert(self):
+        report=dict(packages=[],reboot=True)
+        prefs=dict(notified=model.notification(report,{})[0],notifications=True)
+        self.assertIsNone(model.notification(report,prefs))
+        self.assertTrue(model.clear_notification(dict(packages=[],reboot=False),prefs))
+        self.assertIsNotNone(model.notification(report,prefs))
+        self.assertTrue(prefs['notifications'])
+        self.assertFalse(model.clear_notification(report,prefs))
+
+    def test_policy_summary_reflects_active_scheduler(self):
+        config=dict(s.DEFAULT,mode='daily',scope='all',hour=3,minute=0)
+        text=model.policy_summary(config,False,100)
+        self.assertIn('Daily at 03:00',text)
+        self.assertIn('all repository updates',text)
+        self.assertIn('no automatic restart',text)
+        self.assertNotIn('disabled',text)
+        self.assertIn('Paused until',model.policy_summary(dict(config,paused_until=200),False,100))
+        self.assertIn('Manual updates',model.policy_summary(dict(config,mode='manual')))
+        self.assertIn('Zorin manages',model.policy_summary(dict(config,mode='system')))
+
     def test_installer_only_owns_new_files_and_signout_scopes_tray(self):
         with tempfile.TemporaryDirectory() as folder:
             home=Path(folder);files=update_agent_install.files(home)
