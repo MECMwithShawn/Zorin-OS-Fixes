@@ -3,6 +3,22 @@
 **GNOME is the primary desktop.** The same installer detects Zorin 18 GNOME or Zorin Lite/Xfce and installs the matching integration. The shared companion provides the Windows 11-style Start menu, File Explorer, Settings, Quick Settings, notification/calendar flyout, Desktop Groups and multitasking UI.
 
 
+## Axentra Update (GNOME)
+
+**Axentra Update** adds an update tray icon near the clock, notifications, a package inventory, restart-required status and daily/weekly automatic update schedules. Open it from the tray or Start. Its header uses the installed Zorin OS logo alongside Axentra branding. It starts in the tray without an open window; the settings window requests no main-taskbar or pager entry. This small GTK window uses XWayland on Wayland sessions because GNOME ignores those hiding hints on native Wayland windows. **Check for updates** refreshes repository metadata through Zorin's authenticated APT service; **Review / install updates** opens the native Zorin updater. Background inventory reads the existing APT cache every 30 minutes and displays the last repository refresh separately. Repeated notifications for the same package versions are suppressed, with notification mute and tray-at-sign-in controls.
+
+Install the tray with `python3 update_agent_install.py`. New full GNOME installations include it. **Settings → Software Update → Check for software updates** opens the same Axentra Update window; Software sources and Additional drivers remain native Zorin tools. The existing companion picks up this launch route when its process next starts. Installation preserves the current Zorin policy, including existing automatic security updates. **Save update policy…** authenticates through PolicyKit and supports:
+
+- **System managed:** retain Zorin's existing automatic update configuration. Returning to this mode removes only Axentra's scheduling override.
+- **Manual:** notify about updates and disable APT's periodic unattended installation.
+- **Automatic / Scheduled:** daily or weekly local-time installs, with either the existing unattended policy (normally security updates) or all configured repository upgrades without removals. Package holds remain respected. Pause for seven days or resume from the same controls.
+
+Scheduled updates use a root-owned helper and systemd timer, wait for AC power and an unmetered connection, retry deferred/missed runs every 30 minutes, and inhibit sleep/shutdown during package work. They do not reboot automatically. Saving a new schedule can trigger a missed run. No schedule is activated until it is explicitly saved and authenticated. Changing a policy or stopping the tray does not cancel a package transaction already in progress. System-managed updates retain their original Zorin behavior.
+
+The existing `/etc/apt/apt.conf.d/99axentra-desktop-guard` hooks remain mandatory for Axentra automatic installs: a verified desktop snapshot must succeed before dpkg changes packages, followed by deferred layout repair. OneDrive/Explorer are not replaced. User tray files and preferences are included in desktop backups; root scheduler files are reference-only and require authenticated reinstallation/configuration. The tray follows `graphical-session.target` and exits at sign-out; schedules run independently. To remove managed scheduling, save **System managed** before uninstalling the theme.
+
+This agent manages APT packages. Flatpak, app stores and firmware continue using their existing updaters. Scheduled-run history is shown in the window; detailed administrator logs are in `/var/log/axentra-update-agent.log` and `journalctl -u axentra-update-agent.service`. Installer/model tests and an isolated GTK test cover the controls; package installation is deliberately not triggered during UI testing.
+
 ## Fractional scaling on hybrid graphics
 
 On the tested Intel/NVIDIA laptop, GNOME X11 at laptop 125% / external 100% produces a cropped external display even though the reported native modes and screenshot look correct. Do not use a successful settings readback alone to confirm scaling: check all four edges on the physical screens. This matches the [X11 PRIME transform issue documented by NVIDIA](https://forums.developer.nvidia.com/t/450-75-with-reverse-prime-xrandr-scale-2x2-does-not-work-renders-only-1-4-of-screen-problem-with-nvidia-settings/142424).
@@ -51,6 +67,8 @@ For an existing installation, run `python3 lockscreen_install.py` from this dire
 Checks: `/usr/bin/python3 -m unittest discover -s tests -p test_lockscreen.py` and `/usr/bin/python3 tests/lockscreen_live.py`. The latter uses a private two-monitor GNOME 46 Wayland session and renders native authentication widgets without submitting credentials or locking the real session. Physical unlock, sign-out and suspend checks must be done separately when the user is ready.
 
 
+**Adaptive taskbar space:** the app group uses Zorin’s native `centered` placement within the space remaining beside the tray. Adding or removing apps and tray indicators recalculates their widths and shifts the app group as needed, avoiding the wasted mirrored gap created by `centerMonitor`. The tray stays on the right; app icons use native scrolling only when the available screen width is exhausted. No vendor allocation code is replaced. A private two-monitor Wayland test covers growth, shrinkage and non-overlap.
+
 **Taskbar motion:** right-click an empty part of the taskbar and choose **Taskbar motion…**. This opens the combined **Taskbar settings → Motion** page. You can also use **Settings → Personalization → Taskbar → Motion**, or search **Taskbar settings** in Start. Five subtle presets are available: Aurora drift, Breathing glow, Light sweep, Edge ribbon and Active app halo, plus Off. The native dark customization window includes a live preview, accent color, intensity (5–50%) and cycle time (8–40 seconds). **Apply to taskbar** saves the previewed preset, accent, intensity and pause preferences and updates the loaded extension. **Revert changes** discards an unapplied preview; Restore defaults also waits for Apply. Closing the window discards unapplied changes. Quick Settings preset selections remain immediate. After the add-on loads, the native GNOME Quick Settings menu also offers a Taskbar motion tile and preset menu. Aurora drift defaults to 20% intensity and a 20-second cycle.
 
 **Apply at startup** is enabled by default. It restores the saved preset, accent, intensity and timing when you sign in. Turn it off and Apply to keep motion manual on future sign-ins; Apply still starts the chosen preset for the current session, even if the preset is unchanged. The same switch is available in Quick Settings → Taskbar motion. Turning startup off does not erase the preset or stop an already-running effect; choose Off to stop now. The extension waits for late-created Zorin panels and keeps manual activation across extension/lock cycles.
@@ -69,7 +87,7 @@ Alt+Tab also refreshes only visible, nonminimized window and Snap Group previews
 
 | Component | Integration |
 |---|---|
-| Taskbar | Dark blue appearance, Win11 icons, 48 px bottom taskbar, centered Start/Search/Task View/app area, native running-app indicators/previews and notification badges, app-reported progress bars, narrow Show desktop/hover-peek strip |
+| Taskbar | Dark blue appearance, Win11 icons, 48 px bottom taskbar, Start/Search/Task View/apps centered within available space, native running-app indicators/previews and notification badges, app-reported progress bars, narrow Show desktop/hover-peek strip |
 | Start | Opens on the primary monitor; shared Windows-style pinned apps, ordering, search, All apps, categories, recent documents/apps, desktop-entry actions, local folders and session actions |
 | Explorer / This PC | Tabs, sidebar, system drive first as Local Disk (C:), persistent display letters for other mounted drives, capacity, details view, create/rename/copy/cut/paste/trash; advanced locations open the system file manager |
 | Settings | Windows-style categories with actual device information and GNOME settings controls; advanced pages open the native tools |
