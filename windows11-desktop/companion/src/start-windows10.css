@@ -1,0 +1,48 @@
+/* Windows 10 Start layout: square acrylic panel, rail, app list and a dense tile grid. */
+.start-w10{flex-direction:row;border-radius:0;border-color:#ffffff1c}
+.start-w10:after{background:#1f1f1fe6}
+.w10-rail{flex:0 0 48px;width:48px;display:flex;flex-direction:column;justify-content:space-between;padding:4px 0;background:#1f1f1f00;z-index:30;transition:width .15s,background .15s;overflow:hidden}
+.start-w10.rail-open .w10-rail{position:absolute;inset:0 auto 0 0;width:256px;background:#2b2b2bf7;box-shadow:4px 0 18px #0008}
+[data-reduced-motion] .w10-rail{transition:none}
+.w10-rail-bottom{display:flex;flex-direction:column}
+.w10-rail-button{display:flex;align-items:center;gap:16px;width:256px;height:48px;padding:0 15px;border-radius:0;color:#f2f2f2;font-size:13px;flex-shrink:0;text-align:left}
+.w10-rail-button>svg,.w10-rail-button>.avatar{flex-shrink:0}
+.w10-rail-button .avatar{width:20px;height:20px;margin-left:-1px}
+.w10-rail-button span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w10-rail-button:hover,.w10-rail-button:focus-visible,.w10-rail-button[aria-expanded=true]{background:#ffffff1a;outline:none}
+.w10-content{flex:1;min-width:0;display:flex;flex-direction:column;padding:10px 0 0}
+.w10-search{margin:0 16px 8px 8px;height:34px;min-height:34px;border-radius:0;border:1px solid #ffffff20;border-bottom:2px solid #0078d7;background:#2b2b2b}
+.w10-columns{flex:1;min-height:0;display:flex}
+.w10-search-results{flex:1;min-height:0;display:flex;flex-direction:column;padding:4px 16px 12px 8px}
+.w10-list{flex:0 0 264px;min-height:0;overflow-y:auto;padding:0 4px 12px 0;scrollbar-width:thin}
+.w10-heading{font-size:13px;font-weight:400;color:#f2f2f2;margin:12px 12px 6px}
+.w10-item{display:flex;align-items:center;gap:12px;width:100%;min-height:36px;padding:2px 12px;border-radius:0;color:#f2f2f2;font-size:13px;text-align:left}
+.w10-item .app-icon{width:28px;height:28px;padding:2px;background:#0078d7;box-sizing:border-box}
+.w10-item span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w10-item:hover,.w10-item:focus-visible{background:#ffffff1a;outline:none}
+.w10-letter{min-height:32px;margin-top:6px;font-size:14px;font-weight:600;color:#f2f2f2}
+.w10-letter-grid{display:grid;grid-template-columns:repeat(4,48px);gap:4px;justify-content:center;padding:24px 0}
+.w10-letter-grid button{height:48px;font-size:18px;color:#f2f2f2;border-radius:0;justify-content:center}
+.w10-letter-grid button:hover,.w10-letter-grid button:focus-visible{background:#ffffff1a;outline:2px solid #ffffff40}
+.w10-letter-grid button:disabled{color:#ffffff40;cursor:default;background:none}
+.w10-tiles{flex:1;min-width:0;overflow-y:auto;padding:0 16px 16px 12px}
+.w10-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,48px);grid-auto-rows:48px;grid-auto-flow:row dense;gap:4px}
+.w10-tile{position:relative;min-width:0;min-height:0}
+.w10-small{grid-column:span 1;grid-row:span 1}
+.w10-medium{grid-column:span 2;grid-row:span 2}
+.w10-wide{grid-column:span 4;grid-row:span 2}
+.w10-large{grid-column:span 4;grid-row:span 4}
+.w10-tile .app-tile{width:100%;height:100%;padding:6px;border-radius:0;background:#0078d7cc;border:2px solid transparent;justify-content:center;align-items:center;gap:0}
+.w10-tile .app-tile:hover,.w10-tile .app-tile:focus-visible{border-color:#ffffff66;background:#0a84e0d9;outline:none}
+.w10-tile .app-tile>span:last-child{position:absolute;left:8px;right:8px;bottom:5px;text-align:left;font-size:11px;line-height:14px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-height:none}
+.w10-tile .app-icon{width:32px;height:32px}
+.w10-small .app-tile>span:last-child{display:none}
+.w10-small .app-icon{width:24px;height:24px}
+.w10-large .app-icon{width:56px;height:56px}
+.w10-tile .start-folder-icon{width:40px;height:40px;max-height:40px;background:#ffffff26}
+.w10-small .start-folder-icon{width:30px;height:30px;padding:2px;gap:1px}
+.start-w10 .w10-tiles .empty{color:#bdbdbd;font-size:12px;margin:8px 0}
+.start-w10 .session-menu{bottom:8px;left:52px;right:auto;border-radius:0}
+.context-sizes{display:flex;gap:2px;padding:4px 4px 2px;border-top:1px solid #ffffff14;margin-top:3px}
+.context-menu .context-sizes button{flex:1;justify-content:center;padding:6px 4px;font-size:11px}
+.context-sizes button[aria-pressed=true]{background:#60cdff26;color:#fff}

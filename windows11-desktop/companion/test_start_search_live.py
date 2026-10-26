@@ -158,11 +158,11 @@ def verify():
         click('Restore default search folders and clear exclusions');start()
         wait('window.desktopState.documents.length===1')
         settings()
-        js('(()=>{document.querySelector("button[role=switch]").click();return true})()')
+        js('(()=>{document.querySelector("button[role=switch][aria-label=\'Show recently opened documents\']").click();return true})()')
         wait('window.desktopState.startPreferences.recentDocuments===false');start();time.sleep(.3)
         assert js('window.desktopState.documents.length')==0
         assert hub.recent_manager.has_item(file.as_uri()),'Turning suggestions off must retain desktop history'
-        settings();js('(()=>{document.querySelector("button[role=switch]").click();return true})()');start()
+        settings();js('(()=>{document.querySelector("button[role=switch][aria-label=\'Show recently opened documents\']").click();return true})()');start()
         wait('window.desktopState.documents.length===1')
         GLib.idle_add(lambda:(hub.privacy.set_boolean('remember-recent-files',False),False)[1])
         wait('window.desktopState.documents.length===0')

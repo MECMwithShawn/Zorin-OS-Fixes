@@ -52,6 +52,7 @@ export default class Zorin11 extends Extension {
         this._connect(global.display,'window-created',(_,win)=>{
             this._connect(win,'shown',()=>this._placeCompanion(win));
         });
+        this._connect(this._settings,'changed::start-button',()=>this._panels());
         this._connect(Main.layoutManager,'monitors-changed',()=>this._panels());
         if(global.zorinTaskbar)this._connect(global.zorinTaskbar,'panels-created',()=>this._panels());
         this._panels();
@@ -96,7 +97,10 @@ export default class Zorin11 extends Extension {
             for(const [i,action] of ['start','search','tasks'].entries()) {
                 const b=new PanelMenu.Button(0.5,action,true);
                 const name={start:'start.svg',search:'search.svg',tasks:'taskview.svg'}[action];
-                b.add_child(new St.Icon({gicon:Gio.icon_new_for_string(`${this.path}/${name}`),icon_size:24}));
+                // Start can use the image chosen in Search & Start settings when it still exists.
+                const custom=action==='start'?this._settings.get_string('start-button'):'';
+                const file=custom&&GLib.file_test(custom,GLib.FileTest.IS_REGULAR)?custom:`${this.path}/${name}`;
+                b.add_child(new St.Icon({gicon:Gio.icon_new_for_string(file),icon_size:24}));
                 b.connect('button-press-event',()=>{this._launch(action);return Clutter.EVENT_STOP;});
                 panel.addToStatusArea(`zorin11-${action}`,b,i,'left');this._buttons.push(b);
             }

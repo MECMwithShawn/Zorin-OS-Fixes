@@ -14,6 +14,105 @@
 - Twenty-four installer, backup and update-guard regression tests passed. Headless GNOME retains existing upstream app-grid/shutdown diagnostics; panel reconstruction can also report a first-frame decorative-layer allocation warning before the next repaint. This is not a claim that the whole desktop is warning-free. Physical display scaling, logout and suspend/resume are not tested in this pass.
 - Installed the add-on, launcher and five install/backup helper files locally through the recovery journal; all 34 prior settings originals were retained. The standalone preview is running without JavaScript errors. The taskbar extension is queued for the next normal sign-in, not claimed active in the existing Shell. A verified post-install OneDrive snapshot contains the extension and six settings. Protected application source hashes are unchanged; OneDrive reports `up_to_date`, zero pending items and no issues.
 
+## Start appearance options and full-screen margin — 2026-10-22
+
+- Phase 6 of the Start11-style work, built on the App style/Launcher/Full screen phase. `start_preferences.py` adds `transparency` (0/20/40/60), `corners` (style/rounded/square) and `button` (windows11/windows10/orb/custom). Each falls back on its own when the stored value is invalid.
+- Transparency and corners: `src/main.jsx` sets `--start-tint`, `data-start-transparent` and `data-start-corners` on Start pages only. `src/start-more.css` turns these into the tint opacity over the backdrop, a transparent base background (the Start window already uses an RGBA visual) and corner overrides that beat each style's own radius.
+- Start button: the GNOME extension (`gnome-extension/extension.js`) draws the taskbar buttons. Its schema gains `start-button`, a path where empty means the bundled icon. The extension rebuilds its buttons when the key changes, and a missing file falls back to `start.svg`. `app.py` writes the key through the installed extension's compiled schema (`EXTENSION_SCHEMAS`), only on GNOME and only when that schema has the key. It does this at startup and whenever the choice changes. Bundled images are in `companion/start-buttons/`. **Your image…** opens a native picker, rejects non-images and files over 8 MB, and saves a 64 px PNG. `zorin11://start-button/<name>` serves only the four known previews.
+- Full-screen margin fix for phase 5: the extension's `_placeCompanion` keeps companion windows at least 12 px inside the work area. A full-height Start would therefore have hung 12 px under the taskbar. Full screen now opens 24 px shorter, at `y + 12`, which matches the extension's placement. The Xvfb test has no extension, so it could not show this; the cause was found by reading `_placeCompanion`.
+- Tests:
+  - `test_start_appearance.py` (4): key mapping for each button, custom conversion and rejection with the old picture kept, Xfce and old-schema no-ops, and the preview resource refusing unknown names.
+  - `test_start_appearance_live.py`: defaults; that Settings pages aren't restyled; 40% transparency (tint 0.6, transparent base); square corners on Windows 11; rounded overriding Windows 10's square corners; back to the style defaults; the radio choices, the custom picker title and the stored picture.
+  - New `tests/start_button_live.py`: a private headless GNOME Shell 46 with the real extension and the Zorin taskbar. The companion's real `apply_start_button` switches the button between the bundled, Windows 10, orb and custom (64 px PNG) images live, and the screenshot shows the orb on the taskbar. Clearing the key, and pointing it at a missing file, both return the default. There are no JS errors.
+  - `tests/taskbar_live.py` (extension disable/enable, progress, desktop strip) and every Start, preferences, unified-search, model and native suite still pass.
+- Deployment: the installed companion and extension files matched the previous branch before replacement, and there were no Fences changes; the Fences session was notified first. Backups of the companion files, `extension.js`, the schema XML and `gschemas.compiled` are in `Windows 11 Desktop Backups/start-menu-appearance-20261022-111544`. The schemas were recompiled, and the installed key reads `''`, so the user's button is unchanged. The verified snapshot is `2026-10-22_11-16-04_ceade7c9`. All seven Start live tests passed against a copy of the installed runtime, and OneDrive reported `up_to_date`. The running GNOME Shell keeps the previous `extension.js` until the next sign-in. No sign-out, suspend or display changes were made.
+
+Reproduce from `windows11-desktop/`: `/usr/bin/python3 -m unittest companion/test_start_appearance.py`, `/usr/bin/python3 companion/test_start_appearance_live.py`, `/usr/bin/python3 tests/start_button_live.py`.
+
+## Start menu styles: App style with tabs, Launcher and Full screen — 2026-10-22
+
+- Phase 5 of the Start11-style layouts, built on the Windows 11 options phase. Stardock describes its v2 designs as follows. **Launcher** draws on mobile launchers: a prominent account icon, a modern search interface and a large application canvas. **App style** opens the All apps list by default beside a medium-sized application canvas, and Stardock lists tabs among the layout features. Start11 also offers a **full-screen** menu. The three are built from those descriptions; Stardock's binaries and artwork are not used.
+- `start_preferences.py` adds `tabbed`, `launcher` and `fullscreen`. In `app.py`, Start opens at 800×680 (tabbed) or 640×760 (launcher). Full screen takes the full work area at the work area's origin, so the taskbar stays visible.
+- `src/main.jsx`: the paged Pinned/tab section and the Recommended section are now shared helpers (`pinnedSection`, `recommendedSection`). So are the A–Z list helpers from Windows 10 (`letterOf`, `w10Row`, `letteredList`), the search input, and the account/Settings/Power buttons. The Windows 11 and Windows 10 output is unchanged. Tab context-menu entries now appear in all three tab-capable styles. The new layouts' styles are in `src/start-more.css`. Menus open under the top bars in Launcher and Full screen. The tabbed and full-screen canvases hide sideways overflow; the first build showed a stray horizontal scrollbar.
+- `test_start_more_layouts_live.py` covers:
+  - the three new style options
+  - App style with tabs: the A–Z list, the tabs, adding to a tab from the list's context menu, no All apps button or Desktop groups button, ArrowDown from search, the power menu, and the search hand-off
+  - Launcher: the chips (Pinned, All apps, Games, Productivity, Utilities) and the canvas for each, launching, the large account picture, and the account and power menus
+  - Full screen: the list, the remembered tab and switching back to Pinned, Recommended, square corners, and both menus
+  - every menu stays on screen, and no session command is sent
+
+  The Windows 10 test now expects seven style options. The Windows 11 options, Modern, Windows 10, Windows 7, Start search, preferences, unified-search, model and native suites pass.
+- Deployment: the installed files matched the Windows 11 options branch before replacement. Backups are in `Windows 11 Desktop Backups/start-menu-more-layouts-20261022-105040`, and the verified snapshot is `2026-10-22_10-50-59_30c3c9c2`. The user had hidden their desktop groups (`groups_visible` false), and they stayed hidden after the companion restarted. All six Start live tests passed against a copy of the installed runtime. OneDrive reported `up_to_date`. The style is still unset (Windows 11), so the user's Start is unchanged. No sign-out, suspend or display changes were made.
+
+Reproduce from `windows11-desktop/companion/`: `/usr/bin/python3 test_start_more_layouts_live.py --output /tmp/start-more-shots`.
+
+## Start menu styles: Windows 11 enhancements — 2026-10-22
+
+- Phase 4 of the Start11-style work, built on the Modern phase. `start_preferences.py` adds `layout` (`default` / `more-pins` / `more-recommendations`, giving rows per page and recommendation counts), `columns` (6/7/8), `showRecommended` and `tabs`. Tabs allow up to 8, each with a name of up to 40 characters and up to 200 unique app ids; the id `pinned` is reserved. Each value falls back to its default on its own when the stored value is invalid. `snapshot()` now deep-copies, so callers can't change the nested tab lists. `app.py` sends `startOptions` (tabs list only installed apps) and adds a `start-tab` Start action (create/rename/delete/add/remove/move); `add` accepts only installed app ids. Changing layout, columns or Recommended in Settings refreshes Start at once.
+- `src/main.jsx`: Pinned and named tabs share one paged grid. Pinned keeps drag, folders and reorder. Tab tiles open the shared context menu, which adds Add to / Move to first in / Remove from entries. Escape while naming a tab cancels the name through the existing dismiss chain, and a flag stops the cancelled name from being saved when the field loses focus. The Settings rows appear only when the Windows 11 style is selected.
+- The Start search live test clicked the first switch on the Settings page, which is now **Show Recommended**. It now targets **Show recently opened documents** by label.
+- `test_start_windows11_options_live.py` (20 pinned apps, 10 recent) covers:
+  - the default 3×6 page with two page dots, the page-2 click and PageUp, and 6 recommendations
+  - 8 columns with More pins (one page, 2 recommendations), and More recommendations (12 pins, 8 recommendations)
+  - Recommended off (section gone, 20 pins on one page)
+  - Escape cancelling a tab name without saving it or closing Start
+  - creating Work, adding two apps from the context menu, the tab's order, no repeated "Add to" entry, Move to first, Remove, and Rename to Office through the … button, all checked against the file on disk
+  - Delete returning to Pinned
+  - the options hiding for the Windows 10 style
+
+  `test_start_preferences.py` adds layout/columns/Recommended and tab life-cycle tests (10 tests). Every other Start suite passes.
+- Deployment: the installed files matched the Modern branch before replacement. Backups are in `Windows 11 Desktop Backups/start-menu-win11-options-20261022-104505`, and the verified snapshot is `2026-10-22_10-45-22_c15bfcea`. The companion restarted, and both desktop groups returned. All five Start live tests passed against a copy of the installed runtime. OneDrive reported `up_to_date`. The user has 13 pins, so the default 3×6 page shows all of them and their Start looks the same as before. The live Start menu was not opened by automation. No sign-out, suspend or display changes were made.
+
+Reproduce from `windows11-desktop/companion/`: `/usr/bin/python3 test_start_windows11_options_live.py --output /tmp/start-w11-shots`.
+
+## Start menu styles: Modern layout — 2026-10-22
+
+- Phase 3 of the Start11-style layouts, built on the Windows 10 phase. Start11 has no single page that describes its Modern style. Stardock's documentation and reviews describe it as the two-column Windows 7 structure (apps on the left; places and Windows features on the right) with square Windows 10 edges, a translucent background and no live tiles. That is what this phase builds. `modern` joins the styles, and Start opens at 520×640.
+- `src/main.jsx` renders Modern through the Windows 7 code path with a `modern` flag. Pinned/All apps tabs replace the All Programs button, and All apps is a flat alphabetical list instead of category folders. The search placeholder is the Windows 11 wording, and Shut down gets a power icon. `src/start-modern.css` restyles the classic classes inside `.start-modern`, so the Windows 7 look is unchanged.
+- `test_start_modern_live.py` checks:
+  - the style is saved and Start closes
+  - Pinned is selected first, there is no All Programs button, and the list order is right
+  - the panel has square corners and the programs pane is dark (computed styles)
+  - the flat All apps list, launching from it, and Shift+F10 Pin to Start with no tile sizes
+  - the Pinned tab returns, and place routing works
+  - the power menu and Escape, and Shut down sends exactly one recorded `shutdown` action
+  - ArrowUp from search, and the search hand-off (tabs are hidden while searching)
+  - switching to Windows 7 still shows its All Programs button
+
+  The Windows 10 test now expects four style options. The Windows 7, Windows 10, Start search, preferences, unified-search, model and native suites pass.
+- Deployment: the installed files matched the Windows 10 branch before replacement. Backups are in `Windows 11 Desktop Backups/start-menu-modern-20261022-103624`, and the verified snapshot is `2026-10-22_10-36-41_2bf95a79`. The companion restarted, and both desktop groups returned. All four Start live tests passed against a copy of the installed runtime. OneDrive reported `up_to_date` with nothing pending. The saved style is still unset (Windows 11). The live Start menu was not opened by automation. No sign-out, suspend or display changes were made.
+
+Reproduce from `windows11-desktop/companion/`: `/usr/bin/python3 test_start_modern_live.py --output /tmp/start-modern-shots`.
+
+## Start menu styles: Windows 10 layout — 2026-10-22
+
+- Phase 2 of the Start11-style layouts, built on the Windows 7 phase. `start_preferences.py` adds `windows10` to the styles and a `tiles` map (app id → `small`/`wide`/`large`). Medium is the default and is not stored. The map is capped at 512 entries, and invalid stored values are dropped on load. A new Start action, `start-tile-size`, saves a size and refreshes Start. Start opens at 780×680 in this style.
+- `src/main.jsx` + `src/start-windows10.css`: the layout described in the README. Tiles reuse the shared tile button, so dragging, folder creation, the context menu and app actions behave as in Windows 11. The resize choices are a button group in the shared context menu that appears only for pinned items in this style. The first build scrolled the whole Start panel when you jumped to a letter (`scrollIntoView`). It now scrolls only the app list, and the test asserts this.
+- `test_start_windows10_live.py` (Xvfb, real WebKit and `Hub.dispatch`) covers:
+  - the three style options and the switch closing Start
+  - Most used order, and A–Z/# headers
+  - the letter grid, with only populated letters enabled, and focus without scrolling the panel
+  - resizing to Wide by mouse and to Small with Shift+F10, persisted to disk, with the Small label hidden
+  - no resize choices for unpinned apps
+  - rail expansion and its labels, and Documents routing
+  - the power menu (Sleep, Shut down, Restart), with the rail collapsing when it opens; the account menu
+  - ArrowDown/End from search, the search hand-off, and switching back to Windows 11
+
+  The Windows 7, Start search, preferences, unified-search, model and native suites still pass.
+- Deployment: the installed files matched the Windows 7 branch before replacement. Backups and a restore record are in `Windows 11 Desktop Backups/start-menu-windows10-20261022-103026`, and the verified snapshot is `2026-10-22_10-30-44_e9828aba`. The companion restarted, and both desktop groups returned. All three Start live tests passed against a copy of the installed runtime. OneDrive reported `up_to_date` with nothing pending. The saved style was still unset (Windows 11), so the user's Start is unchanged. The live Start menu was not opened by automation. No sign-out, suspend or display changes were made.
+
+Reproduce from `windows11-desktop/companion/`: `/usr/bin/python3 -m unittest -v test_start_preferences.py`, then `/usr/bin/python3 test_start_windows10_live.py --output /tmp/start-w10-shots`.
+
+## Start menu styles: Windows 7 layout — 2026-10-22
+
+- Phase 1 of the Start11-style layouts. `start_preferences.py` stores a `style` (`windows11` or `windows7`) next to the search folders. Files written before this change, or with an unknown value, load as `windows11`, and **Restore default search folders** leaves the style alone. Start's payload carries `startStyle` plus `startPlaces` (home and the XDG Documents/Pictures/Music/Videos/Download folders that exist). `open-path` accepts those folders. A new `open-computer` action opens This PC. `show_start` sizes the window at 456×620 for Windows 7 and 832×864 for Windows 11.
+- `src/main.jsx` renders the Windows 7 layout from the same data, context menu, Start folder dialogs and session menu as Windows 11. Only the layout differs. Its styles are in `src/start-classic.css`.
+- The rebuilt `dist/main.js` and `main.css` were checked first: rebuilding the unchanged PR #26 source reproduced the committed bundle byte for byte, so the bundle diff contains only this change.
+- `test_start_classic_live.py` (Xvfb, private D-Bus, real WebKit and the real `Hub.dispatch`/`open_path`) picks Windows 7 in Settings and confirms the value persisted and Start closed. It also checks the pinned-then-frequent list without repeats, the category folders with nested launch, the Back button, the right-click Unpin item and the place routing (Documents, home, Computer). It covers the power menu's five items and Escape, and confirms that Shut down sends exactly one `shutdown` action. The test only records that action and never dispatches it. Finally, it checks ArrowUp/Home from search, search hand-off with All Programs hidden, and switching back to Windows 11. `test_start_preferences.py` covers persistence, migration and rejected values. `test_start_search_live.py`, `test_unified_search.py`, `test_model.py` and `test_native.py` still pass, which covers the Windows 11 layout after the shared overlays were factored out.
+- Deployment: the installed `app.py`, `start_preferences.py` and `dist/main.{js,css}` matched the PR #26 head before replacement. Backups and a restore record are in `Windows 11 Desktop Backups/start-menu-styles-20261022-102436`. Only two desktop-group panels were open, and they returned after the companion restarted. Both live tests passed again against a copy of the installed runtime. OneDrive reported `up_to_date` with zero pending/uploading/downloading items, and the verified full snapshot is `2026-10-22_10-25-37_afd5c298`. The saved style is still `windows11`, so the user's Start is unchanged until they choose Windows 7. The live Start menu was not opened by automation, in line with the shell-crash caution. No sign-out, suspend or display changes were made.
+
+Reproduce from `windows11-desktop/companion/`: `/usr/bin/python3 -m unittest -v test_start_preferences.py`, then `/usr/bin/python3 test_start_classic_live.py --output /tmp/start-classic-shots`.
+
 ## GNOME desktop icons fail-safe and restore-test isolation — 2026-10-21
 
 - Defect: the live Wayland desktop had no icons. GNOME Shell had logged `Error while trying to launch DING process` about 24,600 times since sign-in. On 2026-10-20 at 14:39, `tests/test_event_install.py` called the real `gnome_install.restore()`. That ran `desktop_menu_install.cleanup()` and the SnippingTool shortcut restore against the real home folder. It removed the desktop-menu overlay's Zorin links and compiled schema, plus both SnippingTool shortcuts. At the next sign-in the extension hooked Zorin's launcher anyway, because it checked only `app/desktopManager.js`. It then relaunched a missing `ding.js` every second.
@@ -452,3 +551,43 @@ These snapshots provide selective recovery, not automatic repair after every OS 
 - Installed only app.py, notifications.py and the rebuilt main.js/main.css bundle; backed up their previous versions in the configured OneDrive Windows 11 Desktop Backups folder. Restarted only the companion after checking Explorer had one OneDrive tab, an empty search and no transfer/dialog indicators. Reopened that tab and restored its geometry. Explorer/OneDrive support-module hashes remained unchanged. The restart also loaded the earlier Alt+Tab modifier fix.
 - Installed UI: a temporary local notification verified plain text, focused Cancel, cancellation/focus restoration and retained history. Removed only that test notification. No real notifications were cleared.
 - OneDrive reports up_to_date, pending 0, no issues after the backup and restart. Sign-out/login, Wi-Fi after sleep, and suspend tests remain deferred; the app lifecycle PR remains draft.
+
+## Start search: Apps by default and app details — 2026-10-22
+
+- Start/taskbar Search now opens on the Apps category instead of All. The other categories are one click away and keep their previous behaviour.
+- For app results, the large icon in the details pane launches the app. The pane's Open button is replaced by a details list: version, publisher, install source, package and size on disk, plus the app's desktop categories. Files and Settings keep Open / Open file location.
+- `app_details.py` resolves the selected app's `.desktop` file through `dpkg-query`, `flatpak info` or `snap info` in a worker thread, each with a 3-second timeout. User-local entries are labelled as local. It never reads `Exec` lines or launch arguments.
+- `test_search_transfer_live.py` gained checks for the Apps default, the single app result, the details list finishing loading (`aria-busy=false`), absence of the Open button for apps, and launch by clicking the preview icon. The full test (search and every transfer case) passed under Xvfb with a private D-Bus session. An earlier run failed only in the transfer section, identically on `origin/master`, while the `~/OneDrive` FUSE mount was stale. It passed once OneDrive was remounted. `test_unified_search.py` passed (6 tests).
+- A clean `origin/master` build reproduced the installed `dist/main.js` byte-for-byte before this change was built.
+
+- Installed only `app.py`, the new `app_details.py`, and the rebuilt `dist/main.js`/`main.css`, after confirming the replaced files still matched `origin/master`. Their previous copies and a restore record are in the OneDrive backup folder `start-search-apps-20261022-091747`. Restarted only the companion, with `--quit`. The user then confirmed in the real session that Search opens on Apps, the preview icon launches the app and the details list appears.
+- Caution: an automated installed check (Start `--search`, `xdotool type`, then a full AT-SPI tree walk of the companion) coincided with a GNOME Shell segfault in `libgobject` at 09:15:04. The session ended and the user signed back in. No core dump was available, so the cause is unconfirmed. Do not repeat that full AT-SPI walk against the live session; use the Xvfb fixture instead.
+- Follow-up at the user's request: a single click on an app in the left results list now launches it, as in Windows 11. Hovering an app row selects it so the details pane follows the mouse, and arrow keys still move the selection. File, folder and Settings rows keep click-to-select and double-click/Enter to open. The status line reads "Click or press Enter to open" on the Apps filter. `test_search_transfer_live.py` now checks the single-click launch; the full test passed again under Xvfb.
+
+## Fences-style desktop groups — 2026-10-22
+
+- **What changed.** Group windows are now fences:
+  - Desktop icons (X11 `text/uri-list`, as Zorin Desktop Icons offers) can be dragged in. WebKit hides drop paths from page scripts, so the WebView's GTK `drag-data-received` reads the drop.
+  - Tiles can be dragged to reorder, to move between fences, or out to the desktop or other apps.
+  - Fences snap to work-area edges and neighbouring fences.
+  - Double-click rolls a fence up, and an optional setting expands it on hover.
+  - Per-fence tint, transparency, icon size and sort.
+  - Quick-hide: double-click empty desktop. Peek: Win+Shift+F. "New fence here" in the desktop menu.
+  - Native GTK context menus, so menus can extend past small or rolled-up fences.
+  - Real MIME and launcher icons. Launchers only run when executable, which matches desktop "Allow Launching".
+- **How desktop icons are hidden.** A fenced desktop file is skipped by the desktop-icons overlay's `_drawDesktop` filter. Nothing uses `.hidden`, so Files and Explorer still list the file. The companion writes `fenced.json` with its PID. The overlay ignores the list when that process is gone or the JSON is invalid. On shutdown the companion publishes an empty list.
+- **`test_fences.py` (8 tests).** Covers style sanitising, local-only URI parsing, one-fence-per-path moves, portal rejection, reordering, positioned new fences, the fenced-list scope, atomic unchanged-skip writes, sorting and snapping. It found and fixed a duplicate when one drop repeated a path.
+- **`test_fences_live.py`** (Xvfb, private D-Bus, temporary HOME and config, real Hub/WebKit) passed:
+  - real X drag from a stand-in desktop-icon source into a fence;
+  - a WebKit tile dragged to a second fence;
+  - a tile dragged out to a stand-in desktop drop target, which received the URI and un-fenced it;
+  - tint, opacity and icon-size persistence, with unknown keys dropped;
+  - roll-up and hover expand/collapse;
+  - quick-hide and Peek in both directions;
+  - a new fence at a point opening rename (this found and fixed a message race before mount);
+  - delete returning icons;
+  - shutdown clearing the list.
+  The files were never modified.
+- **`tests/gnome_desktop_menu_live.py`** (disposable headless GNOME Shell running the real Zorin desktop): the fenced fixture file was skipped while the publishing PID lived, shown again for a dead PID, and shown for invalid JSON, and the file stayed on disk. A later stage of that script, which removes adapter links and checks the fallback relaunch, timed out in this environment. The same script fails at a similar stage on the unmodified branch. `tests/test_desktop_menu.py` passed with the new "New fence here" item.
+- **Companion unit suites.** 200 of 203 passed. The 3 `test_flyouts` notification failures also occur on the unmodified base branch. `test_ui.cjs` selectors were updated, but it was not run because Playwright is not installed here.
+

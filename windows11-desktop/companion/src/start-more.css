@@ -1,0 +1,53 @@
+/* App style with tabs, Launcher and Full screen Start layouts. */
+.list-letter{font-weight:600;margin-top:14px}
+.start-shell .w10-list .w10-item{border-radius:5px}
+
+/* App style with tabs: All apps column beside a tabbed canvas. */
+.tabbed-columns{flex:1;min-height:0;display:flex}
+.tabbed-apps{flex:0 0 272px;display:flex;flex-direction:column;min-height:0;padding:20px 0 0 16px;border-right:1px solid #ffffff10}
+.tabbed-search{margin:0 12px 8px 0}
+.tabbed-list{flex:1;min-height:0;overflow-y:auto;padding:0 8px 12px 0}
+.tabbed-canvas{flex:1;min-width:0;margin:0;padding:24px 0 16px;overflow-x:hidden}
+.start-tabbed .start-footer{padding:0 24px}
+
+/* Launcher: account header, search pill, chips and a large icon canvas. */
+.start-launcher{padding:20px 24px 0;border-radius:16px}
+.launcher-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.launcher-header .profile{max-width:70%;font-size:16px;font-weight:600;color:#f5f5f5;gap:14px}
+.launcher-header .avatar{width:52px;height:52px}
+.launcher-search{border-radius:22px;height:44px;min-height:44px;margin-bottom:14px}
+.launcher-chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none;flex-shrink:0}
+.launcher-chips button{width:auto;white-space:nowrap;padding:6px 14px;border-radius:16px;font-size:12px;color:#d6d7da;background:#ffffff0c;border:1px solid #ffffff14}
+.launcher-chips button[aria-selected=true]{background:#60cdff2e;border-color:#60cdff90;color:#fff}
+.launcher-canvas{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));grid-auto-rows:112px;gap:6px;align-content:start;padding:6px 0 20px}
+.launcher-canvas .app-icon{width:52px;height:52px}
+.launcher-canvas .app-tile{border-radius:14px}
+.launcher-canvas .app-tile span{font-size:12px}
+.launcher-canvas>.empty{grid-column:1/-1;text-align:center;color:#bdbdbd}
+.launcher-results{flex:1;min-height:0;display:flex;flex-direction:column;padding-bottom:16px}
+.start-launcher .session-menu{top:84px;bottom:auto}
+.start-launcher .session-menu.account-menu{left:24px}
+.start-launcher .session-menu:not(.account-menu){right:24px}
+
+/* Full screen: the whole work area. */
+.start-fullscreen{border-radius:0;border:0;box-shadow:none}
+.start-fullscreen:after{background:#161718e6}
+.fullscreen-header{display:flex;align-items:center;gap:24px;padding:28px 48px 12px}
+.fullscreen-search{flex:0 1 640px;margin:0 auto 0 0;height:44px;min-height:44px;border-radius:22px}
+.fullscreen-session{display:flex;align-items:center;gap:12px}
+.fullscreen-body,.fullscreen-results{flex:1;min-height:0;display:flex}
+.fullscreen-results{flex-direction:column;padding:12px 48px 32px;margin:0}
+.fullscreen-list{flex:0 0 300px;min-height:0;overflow-y:auto;padding:0 12px 32px 36px}
+.fullscreen-canvas{flex:1;min-width:0;margin:0;padding:12px 24px 32px;overflow-x:hidden}
+.fullscreen-canvas .app-icon{width:44px;height:44px}
+.fullscreen-canvas .pins{grid-auto-rows:104px}
+.start-fullscreen .session-menu{top:84px;bottom:auto}
+.start-fullscreen .session-menu.account-menu{left:auto;right:96px}
+.start-fullscreen .session-menu:not(.account-menu){right:48px}
+
+/* Shared Start appearance. The tint sits above the captured backdrop, so lowering it lets
+   the desktop (or the blurred capture on X11) show through. */
+.start-shell:after{opacity:var(--start-tint,1)}
+[data-start-transparent] .start-shell{background:transparent}
+[data-start-corners=rounded] .start-shell{border-radius:8px}
+[data-start-corners=square] .start-shell{border-radius:0}
