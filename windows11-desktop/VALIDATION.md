@@ -467,3 +467,8 @@ These snapshots provide selective recovery, not automatic repair after every OS 
 - Right-click selects the event under the pointer; blank-area clicks clear stale selection. The keyboard context menu offers Event Properties and Copy event. Double-click/Alt+Enter opens an immutable Properties snapshot; Ctrl+C copies the selected event only while the tree is focused, preserving text-control copying.
 - Six journal model/subprocess tests and the private GTK interaction suite passed. The interaction suite also passed on a private headless GNOME/Wayland compositor against both source and the installed runtime. It checks that changing selection after opening a menu cannot retarget its actions, Properties survives refresh unchanged, copying works, absent selections cannot open Properties, and existing filter/refresh/cancellation/cleanup behavior remains intact. Tests invoke GTK actions; physical mouse/key input is not injected.
 - Installed only event_viewer.py through the existing compare-safe rollback manifest. OneDrive and the shared companion/frontend remain unchanged. Sign-out, sleep and reboot tests remain deferred.
+
+
+### October 27: selectable Explorer address
+
+Real WebKit tests passed against the rebuilt repository frontend and an address-only patch of the installed customized frontend. Verified full-path selection, actual clipboard contents, Ctrl+L from Search, Escape focus restoration, Enter navigation, last-breadcrumb editing, ancestor navigation and OneDrive sidebar dispatch. Applied only the guarded address patch locally through the rollback manifest; shared app/backend, OneDrive executable and other frontend content were preserved.
