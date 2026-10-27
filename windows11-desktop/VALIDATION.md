@@ -472,3 +472,8 @@ These snapshots provide selective recovery, not automatic repair after every OS 
 ### October 27: selectable Explorer address
 
 Real WebKit tests passed against the rebuilt repository frontend and an address-only patch of the installed customized frontend. Verified full-path selection, actual clipboard contents, Ctrl+L from Search, Escape focus restoration, Enter navigation, last-breadcrumb editing, ancestor navigation and OneDrive sidebar dispatch. Applied only the guarded address patch locally through the rollback manifest; shared app/backend, OneDrive executable and other frontend content were preserved.
+
+
+### October 27: display report and hotplug refresh
+
+Six display parser/collector tests and the GTK/D-Bus fixture passed, including report clipboard contents, stale-result rejection after a monitor signal, selection retention, removal, failure/retry and cleanup. The installed helper was opened as a native Wayland window on the live session and successfully read both monitors and generated the report without configuration writes. Only display_details.py was installed through the rollback manifest; OneDrive remained synced. Sign-out and suspend/resume remain untested in this pass.

@@ -373,3 +373,6 @@ Event Viewer supports **right-click → Event Properties / Copy event**, double-
 
 
 **Copy a folder path:** click the empty address-bar space or the current (last) breadcrumb to select the full path. **Ctrl+L**, **Alt+D** or **F4** also focuses it, including from folder search. Use **Ctrl+C** to copy, Enter to navigate and Escape to return to breadcrumbs. Ancestor breadcrumbs still navigate normally. Existing customized installations can run `python3 explorer_address_install.py` for a guarded address-only bundle patch, preserving OneDrive and other local frontend integrations. Newly opened Explorer windows use the change.
+
+
+Advanced display includes **Copy display report**, with all detected displays, current/preferred resolution, scaling, orientation, desktop positions, session type and graphics diagnostics. Copy is unavailable during refresh or after an error, and monitor changes invalidate older in-flight results. It does not alter display configuration.
