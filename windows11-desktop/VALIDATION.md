@@ -591,3 +591,17 @@ These snapshots provide selective recovery, not automatic repair after every OS 
 - **`tests/gnome_desktop_menu_live.py`** (disposable headless GNOME Shell running the real Zorin desktop): the fenced fixture file was skipped while the publishing PID lived, shown again for a dead PID, and shown for invalid JSON, and the file stayed on disk. A later stage of that script, which removes adapter links and checks the fallback relaunch, timed out in this environment. The same script fails at a similar stage on the unmodified branch. `tests/test_desktop_menu.py` passed with the new "New fence here" item.
 - **Companion unit suites.** 200 of 203 passed. The 3 `test_flyouts` notification failures also occur on the unmodified base branch. `test_ui.cjs` selectors were updated, but it was not run because Playwright is not installed here.
 
+
+### October 26: monitor-centered taskbar and update status
+
+- Restored native monitor-centered app placement. Private two-monitor GNOME/Wayland checks verify that adding one 48 px item grows the app area by 48 px and moves its left edge by 24 px; adding a tray item leaves the fitting app group in place. Growth, constrained scrolling space, shrinkage and non-overlap passed with four additional tray items. Extremely crowded trays remain subject to Zorin's native allocation limits.
+- Update alerts rearm after a clear inventory, allowing a subsequent identical restart-required condition to notify again. Schedule status reads the saved policy without changing an unsaved form. Fourteen updater unit tests, eight GNOME setup tests and the private GTK interface test passed.
+- Applied centering to the existing laptop and Dell profiles; installed only updater Python files and the matching setup defaults. The live updater window shows the daily 03:00 policy and retains its tray-only taskbar behavior. The root scheduling policy was unchanged.
+- OneDrive remained active and synced; its executable and the companion app/frontend were unchanged. No sign-out, sleep or reboot testing was performed.
+
+
+### October 27: Event Viewer actions on Wayland
+
+- Right-click selects the event under the pointer; blank-area clicks clear stale selection. The keyboard context menu offers Event Properties and Copy event. Double-click/Alt+Enter opens an immutable Properties snapshot; Ctrl+C copies the selected event only while the tree is focused, preserving text-control copying.
+- Six journal model/subprocess tests and the private GTK interaction suite passed. The interaction suite also passed on a private headless GNOME/Wayland compositor against both source and the installed runtime. It checks that changing selection after opening a menu cannot retarget its actions, Properties survives refresh unchanged, copying works, absent selections cannot open Properties, and existing filter/refresh/cancellation/cleanup behavior remains intact. Tests invoke GTK actions; physical mouse/key input is not injected.
+- Installed only event_viewer.py through the existing compare-safe rollback manifest. OneDrive and the shared companion/frontend remain unchanged. Sign-out, sleep and reboot tests remain deferred.

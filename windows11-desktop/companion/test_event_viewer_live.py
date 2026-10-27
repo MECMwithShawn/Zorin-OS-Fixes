@@ -11,6 +11,36 @@ if __name__ != '__main__':
     import unittest
     raise unittest.SkipTest('Run this isolated integration test directly with python3.')
 
+if '--systemd-fixture' in sys.argv:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'tests'))
+    from gnome_live import systemd_fixture
+    systemd_fixture()
+    sys.exit()
+
+if '--wayland-host' in sys.argv:
+    root = Path(os.environ['EVENT_TEST_ROOT'])
+    children = []
+    with (root/'shell.log').open('w') as log:
+        try:
+            children.append(subprocess.Popen(['/usr/bin/python3', __file__, '--systemd-fixture'], stdout=log, stderr=log))
+            time.sleep(.3)
+            children.append(subprocess.Popen(['gnome-shell', '--headless', '--wayland',
+                '--virtual-monitor', '1400x1000', '--wayland-display', 'events-test'], stdout=log, stderr=log))
+            for _ in range(100):
+                if (root/'runtime/events-test').exists(): break
+                time.sleep(.1)
+            else: raise RuntimeError('Private Wayland compositor did not start')
+            time.sleep(1)
+            result = subprocess.run(['/usr/bin/python3', __file__, '--session'],
+                env=dict(os.environ, GDK_BACKEND='wayland', WAYLAND_DISPLAY='events-test'), timeout=40)
+        finally:
+            for child in reversed(children):
+                child.terminate()
+                try: child.wait(timeout=5)
+                except subprocess.TimeoutExpired: child.kill(); child.wait()
+    if result.returncode: print((root/'shell.log').read_text()[-3000:])
+    sys.exit(result.returncode)
+
 if '--session' not in sys.argv:
     with tempfile.TemporaryDirectory(prefix='zorin11-events-') as temp:
         root = Path(temp)
@@ -20,13 +50,20 @@ if '--session' not in sys.argv:
                    XDG_CURRENT_DESKTOP='GNOME', GIO_USE_VFS='local', GTK_USE_PORTAL='0',
                    NO_AT_BRIDGE='1', GDK_BACKEND='x11', EVENT_TEST_ROOT=temp,
                    XDG_RUNTIME_DIR=str(root/'runtime'))
-        subprocess.run(['dbus-run-session', '--', 'xvfb-run', '-a', '-s', '-screen 0 1400x1000x24',
-                        '/usr/bin/python3', __file__, '--session'], env=env, check=True, timeout=45)
+        if '--wayland' in sys.argv:
+            env.update(WAYLAND_DISPLAY='events-test', GDK_BACKEND='wayland')
+        command = (['dbus-run-session', '--', '/usr/bin/python3', __file__, '--wayland-host']
+                   if '--wayland' in sys.argv else
+                   ['dbus-run-session', '--', 'xvfb-run', '-a', '-s', '-screen 0 1400x1000x24',
+                    '/usr/bin/python3', __file__, '--session'])
+        subprocess.run(command, env=env, check=True, timeout=55)
     sys.exit()
 
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GLib
+if os.environ.get('EVENT_VIEWER_SOURCE'):
+    sys.path.insert(0, os.environ['EVENT_VIEWER_SOURCE'])
 import event_viewer
 from test_event_logs import fixture
 
@@ -114,8 +151,41 @@ try:
     assert window.copy.get_sensitive()
     window.copy.clicked()
     assert Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).wait_for_text() == detail_text()
+    # Keyboard copying is scoped to the tree; text controls retain their own copy.
+    event = Gdk.Event.new(Gdk.EventType.KEY_PRESS)
+    event.keyval, event.state = Gdk.KEY_c, Gdk.ModifierType.CONTROL_MASK
+    window.tree.grab_focus()
+    assert window.key(window, event)
+    assert Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).wait_for_text() == detail_text()
+    window.search.grab_focus()
+    assert not window.key(window, event)
+    window.tree.grab_focus()
+    assert window.popup()
+    menu = Gtk.Menu.get_for_attach_widget(window.tree)[0]
+    expected = detail_text()
+    # Changing selection after opening must not retarget the menu action.
+    window.tree.get_selection().select_path(Gtk.TreePath.new_from_indices([1]))
+    menu.get_children()[1].activate()
+    assert Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).wait_for_text() == expected
+    menu.get_children()[0].activate()
+    dialog = next(w for w in Gtk.Window.list_toplevels() if isinstance(w, event_viewer.EventProperties))
+    assert dialog.details == expected
+    menu.destroy()
     refresh()
-    assert window.selected()['id'] == 'event-1', 'Refresh lost the selection'
+    dialog.response(1)
+    assert Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).wait_for_text() == expected
+    dialog.response(Gtk.ResponseType.CLOSE)
+    window.tree.get_selection().unselect_all()
+    assert window.properties() is None and not window.popup()
+    window.tree.get_selection().select_path(Gtk.TreePath.new_from_indices([0]))
+    event.keyval, event.state = Gdk.KEY_Return, Gdk.ModifierType.MOD1_MASK
+    window.tree.grab_focus()
+    assert window.key(window, event)
+    dialog = next(w for w in Gtk.Window.list_toplevels() if isinstance(w, event_viewer.EventProperties))
+    assert dialog.details == detail_text()
+    dialog.response(Gtk.ResponseType.CLOSE)
+    refresh()
+    assert window.selected()['id'] == 'event-1' , 'Refresh lost the selection'
     window.search.set_text('DISK fixture.service')
     until(lambda: len(window.store) == 1)
     assert window.selected()['id'] == 'event-1'
