@@ -49,17 +49,33 @@ def session(output):
         assert '59.95 Hz' in [c.get_text() for grid in window.content.get_children() if isinstance(grid,Gtk.Grid) for c in grid.get_children() if isinstance(c,Gtk.Label)]
         window.refresh_button.clicked();until(lambda:not window.pending)
         assert window.selector.get_active_id()=='DP-1'
+        window.copy_button.clicked()
+        copied=Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).wait_for_text()
+        assert '125%' in copied and 'DP-1' in copied and 'eDP-1' in copied
+        assert 'diagnostic client' in copied
+        # A monitor-change signal invalidates a running collection immediately.
+        from concurrent.futures import Future
+        old=window.data
+        future=Future();future.set_result(dict(old,monitors=[]))
+        token=window.generation
+        window.schedule()
+        assert not window.copy_button.get_sensitive()
+        window.received(future,token)
+        assert window.data is old
+        until(lambda:not window.debounce and not window.pending)
+
         paint_after=time.monotonic()+.25
         until(lambda:time.monotonic()>paint_after)
         surface=window.get_window();pix=Gdk.pixbuf_get_from_window(surface,0,0,surface.get_width(),surface.get_height())
         pix.savev(str(output/'advanced-display.png'),'png',[],[])
-        outer=window.get_child();button=next(b for b in outer.get_children() if isinstance(b,Gtk.Button));button.clicked()
+        outer=window.get_child();button=next(b for b in outer.get_children() if isinstance(b,Gtk.Button) and b.get_label()=='Open display settings');button.clicked()
         until(marker.exists);assert json.loads(marker.read_text())==['display']
         state=list(fixture());state[1]=[state[1][1]];state[2]=[state[2][0]];service.state=state;service.MonitorsChanged()
         until(lambda:window.data and len(window.data['monitors'])==1 and not window.pending)
         assert window.selector.get_active_id()=='eDP-1'
         service.fail=True;service.MonitorsChanged()
         until(lambda:window.data is None and 'unavailable' in window.status.get_text())
+        assert not window.copy_button.get_sensitive()
         service.fail=False;window.refresh_button.clicked()
         until(lambda:window.data and not window.pending)
         assert all(c in ('GetCurrentState','GetResources') for c in service.calls)

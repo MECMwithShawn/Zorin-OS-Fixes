@@ -622,3 +622,20 @@ These snapshots provide selective recovery, not automatic repair after every OS 
   - no JS errors.
 - **Other suites.** `tests/test_gnome.py` (8) and `tests/test_progress_state.mjs` pass.
 
+
+
+### October 27: selectable Explorer address
+
+Real WebKit tests passed against the rebuilt repository frontend and an address-only patch of the installed customized frontend. Verified full-path selection, actual clipboard contents, Ctrl+L from Search, Escape focus restoration, Enter navigation, last-breadcrumb editing, ancestor navigation and OneDrive sidebar dispatch. Applied only the guarded address patch locally through the rollback manifest; shared app/backend, OneDrive executable and other frontend content were preserved.
+
+
+### October 27: display report and hotplug refresh
+
+Six display parser/collector tests and the GTK/D-Bus fixture passed, including report clipboard contents, stale-result rejection after a monitor signal, selection retention, removal, failure/retry and cleanup. The installed helper was opened as a native Wayland window on the live session and successfully read both monitors and generated the report without configuration writes. Only display_details.py was installed through the rollback manifest; OneDrive remained synced. Sign-out and suspend/resume remain untested in this pass.
+
+
+### October 27: nonblocking GNOME background window tracking
+
+- Six tracking tests cover coalescing, closure/focus/workspace events, newer explicit snapshots, failures/retries, late shutdown replies and newly tracked windows. A private real D-Bus service delays responses while the GTK main-loop heartbeat continues; request bounding and cancellation passed.
+- Disposable native Wayland windows passed all six snap layouts on both monitors, live thumbnail capture and original-geometry restoration. Alt+Tab forward/reverse, activation, Escape, live/group/minimized previews, closed-window cleanup and queued-capture lifecycle passed against source and installed runtime. These checks do not simulate sign-out or suspend.
+- Installed only gnome_bridge.py through the rollback manifest. Refreshed the companion background service after confirming it had no visible windows; its app/frontend and the OneDrive executable were preserved. Foreground bridge commands/explicit refreshes remain synchronous.
