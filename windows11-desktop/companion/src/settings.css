@@ -6,3 +6,10 @@
 .settings-shell select{-webkit-appearance:none;appearance:none;background-color:#373737;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='m1 1 4 4 4-4' fill='none' stroke='%23ddd'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;color-scheme:dark;box-shadow:none}.settings-shell option{background:#303030;color:#f5f5f5}
 
 .settings-search-folders{margin:24px 0}.settings-search-folders .setting-row-text{min-width:0}.settings-search-folders .setting-row-text small{overflow-wrap:anywhere}
+.settings-start-buttons [role=radiogroup]{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.settings-start-buttons [role=radio]{display:flex;flex-direction:column;align-items:center;gap:6px;width:96px;padding:10px 6px;border-radius:6px;border:1px solid #ffffff14;background:#ffffff08;font-size:12px}
+.settings-start-buttons [role=radio][aria-checked=true]{border-color:#60cdff;background:#60cdff1f}
+.settings-start-buttons img,.start-button-placeholder{width:32px;height:32px;object-fit:contain}
+.start-button-placeholder{display:flex;align-items:center;justify-content:center;font-size:22px;color:#c9cbd0}
+.start-button-placeholder:before{content:"+"}
+.settings-nav-badge{width:8px;height:8px;border-radius:50%;background:var(--accent);margin-left:auto}

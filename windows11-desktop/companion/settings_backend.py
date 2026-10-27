@@ -222,6 +222,16 @@ def apply(name,value):
     else:raise ValueError('Unknown setting.')
 
 
+def update_status():
+    """Axentra Update's last inventory, or None before its first check."""
+    try:value=json.loads((Path.home()/'.config/zorin11-hub/update-status.json').read_text())
+    except (OSError,ValueError):return None
+    if not isinstance(value,dict):return None
+    try:return {'count':max(0,int(value.get('count',0))),'security':max(0,int(value.get('security',0))),
+                'reboot':value.get('reboot') is True,'checked':int(value.get('checked',0))}
+    except (TypeError,ValueError):return None
+
+
 def launch(tool):
     if tool not in TOOLS:raise ValueError('Unknown settings tool.')
     command=TOOLS[tool]

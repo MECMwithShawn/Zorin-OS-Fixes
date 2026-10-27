@@ -137,7 +137,7 @@ def verify():
     global exit_code
     try:
         assert ready.wait(8);time.sleep(.2)
-        assert js('document.querySelectorAll(".flyout-tile-wrap").length')==8
+        assert js('document.querySelectorAll(".flyout-tile-wrap").length')==9
         capture('quick-settings.png')
         click('Battery saver');wait('window.desktopState.batterySaver===true&&!window.desktopState.busy')
         assert power.state['ActiveProfile']=='power-saver'

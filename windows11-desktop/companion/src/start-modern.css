@@ -1,0 +1,38 @@
+/* Modern layout: the classic two columns in a dark, square Windows 10 skin. */
+.start-modern{border-radius:0;border-color:#ffffff1c;padding:0;gap:0;box-shadow:0 8px 30px #0008}
+.start-modern:after{background:#1f1f1fe8}
+.start-modern .classic-left{flex:0 0 60%;gap:0;padding:8px 0 10px 8px}
+.start-modern .classic-programs{background:none;border:0;box-shadow:none;border-radius:0;color:#f2f2f2}
+.start-modern .classic-list{padding:2px 4px 6px 0;scrollbar-width:thin}
+.start-modern .classic-list hr{background:#ffffff18;margin:6px 10px}
+.start-modern .classic-item{color:#f2f2f2;border-radius:0;border:0;min-height:38px;padding:3px 10px}
+.start-modern .classic-item .app-icon{width:28px;height:28px}
+.start-modern .classic-item:hover,.start-modern .classic-item:focus-visible{background:#ffffff1a;border:0}
+.start-modern .classic-folder-icon{color:#ffd66b}
+.start-modern .classic-programs .empty{color:#bdbdbd}
+.modern-tabs{display:flex;gap:2px;margin:0 8px 6px 0;border-bottom:1px solid #ffffff14}
+.modern-tabs button{flex:1;justify-content:center;padding:9px 6px;font-size:13px;color:#cfcfcf;border-radius:0;border-bottom:2px solid transparent;margin-bottom:-1px}
+.modern-tabs button:hover,.modern-tabs button:focus-visible{background:#ffffff12;outline:none;color:#fff}
+.modern-tabs button[aria-selected=true]{color:#fff;border-bottom-color:#0078d7}
+.start-modern .classic-search{margin:8px 8px 0 0;border-radius:0;background:#2b2b2b;color:#cfcfcf;border:1px solid #ffffff20;border-bottom:2px solid #0078d7}
+.start-modern .classic-search input{color:#f2f2f2}
+.start-modern .classic-search input::placeholder{color:#a8a8a8;font-style:normal}
+.start-modern .classic-search .icon-button{color:#cfcfcf}
+.start-modern .classic-programs .unified-search{padding:4px 8px 4px 0}
+.start-modern .classic-programs .search-filters button{color:#f2f2f2;background:#ffffff0d;border-color:#ffffff1c}
+.start-modern .classic-programs .search-filters button[aria-pressed=true]{background:#0078d740;border-color:#0078d7}
+.start-modern .classic-programs .unified-result{color:#f2f2f2}
+.start-modern .classic-programs .unified-result.selected{background:#ffffff14;box-shadow:inset 3px 0 #0078d7}
+.start-modern .classic-programs .unified-result small,.start-modern .classic-programs .unified-status,.start-modern .classic-programs .search-scope{color:#bdbdbd}
+.start-modern .classic-right{background:#ffffff08;border-left:1px solid #ffffff10;padding:14px 8px 10px}
+.start-modern .classic-picture{border-radius:50%;width:56px;height:56px;background:#3a3a3a;border:0;box-shadow:none;color:#e6e6e6}
+.start-modern .classic-picture img{border-radius:50%}
+.start-modern .classic-place{border-radius:0;border:0;text-shadow:none;color:#f2f2f2}
+.start-modern .classic-place:hover,.start-modern .classic-place:focus-visible{background:#ffffff1a;border:0}
+.start-modern .classic-places hr{background:#ffffff18}
+.start-modern .classic-power{align-self:stretch}
+.start-modern .classic-power button{border-radius:0;text-shadow:none;background:#ffffff10;border:0;display:flex;align-items:center;gap:8px}
+.start-modern .classic-power .classic-shutdown{flex:1;justify-content:flex-start}
+.start-modern .classic-power button:hover,.start-modern .classic-power button:focus-visible,.start-modern .classic-power-more[aria-expanded=true]{background:#ffffff24}
+.start-modern .classic-power .classic-power-more{border-left:1px solid #1f1f1f}
+.start-modern .session-menu.classic-menu{border-radius:0;bottom:48px;right:8px}

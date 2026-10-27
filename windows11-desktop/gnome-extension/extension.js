@@ -9,6 +9,7 @@ import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extension
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import {TaskbarProgress} from './taskbar-progress.js';
+import {TaskbarCentering} from './taskbar-centering.js';
 
 const XML = `<node><interface name="local.zorin11.Gnome">
 <method name="Call"><arg direction="in" type="s"/><arg direction="out" type="s"/></method>
@@ -52,10 +53,12 @@ export default class Zorin11 extends Extension {
         this._connect(global.display,'window-created',(_,win)=>{
             this._connect(win,'shown',()=>this._placeCompanion(win));
         });
+        this._connect(this._settings,'changed::start-button',()=>this._panels());
         this._connect(Main.layoutManager,'monitors-changed',()=>this._panels());
         if(global.zorinTaskbar)this._connect(global.zorinTaskbar,'panels-created',()=>this._panels());
         this._panels();
         this._taskbarProgress=new TaskbarProgress();
+        this._taskbarCentering=new TaskbarCentering(this._settings);
     }
     _syncMenu() {
         const menu=Main.extensionManager.lookup('zorin-menu@zorinos.com')?.stateObj;
@@ -96,7 +99,10 @@ export default class Zorin11 extends Extension {
             for(const [i,action] of ['start','search','tasks'].entries()) {
                 const b=new PanelMenu.Button(0.5,action,true);
                 const name={start:'start.svg',search:'search.svg',tasks:'taskview.svg'}[action];
-                b.add_child(new St.Icon({gicon:Gio.icon_new_for_string(`${this.path}/${name}`),icon_size:24}));
+                // Start can use the image chosen in Search & Start settings when it still exists.
+                const custom=action==='start'?this._settings.get_string('start-button'):'';
+                const file=custom&&GLib.file_test(custom,GLib.FileTest.IS_REGULAR)?custom:`${this.path}/${name}`;
+                b.add_child(new St.Icon({gicon:Gio.icon_new_for_string(file),icon_size:24}));
                 b.connect('button-press-event',()=>{this._launch(action);return Clutter.EVENT_STOP;});
                 panel.addToStatusArea(`zorin11-${action}`,b,i,'left');this._buttons.push(b);
             }
@@ -220,6 +226,7 @@ export default class Zorin11 extends Extension {
     }
     disable() {
         this._taskbarProgress?.destroy();this._taskbarProgress=null;
+        this._taskbarCentering?.destroy();this._taskbarCentering=null;
         this._injections?.clear();
         for(const {settings,key,before} of this._bindingChanges || [])if(settings.get_strv(key).length===0)settings.set_value(key,before);
         this._bindingChanges=[];

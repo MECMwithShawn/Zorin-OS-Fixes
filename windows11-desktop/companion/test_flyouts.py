@@ -38,6 +38,20 @@ class ControlTests(unittest.TestCase):
         for value in [[],['wifi','wifi'],['shell'],None,['wifi',1]]:
             with self.assertRaises(ValueError):quick_controls.validate_tiles(value)
         self.assertEqual(quick_controls.validate_tiles(['wifi','display']),['wifi','display'])
+    def test_new_updates_tile_joins_saved_layouts_once(self):
+        self.assertEqual(quick_controls.saved_tiles({}),list(quick_controls.TILES))
+        self.assertEqual(quick_controls.saved_tiles({'quick_tiles':['wifi','display','dnd']}),['wifi','display','updates','dnd'])
+        self.assertEqual(quick_controls.saved_tiles({'quick_tiles':['wifi']}),['wifi','updates'])
+        removed={'quick_tiles':['wifi','display'],'quick_tiles_known':list(quick_controls.TILES)}
+        self.assertEqual(quick_controls.saved_tiles(removed),['wifi','display'])
+    def test_update_status_reads_agent_inventory_defensively(self):
+        with tempfile.TemporaryDirectory() as t,patch.object(settings_backend.Path,'home',return_value=Path(t)):
+            self.assertIsNone(settings_backend.update_status())
+            path=Path(t)/'.config/zorin11-hub/update-status.json';path.parent.mkdir(parents=True)
+            path.write_text('{"count":3,"security":1,"reboot":false,"checked":1700000000}')
+            self.assertEqual(settings_backend.update_status(),{'count':3,'security':1,'reboot':False,'checked':1700000000})
+            for bad in ('[]','{"count":"x"}','not json'):
+                path.write_text(bad);self.assertIsNone(settings_backend.update_status())
     def test_brightness_discovers_hardware_and_validates_device(self):
         with tempfile.TemporaryDirectory() as t,patch.object(quick_controls,'BACKLIGHT',Path(t)):
             self.assertEqual(quick_controls.backlights(),[])

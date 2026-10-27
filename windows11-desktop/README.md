@@ -98,7 +98,7 @@ Alt+Tab also refreshes only visible, nonminimized window and Snap Group previews
 | Lock screen | Windows 11 presentation around native GNOME unlocking, independent Spotlight/Bing, Zorin collection, personal picture, preview/Apply and daily cache |
 | Backgrounds | Windows Spotlight, Bing daily/UHD images, local photos, history, original-background restore **and the installed Zorin wallpaper collection** |
 | Desktop menu | Windows-style View, Sort by, Refresh, Paste, New, Display settings, Personalize and Next desktop background; Zorin actions retained under Show more options |
-| Desktop Groups | Shared movable shortcut groups and folder portals; original files stay in place |
+| Desktop Groups (Fences) | Tinted, see-through fences you drag desktop icons into; roll-up, quick-hide, Peek, folder portals. Files stay in place |
 | Multitasking | Snap Layouts/Assist, Task View, desktop create/rename/reorder/close, per-desktop backgrounds, saved app/layout recipes and Alt+Tab Snap Groups |
 | Terminal | Pinned PowerShell 7.6.7 and WezTerm, PowerShell/Bash profiles, Cascadia Mono, tabs and split panes |
 
@@ -130,13 +130,36 @@ Use `systemctl --user start --no-block zorin11-thumbnail-cache.service` to start
 
 Explorer's **Preview** button or **Alt+P** opens a separate read-only preview pane. Supported raster images are decoded to a bounded PNG preview; supported text/code files render as plain text, including HTML. Text files are limited to 1 MB with at most 65,536 characters/1,000 lines shown; images are limited to 10 MB and 25 megapixels, resized to 1,024 px. Animated images show their first frame. Unsupported formats, PDFs and Office documents retain their normal **Open** action. Decoding runs in a timed worker, and changing selection discards stale previews. Preview content is not saved or uploaded.
 
-Start and taskbar Search now combine **Apps, Files, Folders, and Settings**. Apps and settings appear immediately while local filename search runs. Use the category buttons, arrow keys and Enter, or select a result and choose **Open** / **Open file location**. Supported files show the same bounded image/text preview as Explorer. Settings results open the actual page (for example, “volume” → Sound).
+Start and taskbar Search now combine **Apps, Files, Folders, and Settings**. Apps and settings appear immediately while local filename search runs. Search opens on the **Apps** category; use the category buttons to widen it, arrow keys and Enter, or select a result and choose **Open** / **Open file location**. Click an app in the results list, or its large icon in the details pane, to launch it; hovering an app shows its details, and files/folders/settings still select on click and open on double-click or Enter. For apps, the details pane lists the version, publisher, install source (Debian package, Flatpak, Snap or local), package name, size on disk and categories. Launch commands are never read or shown. Supported files show the same bounded image/text preview as Explorer. Settings results open the actual page (for example, “volume” → Sound).
 
 File search reads names on demand in the folders chosen under **Settings → Personalization → Search & Start**. Desktop, Documents, Downloads, Pictures, Music and Videos are the defaults. Add or remove folders and exclude private subfolders with native folder pickers. Removing every search folder leaves apps/settings searchable. It does not index file contents, save queries or upload results. Hidden items, symbolic links and common dependency/build folders are excluded. File queries need two characters; scans are limited to 25,000 entries, 16 nested levels and about 1.5 seconds of traversal, with up to 80 results per category. A visible notice indicates incomplete results. This is scoped filename search, not a whole-disk content index.
 
 Recent documents appear in Start’s **Recommended** section when desktop file history and **Show recently opened documents** are enabled. Suggestions use existing local desktop history, respect the same search folders/exclusions, and omit private entries, missing files, hidden paths and links. Turn suggestions off in **Search & Start** without deleting your desktop history. Recent-document context menus include **Open file location**.
 
 Right-click an app in Start (or focus it and press **Shift+F10**) for the actions supplied by its installed desktop entry. Search exposes those same actions beside the selected app. File Explorer includes working **New window** and **This PC** actions in Start and its native GNOME taskbar menu. App-specific recent-file jump lists remain future work.
+
+Choose a Start layout under **Settings → Personalization → Search & Start → Start menu style**. **Windows 11** is the default. With it selected, the same Settings page offers three more options:
+- **Layout**: More pins (4 rows of pins, 2 recommendations), Default (3 rows, 6) or More recommendations (2 rows, 8).
+- **Pinned columns**: 6, 7 or 8.
+- **Show Recommended**: when off, the Recommended section is hidden and Pinned gains two rows.
+
+Pinned shows one page at a time. When there are more pins than fit, dots on the right switch pages, and Page Up/Page Down also work while a pin has focus. Use **+** beside Pinned to add up to eight named **tabs**. Right-click any app and choose **Add to <tab>** to put it in a tab. Inside a tab, right-click an app for **Move to first in <tab>** or **Remove from <tab>**. Rename a tab with its **…** button or a double-click, and remove it with **×**; removing a tab never unpins or uninstalls anything. Press Escape while naming a tab to cancel. Pinned itself keeps drag-to-reorder and Start folders. Tabs, layout, columns and the Recommended setting are saved with your other Start preferences.
+
+**Windows 10** opens a square, darker menu. A narrow rail on the left expands with the menu button. It holds your account (Lock, Switch user, Sign out), Documents, Music, Settings and Power (Sleep, Shut down, Restart). Next comes the app list: up to six **Most used** apps from your recent apps, then every app under A–Z headers, with other characters under **#**. Click a letter header for a letter grid that jumps to that section; letters with no apps are greyed out. Pinned apps appear as **tiles** that you can drag to reorder or drop onto each other to make folders, like the Windows 11 pins. Right-click a tile, or press Shift+F10, and choose **Small**, **Medium**, **Wide** or **Large** to resize it. Sizes are saved per app. **Type here to search** at the top uses the shared search. Tiles show app icons only; there is no live tile content.
+
+**Modern** follows Start11's Modern style: the Windows 7 two-column structure in a dark, square Windows 10 look. **Pinned** and **All apps** tabs sit above the left column. Pinned shows your pinned apps and then your recent apps; All apps is a flat alphabetical list. **Search apps, files and settings** is at the bottom. The right column holds a round account picture, your folders, Computer, Settings and a **Shut down** button with the same options arrow as Windows 7.
+
+**Windows 7** opens a narrower two-column menu. On the left are pinned apps, then up to eight recently opened apps that are not pinned, with **All Programs** below them. All Programs lists apps in expandable category folders. Under it, **Search programs and files** uses the same Apps/Files/Folders/Settings search as Windows 11 Start. The details pane is hidden at this width, and a click still launches a result. The right column shows your account picture, your name (your home folder), Documents, Pictures, Music, Videos and Downloads where they exist, Computer (This PC), Settings and Start settings. **Shut down** acts immediately through the same confirmed session action as the Windows 11 power menu, and the arrow next to it offers Switch user, Sign out, Lock, Restart and Sleep. Right-click menus, pinning, Start folders and app actions are the same in both layouts. The choice is saved with your other Start preferences, so older companions ignore it. Changing it closes Start, which reopens at the new size. Three more layouts follow Start11 v2's newer designs:
+- **App style with tabs** opens with the A–Z All apps list in a column on the left. Next to it are Pinned and your named tabs, with the same pages, tab actions and columns as Windows 11. Account, Settings and Power sit in the footer.
+- **Launcher** takes after phone app launchers. It has a large account picture with Settings and Power at the top, then a rounded search box and chips for Pinned, All apps and each app category. The chips choose what fills a large icon grid. The Pinned chip keeps drag-to-reorder and folders.
+- **Full screen** covers the screen's work area (the taskbar stays visible). Search and your account/Settings/Power are along the top. The A–Z list is on the left, and the paged Pinned tabs and Recommended fill the rest.
+
+The selected pin tab is shared by Windows 11, App style with tabs and Full screen.
+
+Three appearance options on the same Settings page apply to every style:
+- **Transparency** (Off, 20%, 40% or 60%) lets the desktop show through Start. On X11 you see the blurred backdrop capture; on Wayland, where that capture isn't available, you see the desktop itself.
+- **Corners** keeps each style's own corners, or makes them all **Rounded** or **Square**.
+- **Start button** changes the taskbar's Start icon on GNOME: Windows 11 (default), Windows 10, Orb, or **Your image…**. Your image accepts any picture under 8 MB and saves a 64 px copy as `~/.config/zorin11-hub/start-button-custom.png`. The GNOME extension draws the button and watches its `start-button` setting. After updating, sign out and back in once to load the new extension code; later changes apply immediately. If the chosen file goes missing, the default icon returns.
 
 
 Explorer copy/paste now shows progress, transferred bytes, completed/skipped items, **Pause**, **Resume**, and **Cancel transfer**. Collisions offer **Replace the file**, **Keep both**, or **Skip**; matching folders offer **Merge folders** while retaining unrelated destination files. You can apply a choice to remaining file or folder conflicts. File/folder type mismatches and same-file copies cannot replace the original. Failed item operations offer **Retry** or **Skip**; preparation failures show their error.
@@ -156,6 +179,22 @@ Drive letters are Explorer display aliases; file operations retain the actual Li
 The GTK/WebKit companion runs through XWayland for desktop-surface positioning. The per-user GNOME extension uses Mutter for both native Wayland and X11 application windows, including move/resize, activation, desktop membership and thumbnails. It does not use Shell unsafe-eval mode. Window captures stay in memory.
 
 GNOME notifications are session history, not Xfce's persistent notification log. Notification bodies display as plain text. Clear all opens a keyboard-focused confirmation: Tab stays inside, Escape cancels and restores focus, and a second Escape closes the center. Notification groups expose their expanded state to assistive technology. The companion follows the desktop reduced-motion preference live, including loading indicators. GNOME owns workspace transitions and reduced motion; Zorin's built-in Window Move Effect provides wobbly windows; Compiz workspace-speed controls remain Xfce-only. Taskbar hover previews remain Zorin's native previews; Snap Groups are available through Task View and Alt+Tab. App minimum sizes are enforced by Mutter and may adjust requested snap rectangles. GNOME's idle screen timeout applies to both power sources. GTK4/libadwaita, Qt and Electron applications may keep their own controls and titlebars.
+
+## Desktop fences
+
+Desktop Groups work like Stardock Fences when they are shown (Start → Desktop groups → Show groups):
+
+- **Drag icons in.** Drag icons from the desktop, Files or Explorer into a fence. A desktop file then appears only inside its fence. It stays in `~/Desktop` and stays visible in Files and Explorer, because only the desktop view skips it. Drag it back onto the desktop, or choose **Return to desktop**, to put the icon back.
+- **Arrange.** Drag fences by their title bar; they snap to screen edges and to each other. Resize from the bottom-right corner. Drag tiles to reorder them, or drag a tile to another fence to move it. Double-click a tile or press Enter to open it.
+- **Roll up.** Double-click a title bar to roll the fence up to just its title. With **Expand on hover when rolled up**, it opens while the pointer is over it.
+- **Style.** Right-click a fence (or use **⋯**) for Color (ten tints, including a light Frost), Transparency (glass to opaque), Icon size and Sort by (manual, name, type, date modified).
+- **Create and remove.** Right-click the desktop and choose **New fence here**, or use **New fence** in a fence menu. **Delete fence** removes only the fence, and its desktop icons return to the desktop.
+- **Hide and Peek.** Double-click empty desktop to hide or show all fences. Win+Shift+F brings fences above your windows.
+- **Folder portals.** A folder group mirrors a folder; manage its contents in Explorer.
+
+**Safety.** Fences never move, hide or delete files. The companion publishes the fenced list (`~/.config/zorin11-hub/fenced.json`) with its process ID. If the companion stops or groups are turned off, every icon shows on the desktop again.
+
+Not yet included from Fences: automatic sorting rules, tabbed fences, icon tint/Chameleon, and a blurred-wallpaper (acrylic) background.
 
 ## Backgrounds: keep Zorin and add Spotlight/Bing
 
@@ -180,6 +219,14 @@ If the adapter's links to Zorin Desktop Icons or its compiled schema are missing
 
 Downloaded pictures and credits stay in your local account. Both GNOME light/dark wallpaper values are journaled before changing them. Restore preserves a wallpaper you changed later through another tool. No Windows images, proprietary fonts, personal wallpaper exports or account data are committed.
 
+### Taskbar centering
+
+Taskbar apps sit on the screen's centre line, as in Windows 11, while they fit. At a large display scale (150%) or with a crowded tray, centring on the screen would leave Zorin Taskbar too little room and clip icons. In that case the apps move into the free space beside the tray, and they return to the centre line when there is room again (with a 24 px margin so they don't flip back and forth). The check runs once a second for each monitor. It only changes the taskbar's own centring setting, and only while that is Centered or Monitor Center. Turn it off with:
+
+```bash
+gsettings --schemadir ~/.local/share/gnome-shell/extensions/zorin11@zorin-os-fixes/schemas set org.gnome.shell.extensions.zorin11 adaptive-taskbar-center false
+```
+
 ## Shortcuts
 
 | Shortcut | Action |
@@ -197,7 +244,8 @@ Downloaded pictures and credits stay in your local account. Both GNOME light/dar
 | Win+Ctrl+Left / Right | Previous / next desktop |
 | Win+Ctrl+F4 | Close desktop, retaining its applications |
 | Alt+Tab / Alt+Shift+Tab | Windows and Snap Groups |
-| Win+Shift+F | Bring Desktop Groups forward / send back |
+| Win+Shift+F | Peek: bring fences above windows / send back (Esc also sends back) |
+| Double-click the desktop | Quick-hide or show all fences |
 
 ## Restore
 
@@ -222,7 +270,7 @@ The existing Xfce/X11 backend is retained. See [the complete Xfce guide](XFCE.md
 ```bash
 python3 -m unittest discover -s tests -v
 cd companion
-XDG_CURRENT_DESKTOP=XFCE python3 -m unittest -v test_model.py test_explorer.py test_file_preview.py test_file_transfer.py test_unified_search.py test_start_preferences.py test_bluetooth_pairing.py test_hardware_controls.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py test_session_actions.py
+XDG_CURRENT_DESKTOP=XFCE python3 -m unittest -v test_model.py test_explorer.py test_file_preview.py test_file_transfer.py test_unified_search.py test_start_preferences.py test_start_appearance.py test_bluetooth_pairing.py test_hardware_controls.py test_settings.py test_flyouts.py test_desktop_backgrounds.py test_desktop_motion.py test_saved_groups.py test_session_actions.py
 # Frontend: use the pinned lockfile, then rebuild committed dist/ assets.
 corepack pnpm install --frozen-lockfile
 node build.mjs
@@ -234,6 +282,14 @@ python3 companion/test_session_actions_live.py
 python3 companion/test_theme_items_live.py
 python3 companion/test_search_transfer_live.py
 python3 companion/test_start_search_live.py
+python3 companion/test_start_classic_live.py
+python3 companion/test_start_windows10_live.py
+python3 companion/test_start_modern_live.py
+python3 companion/test_start_windows11_options_live.py
+python3 companion/test_start_more_layouts_live.py
+python3 companion/test_start_appearance_live.py
+# Headless GNOME Shell with the real extension and Zorin taskbar; never touches the signed-in session.
+python3 tests/start_button_live.py
 # Power/radio/device services are isolated; this does not change host hardware.
 python3 companion/test_quick_hardware_live.py
 python3 companion/test_bluetooth_pairing_live.py

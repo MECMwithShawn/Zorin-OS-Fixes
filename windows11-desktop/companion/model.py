@@ -138,15 +138,42 @@ class Store:
     def group(self, group_id):
         return next(g for g in self.state['groups'] if g['id'] == group_id)
 
-    def add_group(self, title, folder=None):
+    def add_group(self, title, folder=None, x=None, y=None):
         group_id = uuid.uuid4().hex[:12]
         offset = len(self.state['groups']) * 32
         self.state['groups'].append({'id': group_id, 'title': (title.strip() or 'New group')[:60],
-            'x': 60 + offset, 'y': 100 + offset, 'width': 380, 'height': 280,
-            'collapsed': False, 'folder': folder, 'items': []})
+            'x': 60 + offset if x is None else int(x), 'y': 100 + offset if y is None else int(y),
+            'width': 380, 'height': 280, 'collapsed': False, 'folder': folder, 'items': []})
         self.state['groups_visible'] = True
         self.save()
         return group_id
+
+    def add_paths(self, group_id, paths):
+        """Fence paths: each path lives in one regular group, like a Fences icon."""
+        group = self.group(group_id)
+        if group['folder']:
+            raise ValueError('Folder portals mirror their folder. Drop files into a regular fence.')
+        wanted = [{'kind': 'path', 'path': p} for p in dict.fromkeys(str(p) for p in paths)]
+        for other in self.state['groups']:
+            if other is not group and not other['folder']:
+                other['items'] = [i for i in other['items'] if i not in wanted]
+        group['items'] += [i for i in wanted if i not in group['items']]
+        self.save()
+
+    def reorder_item(self, group_id, item_id, target_id):
+        items = self.group(group_id)['items']
+        key = lambda i: i.get('id', i.get('path'))
+        moving = next((i for i in items if key(i) == item_id), None)
+        target = next((i for i in items if key(i) == target_id), None)
+        if moving is None or (target_id is not None and target is None) or moving is target:
+            return
+        items.remove(moving)
+        items.insert(items.index(target) if target else len(items), moving)
+        self.save()
+
+    def set_style(self, group_id, style):
+        self.group(group_id)['style'] = style
+        self.save()
 
     def add_item(self, group_id, item):
         group = self.group(group_id)

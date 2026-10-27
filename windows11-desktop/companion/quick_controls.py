@@ -5,7 +5,18 @@ import dbus
 import settings_backend
 
 BACKLIGHT=Path('/sys/class/backlight')
-TILES=('wifi','bluetooth','airplane','batterySaver','dnd','accessibility','screenshot','display')
+TILES=('wifi','bluetooth','airplane','batterySaver','dnd','accessibility','screenshot','display','updates')
+# Tiles added after release, with the tile they follow. They appear once for
+# people with a saved layout; removing one afterwards sticks.
+NEW_TILES={'updates':'display'}
+
+def saved_tiles(state):
+    tiles=[t for t in state.get('quick_tiles') or TILES if t in TILES]
+    known=state.get('quick_tiles_known',())
+    for tile,after in NEW_TILES.items():
+        if tile not in tiles and tile not in known:
+            tiles.insert(tiles.index(after)+1 if after in tiles else len(tiles),tile)
+    return tiles
 
 def validate_tiles(value):
     if not isinstance(value,list) or not value or len(value)>len(TILES) or any(type(i) is not str or i not in TILES for i in value) or len(set(value))!=len(value):

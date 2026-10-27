@@ -14,6 +14,12 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Wayland Alt+Tab preview lifecycle: sample only visible/nonminimized clients, discard stale results, skip obsolete queued captures, retain minimized previews and reject oversized images. Native Wayland client/GTK fixtures passed against source and installed runtime 2026-10-21; physical Alt-key state is controlled inside the fixture.
 - [x] Start: app folders with drag/drop creation, persistent ordering, rename, keyboard-accessible move controls and ungrouping. Shared GNOME/Xfce interface; verified 2026-10-19.
 - [x] Start: optional recommended/recent documents from existing local desktop history, respecting search scopes, private entries and exclusions. Verified 2026-10-19.
+- [x] Start: selectable layout (Settings → Search & Start) with a Windows 7 two-column menu: pinned/frequent programs, All Programs categories, bottom search, places column and Shut down split button. Xvfb/WebKit tests passed against source and installed runtime 2026-10-22.
+- [x] Start: Windows 10 layout with rail, Most used, A–Z list with letter jump, and pinned tiles resizable to small/medium/wide/large (saved per app). Xvfb/WebKit tests passed against source and installed runtime 2026-10-22. No live tile content.
+- [x] Start: Modern layout (Start11's two-column style in a dark, square Windows 10 skin) with Pinned/All apps tabs. Xvfb/WebKit tests passed against source and installed runtime 2026-10-22.
+- [x] Start: Windows 11 enhancements: named pin tabs, paged Pinned grid, 6/7/8 columns, More pins/Default/More recommendations, Show Recommended toggle. Xvfb/WebKit tests passed against source and installed runtime 2026-10-22.
+- [x] Start: App style with tabs, Launcher and Full screen layouts (Start11 v2 designs). Xvfb/WebKit tests passed against source and installed runtime 2026-10-22.
+- [x] Start: shared appearance: transparency, corner shape and GNOME taskbar Start button image (bundled or custom), applied live through the extension's `start-button` key. WebKit, unit and headless GNOME Shell tests passed 2026-10-22; the extension change loads at the next sign-in.
 - [x] Search: unified apps, scoped local filenames/folders and settings search with previews, filters and keyboard navigation. Verified 2026-10-19.
 - [x] Search: configurable folders and exclusions through Search & Start settings. Verified 2026-10-19.
 - [ ] Search: optional content indexing beyond bounded filename search.

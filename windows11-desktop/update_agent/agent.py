@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Axentra Update: native Wayland-compatible tray UI for Zorin's APT updater."""
+"""Axentra Update: Zorin's APT updater behind Quick Settings, with an optional tray icon."""
 import json
 from pathlib import Path
 import subprocess
@@ -11,6 +11,8 @@ import system as scheduler
 
 ROOT = Path(__file__).resolve().parent
 PREFS = Path.home()/'.config/zorin11-hub/update-agent.json'
+# Read by the desktop companion for the Quick Settings tile and Settings page.
+STATUS = Path.home()/'.config/zorin11-hub/update-status.json'
 
 if '--scan' in sys.argv:
     print(json.dumps(model.scan())); raise SystemExit
@@ -50,7 +52,7 @@ class App(Gtk.Application):
         self.add_action(action)
         self.indicator = Indicator.Indicator.new('axentra-update', str(ROOT/'update.svg'), Indicator.IndicatorCategory.SYSTEM_SERVICES)
         self.indicator.set_title('Axentra Update')
-        self.indicator.set_status(Indicator.IndicatorStatus.ACTIVE)
+        self.show_tray_icon()
         self.menu = Gtk.Menu()
         self.summary = self.item('Checking update inventory…', None)
         self.menu.append(Gtk.SeparatorMenuItem())
@@ -85,6 +87,15 @@ class App(Gtk.Application):
         else: item.set_sensitive(False)
         self.menu.append(item); return item
 
+    def show_tray_icon(self):
+        # Quick Settings and Settings are the default entry points; the tray icon is opt-in.
+        self.indicator.set_status(Indicator.IndicatorStatus.ACTIVE if self.prefs.get('tray_icon', False) else Indicator.IndicatorStatus.PASSIVE)
+
+    def write_status(self, report):
+        status = dict(count=len(report['packages']), security=sum(p['security'] for p in report['packages']),
+                      reboot=report['reboot'], checked=report['checked'])
+        scheduler.atomic(STATUS, (json.dumps(status)+'\n').encode(), 0o600)
+
     def save_prefs(self):
         scheduler.atomic(PREFS, (json.dumps(self.prefs, indent=2)+'\n').encode(), 0o600)
 
@@ -109,6 +120,8 @@ class App(Gtk.Application):
                 self.message('Could not read updates: '+error)
                 return False
             self.report = report
+            try: self.write_status(report)
+            except OSError: pass
             count = len(report['packages'])
             text = 'Restart required' if report['reboot'] else f'{count} package updates available' if count else 'No pending APT updates'
             self.summary.set_label(text)
@@ -227,7 +240,11 @@ class App(Gtk.Application):
         self.notify_check.set_active(self.prefs.get('notifications',True))
         self.notify_check.connect('toggled',self.notifications_changed)
         settings.pack_start(self.notify_check,False,False,0)
-        startup=Gtk.CheckButton(label='Show the update tray when I sign in')
+        tray=Gtk.CheckButton(label='Show a separate update icon in the tray')
+        tray.set_active(self.prefs.get('tray_icon',False))
+        tray.connect('toggled',self.tray_icon_changed)
+        settings.pack_start(tray,False,False,0)
+        startup=Gtk.CheckButton(label='Check for updates in the background when I sign in')
         startup.set_active(subprocess.run(['systemctl','--user','is-enabled','zorin11-update-agent.service'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0)
         startup.connect('toggled',self.startup_changed)
         settings.pack_start(startup,False,False,0)
@@ -247,9 +264,12 @@ class App(Gtk.Application):
         if widget.get_active(): self.prefs['snooze_until']=0
         self.save_prefs()
 
+    def tray_icon_changed(self,widget):
+        self.prefs['tray_icon']=widget.get_active(); self.save_prefs(); self.show_tray_icon()
+
     def startup_changed(self,widget):
         result=subprocess.run(['systemctl','--user','enable' if widget.get_active() else 'disable','zorin11-update-agent.service'],capture_output=True,text=True)
-        self.message('Tray startup preference saved. The current tray stays open.' if result.returncode==0 else 'Could not save tray startup: '+result.stderr)
+        self.message('Background update checks saved.' if result.returncode==0 else 'Could not save background checks: '+result.stderr)
 
     def load_policy(self):
         config = read_json(scheduler.CONFIG, scheduler.DEFAULT)

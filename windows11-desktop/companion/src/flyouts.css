@@ -14,3 +14,4 @@
 .notification-confirm p{color:#ccc;line-height:1.5;font-size:13px}
 .notification-confirm-buttons{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
 .notification-confirm button{min-width:92px;padding:8px 14px;border:1px solid #ffffff1a}
+.flyout-tile.attention,.flyout-footer .flyout-settings.attention{position:relative}.flyout-tile.attention:after,.flyout-footer .flyout-settings.attention:after{content:'';position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:#60cdff;box-shadow:0 0 0 2px #2c2c2c}
