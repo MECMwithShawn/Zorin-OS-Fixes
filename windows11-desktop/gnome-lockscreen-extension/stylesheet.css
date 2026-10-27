@@ -1,0 +1,36 @@
+/* Scoped to the existing GNOME unlock dialog. No greeter or desktop selectors. */
+.zorin11-lockscreen .unlock-dialog-clock { spacing: 10px; padding: 0 24px; }
+.zorin11-lockscreen .unlock-dialog-clock-time {
+    font-size: 88px; font-weight: 600; color: white;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.45);
+}
+.zorin11-lockscreen .unlock-dialog-clock-date {
+    font-size: 21px; font-weight: 500; color: white;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.5);
+}
+.zorin11-lockscreen .unlock-dialog-clock-hint {
+    font-size: 13px; font-weight: 400; margin-top: 18px; color: rgba(255,255,255,0.85);
+}
+.zorin11-lockscreen .login-dialog-prompt-layout { spacing: 18px; width: 360px; }
+.zorin11-lockscreen .login-dialog-prompt-layout .user-icon {
+    icon-size: 112px; border-radius: 999px; border: 2px solid rgba(255,255,255,0.32);
+    background-color: rgba(255,255,255,0.12);
+}
+.zorin11-lockscreen .login-dialog-prompt-layout .user-widget-label {
+    font-size: 25px; font-weight: 600; color: white;
+}
+.zorin11-lockscreen .login-dialog-prompt-entry {
+    border-radius: 7px; border: 1px solid rgba(255,255,255,0.4);
+    background-color: rgba(25,29,36,0.88); color: white; padding: 12px 14px;
+}
+.zorin11-lockscreen .login-dialog-prompt-entry:focus { border-color: #60cdff; }
+.zorin11-lockscreen .unlock-dialog-notification-source {
+    border-radius: 14px; background-color: rgba(24,28,35,0.88);
+    border: 1px solid rgba(255,255,255,0.14); padding: 16px; margin-bottom: 8px;
+}
+.zorin11-lockscreen .zorin11-lock-credit {
+    margin: 24px 32px; padding: 12px 16px; spacing: 4px; max-width: 520px;
+    border-radius: 10px; background-color: rgba(10,14,20,0.55); color: white;
+}
+.zorin11-lockscreen .zorin11-lock-title { font-size: 13px; font-weight: 600; }
+.zorin11-lockscreen .zorin11-lock-attribution { font-size: 11px; color: rgba(255,255,255,0.82); }

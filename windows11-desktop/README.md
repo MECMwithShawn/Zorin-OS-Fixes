@@ -3,6 +3,22 @@
 **GNOME is the primary desktop.** The same installer detects Zorin 18 GNOME or Zorin Lite/Xfce and installs the matching integration. The shared companion provides the Windows 11-style Start menu, File Explorer, Settings, Quick Settings, notification/calendar flyout, Desktop Groups and multitasking UI.
 
 
+## Axentra Update (GNOME)
+
+**Axentra Update** adds an update tray icon near the clock, notifications, a package inventory, restart-required status and daily/weekly automatic update schedules. Open it from the tray or Start. Its header uses the installed Zorin OS logo alongside Axentra branding. It starts in the tray without an open window; the settings window requests no main-taskbar or pager entry. This small GTK window uses XWayland on Wayland sessions because GNOME ignores those hiding hints on native Wayland windows. **Check for updates** refreshes repository metadata through Zorin's authenticated APT service; **Review / install updates** opens the native Zorin updater. Background inventory reads the existing APT cache every 30 minutes and displays the last repository refresh separately. Repeated notifications for the same package versions are suppressed, with notification mute and tray-at-sign-in controls.
+
+Install the tray with `python3 update_agent_install.py`. New full GNOME installations include it. **Settings → Software Update → Check for software updates** opens the same Axentra Update window; Software sources and Additional drivers remain native Zorin tools. The existing companion picks up this launch route when its process next starts. Installation preserves the current Zorin policy, including existing automatic security updates. **Save update policy…** authenticates through PolicyKit and supports:
+
+- **System managed:** retain Zorin's existing automatic update configuration. Returning to this mode removes only Axentra's scheduling override.
+- **Manual:** notify about updates and disable APT's periodic unattended installation.
+- **Automatic / Scheduled:** daily or weekly local-time installs, with either the existing unattended policy (normally security updates) or all configured repository upgrades without removals. Package holds remain respected. Pause for seven days or resume from the same controls.
+
+Scheduled updates use a root-owned helper and systemd timer, wait for AC power and an unmetered connection, retry deferred/missed runs every 30 minutes, and inhibit sleep/shutdown during package work. They do not reboot automatically. Saving a new schedule can trigger a missed run. No schedule is activated until it is explicitly saved and authenticated. Changing a policy or stopping the tray does not cancel a package transaction already in progress. System-managed updates retain their original Zorin behavior.
+
+The existing `/etc/apt/apt.conf.d/99axentra-desktop-guard` hooks remain mandatory for Axentra automatic installs: a verified desktop snapshot must succeed before dpkg changes packages, followed by deferred layout repair. OneDrive/Explorer are not replaced. User tray files and preferences are included in desktop backups; root scheduler files are reference-only and require authenticated reinstallation/configuration. The tray follows `graphical-session.target` and exits at sign-out; schedules run independently. To remove managed scheduling, save **System managed** before uninstalling the theme.
+
+This agent manages APT packages. Flatpak, app stores and firmware continue using their existing updaters. Scheduled-run history is shown in the window; detailed administrator logs are in `/var/log/axentra-update-agent.log` and `journalctl -u axentra-update-agent.service`. Installer/model tests and an isolated GTK test cover the controls; package installation is deliberately not triggered during UI testing.
+
 ## Fractional scaling on hybrid graphics
 
 On the tested Intel/NVIDIA laptop, GNOME X11 at laptop 125% / external 100% produces a cropped external display even though the reported native modes and screenshot look correct. Do not use a successful settings readback alone to confirm scaling: check all four edges on the physical screens. This matches the [X11 PRIME transform issue documented by NVIDIA](https://forums.developer.nvidia.com/t/450-75-with-reverse-prime-xrandr-scale-2x2-does-not-work-renders-only-1-4-of-screen-problem-with-nvidia-settings/142424).
@@ -39,6 +55,28 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 
 ## GNOME experience
 
+
+**Lock screen:** open **Settings → Personalization → Lock screen**, or search **Lock screen settings** in Start. The Windows 11 appearance uses GNOME's real clock, account photo, password entry, accessibility, notifications and unlock gestures. The photo stays clear behind the clock and blurs/dims behind native authentication. Installed media controls remain in the native clock. No authentication method or login-screen/GDM file is replaced.
+
+Choose **Windows Spotlight**, **Bing image of the day**, **Zorin wallpapers**, **Use desktop background**, or a personal **Picture**. Online sources refresh daily through `zorin11-lockscreen-wallpaper.timer`; failures retain the last cached photo and retry on the next hourly check. All installed Zorin backgrounds remain available. Lock-screen choices are independent of the desktop except when explicitly following it. A selected personal picture is copied into the private cache so a cloud mount or removable disk is not needed at unlock. The cache keeps up to 30 recent photos plus the selected one.
+
+Preview source, picture, dimming and photo credits, then choose **Apply**. **Revert** discards the draft; getting another online photo only updates the preview. **Native lock timing and privacy** opens GNOME's controls. Automatic locking, password policy and notification privacy settings are preserved.
+
+For an existing installation, run `python3 lockscreen_install.py` from this directory. It adds only the new extension, preferences, launcher and photo timer, and patches the Settings launch route without rebuilding Explorer or touching OneDrive. First activation requires your **next normal sign-in**; preview works immediately and reports pending activation. An already-running companion picks up the route on its next start, while the Start launcher works immediately. The full installer includes this feature. Backups include its code, cached photos and settings; update repair tracks the extension files and enabled state.
+
+Checks: `/usr/bin/python3 -m unittest discover -s tests -p test_lockscreen.py` and `/usr/bin/python3 tests/lockscreen_live.py`. The latter uses a private two-monitor GNOME 46 Wayland session and renders native authentication widgets without submitting credentials or locking the real session. Physical unlock, sign-out and suspend checks must be done separately when the user is ready.
+
+
+**Adaptive taskbar space:** Start and the app group stay centered on the monitor using Zorin’s native `centerMonitor` placement. Opening an app grows the group by its icon width, split evenly around the center; closing it shrinks the group again. Tray icons grow separately at the right without moving a fitting app group. Native scrolling handles apps that exceed the centered space available beside the tray. No vendor allocation code is replaced. A private two-monitor Wayland test covers one-icon growth, tray growth, shrinkage and non-overlap.
+
+**Taskbar motion:** right-click an empty part of the taskbar and choose **Taskbar motion…**. This opens the combined **Taskbar settings → Motion** page. You can also use **Settings → Personalization → Taskbar → Motion**, or search **Taskbar settings** in Start. Five subtle presets are available: Aurora drift, Breathing glow, Light sweep, Edge ribbon and Active app halo, plus Off. The native dark customization window includes a live preview, accent color, intensity (5–50%) and cycle time (8–40 seconds). **Apply to taskbar** saves the previewed preset, accent, intensity and pause preferences and updates the loaded extension. **Revert changes** discards an unapplied preview; Restore defaults also waits for Apply. Closing the window discards unapplied changes. Quick Settings preset selections remain immediate. After the add-on loads, the native GNOME Quick Settings menu also offers a Taskbar motion tile and preset menu. Aurora drift defaults to 20% intensity and a 20-second cycle.
+
+**Apply at startup** is enabled by default. It restores the saved preset, accent, intensity and timing when you sign in. Turn it off and Apply to keep motion manual on future sign-ins; Apply still starts the chosen preset for the current session, even if the preset is unchanged. The same switch is available in Quick Settings → Taskbar motion. Turning startup off does not erase the preset or stop an already-running effect; choose Off to stop now. The extension waits for late-created Zorin panels and keeps manual activation across extension/lock cycles.
+
+Motion respects GNOME's animation setting and pauses on the lock screen and in Overview. Battery and per-monitor fullscreen pauses are enabled by default and can be changed in the customization window. The preview ignores these two pauses, stops when inactive, and has its own pause button. Active app halo follows the focused app's existing Zorin taskbar icon. Effects are decorative: native icons, previews, clicks, badges and progress remain owned by Zorin. A single 20 fps timer drives all visible panel effects; no animation timer runs while all panels are paused or Off.
+
+For an existing installation, `python3 motion_install.py` adds this extension, its Start launchers and a native Zorin context-menu command, and patches only the companion’s Taskbar launch route, preserving other local code. Existing custom menu entries are retained without duplicate Motion commands; no vendor files are edited. Taskbar settings loads Zorin’s installed Style, Position, Behavior and Action pages unchanged and adds Motion. If the GNOME preferences loader changes in a later release, Motion remains available with a link to native controls. New or updated Shell code loads at your **next normal sign-in**. The right-click menu, updated settings window and preview work immediately; Apply reports when first activation still needs a sign-in. An already-open companion Settings process picks up the new Taskbar route when it next starts; use the Start entry immediately. No logout, restart, Explorer rebuild or OneDrive change is performed. Full installation includes it, backups capture its files and settings, and update repair tracks its enabled state and missing files. This release targets horizontal Zorin taskbars on GNOME 46.
+
 **Snap Layouts:** press Win+Z for the active window. In companion Explorer and Settings, hover over Maximize, right-click it, or focus it and press Down or Shift+F10. Choose a zone to snap; Escape closes the picker. Keys 1–6 focus the first available zone in that layout. Initial focus uses an enabled footer control, and moving keyboard focus off a zone clears its target outline. Caption requests resolve the originating window through GNOME, including duplicate Explorer titles, so an XWayland window ID cannot select an unrelated native window. Ambiguous or closed windows are ignored. Third-party maximize-hover integration remains pending.
 
 Task View and Snap Assist refresh visible window cards in the background, with one capture in flight and no new captures after the panel closes. Minimized windows keep cached previews; filtered, scrolled-out and unmapped cards are skipped. GNOME may pause frame callbacks in fully covered applications, so previews reflect the latest frame the compositor provides. No window-preview images are saved to disk.
@@ -49,7 +87,7 @@ Alt+Tab also refreshes only visible, nonminimized window and Snap Group previews
 
 | Component | Integration |
 |---|---|
-| Taskbar | Dark blue appearance, Win11 icons, 48 px bottom taskbar, centered Start/Search/Task View/app area, native running-app indicators/previews and notification badges, app-reported progress bars, narrow Show desktop/hover-peek strip |
+| Taskbar | Dark blue appearance, Win11 icons, 48 px bottom taskbar, Start/Search/Task View/apps centered on the monitor, native running-app indicators/previews and notification badges, app-reported progress bars, narrow Show desktop/hover-peek strip |
 | Start | Opens on the primary monitor; shared Windows-style pinned apps, ordering, search, All apps, categories, recent documents/apps, desktop-entry actions, local folders and session actions |
 | Explorer / This PC | Tabs, sidebar, system drive first as Local Disk (C:), persistent display letters for other mounted drives, capacity, details view, create/rename/copy/cut/paste/trash; advanced locations open the system file manager |
 | Settings | Windows-style categories with actual device information and GNOME settings controls; advanced pages open the native tools |
@@ -57,6 +95,7 @@ Alt+Tab also refreshes only visible, nonminimized window and Snap Group previews
 | Notifications | GNOME's current session notifications, read/dismiss/clear and calendar; native notification banners remain managed by GNOME |
 | Task Manager | Mission Center provides expandable application/process groups, actual application icons, combined resource usage, and CPU, memory, disk, network and supported GPU graphs |
 | Event Viewer | Standalone dark event list, Application/System/Kernel journals, time and severity filters, loaded-event search, details, Copy event and optional auto-refresh |
+| Lock screen | Windows 11 presentation around native GNOME unlocking, independent Spotlight/Bing, Zorin collection, personal picture, preview/Apply and daily cache |
 | Backgrounds | Windows Spotlight, Bing daily/UHD images, local photos, history, original-background restore **and the installed Zorin wallpaper collection** |
 | Desktop menu | Windows-style View, Sort by, Refresh, Paste, New, Display settings, Personalize and Next desktop background; Zorin actions retained under Show more options |
 | Desktop Groups | Shared movable shortcut groups and folder portals; original files stay in place |
@@ -328,3 +367,15 @@ On the validation machine, the first test failed because a background thumbnail 
 Wi-Fi recovery separately selected an unusable saved network and waited for credentials. Prefer the intended working profile and disable autoconnect on an unusable profile using NetworkManager's connection editor. This is a per-machine choice: the installer does not change network profiles or embed personal SSIDs/UUIDs. The local preferred priority was set to 100; priority alone was insufficient, so autoconnect on the failing profile was disabled. The latter change still needs a fresh resume validation.
 
 Remaining app lifecycle issues: Mini Media's Soloist child survived sign-out, and OneDrive's tray UI retained invisible windows. The orphaned playback and tray UI were closed locally without stopping the OneDrive sync daemon. Preventing these app-specific lifecycle problems remains separate work; no Mini Media or OneDrive source was replaced.
+
+
+Event Viewer supports **right-click → Event Properties / Copy event**, double-click or **Alt+Enter** for Properties, and **Ctrl+C** while the event list is focused. Copying selected text in Search or Details retains its normal behavior. Properties and menu actions keep the event that was selected when opened, even if auto-refresh changes the list. These actions work on native Wayland and do not require administrator access.
+
+
+**Copy a folder path:** click the empty address-bar space or the current (last) breadcrumb to select the full path. **Ctrl+L**, **Alt+D** or **F4** also focuses it, including from folder search. Use **Ctrl+C** to copy, Enter to navigate and Escape to return to breadcrumbs. Ancestor breadcrumbs still navigate normally. Existing customized installations can run `python3 explorer_address_install.py` for a guarded address-only bundle patch, preserving OneDrive and other local frontend integrations. Newly opened Explorer windows use the change.
+
+
+Advanced display includes **Copy display report**, with all detected displays, current/preferred resolution, scaling, orientation, desktop positions, session type and graphics diagnostics. Copy is unavailable during refresh or after an error, and monitor changes invalidate older in-flight results. It does not alter display configuration.
+
+
+GNOME background window tracking uses cancellable asynchronous reads, with one request at a time per tracker. Slow Shell replies do not block the GTK loop during these periodic checks. Newer explicit refreshes supersede older pending replies, and closing the tracker cancels outstanding reads. Foreground window commands and explicit refreshes retain their synchronous behavior.

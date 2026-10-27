@@ -108,6 +108,13 @@ def collect(home=HOME):
                        (home/'.config/monitors.xml', 'reference/monitors.xml')]:
         if path.is_file():
             result[name] = path
+    # Root-owned update scheduling is reference-only. Restore it through the
+    # authenticated scheduler instead of copying backup files into /etc.
+    for path in ('/etc/axentra-update-agent.json', '/etc/apt/apt.conf.d/99zz-axentra-update-agent',
+                 '/etc/systemd/system/axentra-update-agent.service', '/etc/systemd/system/axentra-update-agent.timer',
+                 '/usr/local/libexec/axentra-update-agent', '/var/lib/axentra-update-agent/history.json'):
+        source=Path(path)
+        if source.is_file(): result['reference/system'+path]=source
     return result
 
 
@@ -128,7 +135,9 @@ def current_settings(home=HOME):
                    'org.gnome.settings-daemon.plugins.media-keys',
                    'org.gnome.shell.extensions.zorin-menu', 'org.gnome.shell.extensions.user-theme',
                    'org.gnome.shell.extensions.zorin-desktop-icons',
-                   'org.gnome.shell.extensions.zorin11-desktop'):
+                   'org.gnome.shell.extensions.zorin11-desktop',
+                   'org.gnome.shell.extensions.zorin11-motion',
+                   'org.gnome.shell.extensions.zorin11-lockscreen'):
         spec = source.lookup(schema, True)
         if spec:
             requests.setdefault(schema, set()).update(spec.list_keys())

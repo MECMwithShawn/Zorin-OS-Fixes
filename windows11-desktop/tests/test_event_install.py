@@ -10,6 +10,8 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT/'companion')]
 import desktop_menu_install
+import motion_install
+import lockscreen_install
 import gnome_install
 import gnome_setup
 import snipping_install
@@ -53,7 +55,9 @@ class EventInstallTests(unittest.TestCase):
                  patch.object(task_manager, 'restore'), patch.object(wallpaper, 'restore'), \
                  patch.object(snipping_install, 'restore_shortcut') as capture_shortcut, \
                  patch.object(snipping_install, 'restore_record_shortcut') as record_shortcut, \
-                 patch.object(desktop_menu_install, 'cleanup') as menu_cleanup:
+                 patch.object(desktop_menu_install, 'cleanup') as menu_cleanup, \
+                 patch.object(motion_install, 'cleanup') as motion_cleanup, \
+                 patch.object(lockscreen_install, 'cleanup') as lockscreen_cleanup:
                 # These act on the real home: an unpatched run removed the live desktop
                 # menu's Zorin links and the user's SnippingTool shortcuts.
                 files = {helper: b'First helper', launcher: b'First launcher'}
@@ -72,7 +76,7 @@ class EventInstallTests(unittest.TestCase):
                 gnome_install.restore()
                 self.assertEqual(helper.read_bytes(), b'User edited helper')
                 self.assertEqual(launcher.read_bytes(), b'Original launcher')
-            for restore in (capture_shortcut, record_shortcut, menu_cleanup):
+            for restore in (capture_shortcut, record_shortcut, menu_cleanup, motion_cleanup, lockscreen_cleanup):
                 self.assertEqual(restore.call_count, 2)
 
 

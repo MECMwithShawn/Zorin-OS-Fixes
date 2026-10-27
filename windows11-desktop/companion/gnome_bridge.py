@@ -14,6 +14,22 @@ def call(op, **values):
         Gio.DBusCallFlags.NONE,3000,None)
     return json.loads(result.unpack()[0])
 
+def snapshot_async(callback):
+    """One cancellable background read; callbacks run on the GTK main loop."""
+    cancel=Gio.Cancellable()
+    def finished(bus,result):
+        try:
+            data=json.loads(bus.call_finish(result).unpack()[0])
+        except (GLib.Error,ValueError,TypeError) as error:
+            callback(None,error)
+        else:callback(data,None)
+    bus=Gio.bus_get_sync(Gio.BusType.SESSION,None)
+    bus.call('local.zorin11.Gnome','/local/zorin11/Gnome','local.zorin11.Gnome','Call',
+        GLib.Variant('(s)',(json.dumps({'op':'snapshot'}),)),GLib.VariantType.new('(s)'),
+        Gio.DBusCallFlags.NONE,3000,cancel,finished)
+    return cancel
+
+
 class Workspace:
     def __init__(self,screen,index):self.screen=screen;self.index=index
     def __eq__(self,other):return isinstance(other,Workspace) and self.index==other.index
@@ -77,9 +93,10 @@ class Window:
 
 class Screen:
     def __init__(self):
-        self.handlers={};self.serial=0;self.data={};self.force_update()
+        self.handlers={};self.serial=0;self.data={};self.revision=0;self.closed=False;self.pending=None;self.force_update()
         self.timer=GLib.timeout_add(350,self.poll)
-    def force_update(self):self.data=call('snapshot')
+    def force_update(self):
+        data=call('snapshot');self.revision+=1;self.data=data
     def connect(self,name,callback):
         self.serial+=1;self.handlers[self.serial]=(name,callback);return self.serial
     def disconnect(self,ident):self.handlers.pop(ident,None)
@@ -87,15 +104,21 @@ class Screen:
         for event,callback in list(self.handlers.values()):
             if event==name:callback(self,*args)
     def poll(self):
-        old=self.data
-        try:self.force_update()
-        except GLib.Error:return True
-        live={r['id'] for r in self.data['windows']}
-        for row in old['windows']:
-            if row['id'] not in live:self.emit('window-closed',Window(self,row['id'],row))
-        focus=lambda d:next((r['id'] for r in d['windows'] if r['focused']),None)
-        if focus(old)!=focus(self.data):self.emit('active-window-changed',None)
-        if old['current']!=self.data['current']:self.emit('active-workspace-changed',None)
+        if self.closed:return False
+        if self.pending:return True
+        revision=self.revision
+        def received(data,error):
+            self.pending=None
+            if self.closed or error or revision!=self.revision:return
+            old=self.data;self.data=data;self.revision+=1
+            live={r['id'] for r in self.data['windows']}
+            for row in old['windows']:
+                if row['id'] not in live:self.emit('window-closed',Window(self,row['id'],row))
+            focus=lambda d:next((r['id'] for r in d['windows'] if r['focused']),None)
+            if focus(old)!=focus(self.data):self.emit('active-window-changed',None)
+            if old['current']!=self.data['current']:self.emit('active-workspace-changed',None)
+        try:self.pending=snapshot_async(received)
+        except GLib.Error:pass
         return True
     def get_windows(self):return [Window(self,r['id'],r) for r in self.data['windows']]
     get_windows_stacked=get_windows
@@ -107,17 +130,33 @@ class Screen:
     def get_width(self):return self.data['width']
     def get_height(self):return self.data['height']
     def get_window_manager_name(self):return 'GNOME Mutter'
-    def close(self):GLib.source_remove(self.timer)
+    def close(self):
+        if self.closed:return
+        self.closed=True;GLib.source_remove(self.timer);self.handlers.clear()
+        if self.pending:self.pending.cancel();self.pending=None
 
 class LifetimeWatch:
     def __init__(self,closed,failed):
-        self.closed=closed;self.ids=set();self.process=self
+        self.closed=closed;self.ids=set();self.process=self;self.stopped=False;self.pending=None
         self.timer=GLib.timeout_add(500,self.tick)
     def poll(self):return None
     def track(self,ids):self.ids=set(ids);return True
     def tick(self):
-        try:live={w['id'] for w in call('snapshot')['windows']}
-        except GLib.Error:return True
-        for ident in self.ids-live:self.closed(ident)
-        self.ids&=live;return True
-    def close(self):GLib.source_remove(self.timer)
+        if self.stopped:return False
+        if self.pending:return True
+        tracked=set(self.ids)
+        def received(data,error):
+            self.pending=None
+            if self.stopped or error:return
+            live={w['id'] for w in data['windows']}
+            # A newly tracked window may not have existed when the request began.
+            missing=(tracked & self.ids)-live
+            self.ids-=missing
+            for ident in missing:self.closed(ident)
+        try:self.pending=snapshot_async(received)
+        except GLib.Error:pass
+        return True
+    def close(self):
+        if self.stopped:return
+        self.stopped=True;GLib.source_remove(self.timer)
+        if self.pending:self.pending.cancel();self.pending=None

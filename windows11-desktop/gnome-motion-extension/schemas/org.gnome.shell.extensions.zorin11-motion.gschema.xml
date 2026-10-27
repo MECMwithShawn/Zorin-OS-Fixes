@@ -1,0 +1,12 @@
+<schemalist>
+  <schema id="org.gnome.shell.extensions.zorin11-motion" path="/org/gnome/shell/extensions/zorin11-motion/">
+    <key name="preset" type="s"><default>'aurora'</default><choices><choice value="off"/><choice value="aurora"/><choice value="breathe"/><choice value="sweep"/><choice value="edge"/><choice value="halo"/></choices><summary>Taskbar motion style</summary></key>
+    <key name="apply-at-startup" type="b"><default>true</default><summary>Restore the selected motion at sign-in</summary></key>
+    <key name="activation-request" type="s"><default>''</default><summary>Request activation for the current Shell session</summary></key>
+    <key name="intensity" type="i"><default>20</default><range min="5" max="50"/><summary>Effect intensity percent</summary></key>
+    <key name="period" type="i"><default>20</default><range min="8" max="40"/><summary>Seconds per cycle</summary></key>
+    <key name="accent" type="s"><default>'#60cdff'</default><summary>Motion accent color</summary></key>
+    <key name="pause-on-battery" type="b"><default>true</default><summary>Pause motion on battery power</summary></key>
+    <key name="pause-fullscreen" type="b"><default>true</default><summary>Pause motion while a fullscreen app is visible</summary></key>
+  </schema>
+</schemalist>
