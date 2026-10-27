@@ -370,3 +370,6 @@ Remaining app lifecycle issues: Mini Media's Soloist child survived sign-out, an
 
 
 Event Viewer supports **right-click → Event Properties / Copy event**, double-click or **Alt+Enter** for Properties, and **Ctrl+C** while the event list is focused. Copying selected text in Search or Details retains its normal behavior. Properties and menu actions keep the event that was selected when opened, even if auto-refresh changes the list. These actions work on native Wayland and do not require administrator access.
+
+
+**Copy a folder path:** click the empty address-bar space or the current (last) breadcrumb to select the full path. **Ctrl+L**, **Alt+D** or **F4** also focuses it, including from folder search. Use **Ctrl+C** to copy, Enter to navigate and Escape to return to breadcrumbs. Ancestor breadcrumbs still navigate normally. Existing customized installations can run `python3 explorer_address_install.py` for a guarded address-only bundle patch, preserving OneDrive and other local frontend integrations. Newly opened Explorer windows use the change.
