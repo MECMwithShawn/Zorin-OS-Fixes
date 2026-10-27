@@ -158,7 +158,7 @@ class Surface(Gtk.ApplicationWindow):
         if self.ready:
             if self.mode == 'quick':
                 data = dict(self.hub.status, mode='quick', busy=self.hub.quick_busy,
-                            quickTiles=self.hub.store.state.get('quick_tiles',list(quick_controls.TILES)))
+                            quickTiles=quick_controls.saved_tiles(self.hub.store.state))
             elif self.mode == 'notifications':
                 data = dict(self.hub.notification_data,mode='notifications',busy=self.hub.notification_busy)
             elif self.mode == 'explorer':
@@ -1301,6 +1301,7 @@ class Hub(Gtk.Application):
         return True
 
     def accept_status(self,value):
+        value['updates']=settings_backend.update_status()
         self.status=value;self.quick.update()
         if APP_ID=='local.zorin11.DesktopHub':
             from tray_icon import update_icon
@@ -1321,7 +1322,7 @@ class Hub(Gtk.Application):
     def show_quick(self):
         self.start.hide();self.notifications.hide()
         if self.quick.get_visible():self.quick.hide();return
-        count=len(self.store.state.get('quick_tiles',quick_controls.TILES))
+        count=len(quick_controls.saved_tiles(self.store.state))
         self.show_flyout(self.quick,368,(490 if quick_controls.backlights() else 430)+max(0,(count+2)//3-2)*84)
         if self.quick.ready:self.quick.send({'type':'show','page':'home'})
         self.refresh_status()
@@ -1341,9 +1342,9 @@ class Hub(Gtk.Application):
     def quick_action(self,surface,message):
         action=message['action']
         if action=='quick-settings':self.open_settings(message.get('page','home'))
-        elif action in ('quick-network','quick-bluetooth','quick-audio','quick-screenshot','quick-display'):
+        elif action in ('quick-network','quick-bluetooth','quick-audio','quick-screenshot','quick-display','quick-updates'):
             tool={'quick-network':'network','quick-bluetooth':'bluetooth','quick-audio':'sound',
-                  'quick-screenshot':'screenshot','quick-display':'display'}[action]
+                  'quick-screenshot':'screenshot','quick-display':'display','quick-updates':'updates'}[action]
             surface.hide();settings_backend.launch(tool)
         elif action=='quick-set':
             name,value=message.get('name'),message.get('value')
@@ -1356,6 +1357,7 @@ class Hub(Gtk.Application):
             self.quick_change(lambda:quick_controls.brightness(message.get('id'),message.get('value')))
         elif action=='quick-tiles':
             self.store.state['quick_tiles']=quick_controls.validate_tiles(message.get('tiles'))
+            self.store.state['quick_tiles_known']=list(quick_controls.TILES)
             self.store.save();surface.update()
             if surface.get_visible():
                 count=len(self.store.state['quick_tiles'])
@@ -1422,7 +1424,7 @@ class Hub(Gtk.Application):
 
     def settings_snapshot(self):
         result=settings_backend.snapshot()
-        result.update(facts=settings_backend.facts(),wallpaper=wallpaper.status(),loading=False)
+        result.update(facts=settings_backend.facts(),wallpaper=wallpaper.status(),updates=settings_backend.update_status(),loading=False)
         result.update(startPreferences=self.start_preferences.snapshot(), recentHistoryAllowed=self.recent_history_allowed())
         return result
 
