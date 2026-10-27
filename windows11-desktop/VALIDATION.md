@@ -460,3 +460,10 @@ These snapshots provide selective recovery, not automatic repair after every OS 
 - Update alerts rearm after a clear inventory, allowing a subsequent identical restart-required condition to notify again. Schedule status reads the saved policy without changing an unsaved form. Fourteen updater unit tests, eight GNOME setup tests and the private GTK interface test passed.
 - Applied centering to the existing laptop and Dell profiles; installed only updater Python files and the matching setup defaults. The live updater window shows the daily 03:00 policy and retains its tray-only taskbar behavior. The root scheduling policy was unchanged.
 - OneDrive remained active and synced; its executable and the companion app/frontend were unchanged. No sign-out, sleep or reboot testing was performed.
+
+
+### October 27: Event Viewer actions on Wayland
+
+- Right-click selects the event under the pointer; blank-area clicks clear stale selection. The keyboard context menu offers Event Properties and Copy event. Double-click/Alt+Enter opens an immutable Properties snapshot; Ctrl+C copies the selected event only while the tree is focused, preserving text-control copying.
+- Six journal model/subprocess tests and the private GTK interaction suite passed. The interaction suite also passed on a private headless GNOME/Wayland compositor against both source and the installed runtime. It checks that changing selection after opening a menu cannot retarget its actions, Properties survives refresh unchanged, copying works, absent selections cannot open Properties, and existing filter/refresh/cancellation/cleanup behavior remains intact. Tests invoke GTK actions; physical mouse/key input is not injected.
+- Installed only event_viewer.py through the existing compare-safe rollback manifest. OneDrive and the shared companion/frontend remain unchanged. Sign-out, sleep and reboot tests remain deferred.
