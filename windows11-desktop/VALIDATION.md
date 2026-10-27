@@ -639,3 +639,14 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - Six tracking tests cover coalescing, closure/focus/workspace events, newer explicit snapshots, failures/retries, late shutdown replies and newly tracked windows. A private real D-Bus service delays responses while the GTK main-loop heartbeat continues; request bounding and cancellation passed.
 - Disposable native Wayland windows passed all six snap layouts on both monitors, live thumbnail capture and original-geometry restoration. Alt+Tab forward/reverse, activation, Escape, live/group/minimized previews, closed-window cleanup and queued-capture lifecycle passed against source and installed runtime. These checks do not simulate sign-out or suspend.
 - Installed only gnome_bridge.py through the rollback manifest. Refreshed the companion background service after confirming it had no visible windows; its app/frontend and the OneDrive executable were preserved. Foreground bridge commands/explicit refreshes remain synchronous.
+
+### October 27: Zorin OS Update in Quick Settings
+
+- **Quick Settings.** An Updates tile sits after Display. It opens Axentra Update and shows the last check: "Up to date", "N available", "Restart needed" or "Not checked yet". A saved tile layout gains the tile once; removing it in Edit quick settings sticks. When updates or a restart are waiting, the tile and the footer Settings gear show a dot, and the gear opens Settings → Windows Update.
+- **Settings → Windows Update.** The page shows the update count, security count and last check time, with a primary button that opens Axentra Update.
+- **Tray icon.** Axentra Update keeps running for notifications and scheduled runs. Its tray icon is Passive (hidden) unless "Show a separate update icon in the tray" is ticked. The agent writes `~/.config/zorin11-hub/update-status.json` after each inventory scan.
+- **Tests.**
+  - `test_flyouts.ControlTests` (6) pass, including tile migration and defensive status parsing.
+  - `test_quick_hardware_live.py` passes with 9 tiles.
+  - `test_flyouts.NotificationTests` reads the live notification service and fails on unmodified master as well.
+- **Live check.** On the installed session, the Axentra Update StatusNotifierItem reports `Passive` and the status file was written on restart.
