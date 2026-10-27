@@ -31,6 +31,36 @@ STYLE = b"""
 """
 
 
+class EventProperties(Gtk.Dialog):
+    """An immutable event snapshot; refresh cannot change the open details."""
+    def __init__(self, parent, row):
+        super().__init__(title='Event Properties', transient_for=parent,
+                         modal=True, destroy_with_parent=True)
+        self.set_default_size(680, 480)
+        self.set_name('zorin11-events')
+        self.details = logs.details(row)
+        self.add_button('Copy event', 1)
+        self.add_button('Close', Gtk.ResponseType.CLOSE)
+        self.set_default_response(Gtk.ResponseType.CLOSE)
+        area = self.get_content_area()
+        area.set_border_width(16)
+        scroll = Gtk.ScrolledWindow()
+        text = Gtk.TextView(editable=False, cursor_visible=False,
+                            wrap_mode=Gtk.WrapMode.WORD_CHAR)
+        text.get_accessible().set_name('Event properties')
+        text.get_buffer().set_text(self.details)
+        scroll.add(text)
+        area.pack_start(scroll, True, True, 0)
+        self.connect('response', self.respond)
+        self.show_all()
+
+    def respond(self, _dialog, response):
+        if response == 1:
+            Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(self.details, -1)
+        else:
+            self.destroy()
+
+
 class EventWindow(Gtk.ApplicationWindow):
     def __init__(self, app):
         super().__init__(application=app, title='Event Viewer')
@@ -96,6 +126,9 @@ class EventWindow(Gtk.ApplicationWindow):
         self.store = Gtk.ListStore(str, str, str, str, str, str)
         self.tree = Gtk.TreeView(model=self.store)
         self.tree.set_enable_search(False)
+        self.tree.connect('popup-menu', self.popup)
+        self.tree.connect('button-press-event', self.mouse)
+        self.tree.connect('row-activated', lambda *_: self.properties())
         self.tree.get_accessible().set_name('Events')
         level = Gtk.TreeViewColumn('Level')
         icon = Gtk.CellRendererPixbuf()
@@ -134,6 +167,7 @@ class EventWindow(Gtk.ApplicationWindow):
         footer.pack_start(self.status, True, True, 0)
         self.copy = Gtk.Button(label='Copy event')
         self.copy.set_sensitive(False)
+        self.copy.set_tooltip_text('Copy selected event (Ctrl+C in the event list)')
         self.copy.connect('clicked', self.copy_event)
         footer.pack_end(self.copy, False, False, 0)
         self.period.connect('changed', lambda *_: self.request(True))
@@ -168,6 +202,49 @@ class EventWindow(Gtk.ApplicationWindow):
         row = self.selected()
         if row:
             Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(logs.details(row), -1)
+
+    def properties(self, row=None):
+        row = row if row is not None else self.selected()
+        if row:
+            return EventProperties(self, dict(row))
+
+    def popup(self, _tree=None, event=None):
+        row = self.selected()
+        if not row:
+            return False
+        # Bind the selected event now, not whatever an auto-refresh selects later.
+        row = dict(row)
+        details = logs.details(row)
+        menu = Gtk.Menu()
+        for title, callback in [
+            ('Event Properties', lambda: self.properties(row)),
+            ('Copy event', lambda: Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(details, -1)),
+        ]:
+            item = Gtk.MenuItem(label=title)
+            item.connect('activate', lambda _, action=callback: action())
+            menu.append(item)
+        menu.attach_to_widget(self.tree, None)
+        menu.connect('selection-done', lambda widget: widget.destroy())
+        menu.show_all()
+        if event:
+            menu.popup_at_pointer(event)
+        else:
+            model, iterator = self.tree.get_selection().get_selected()
+            rect = self.tree.get_cell_area(model.get_path(iterator), self.tree.get_column(0))
+            menu.popup_at_rect(self.tree.get_bin_window(), rect, Gdk.Gravity.SOUTH_WEST,
+                               Gdk.Gravity.NORTH_WEST, None)
+        return True
+
+    def mouse(self, _tree, event):
+        if event.button != 3:
+            return False
+        hit = self.tree.get_path_at_pos(int(event.x), int(event.y))
+        if not hit:
+            self.tree.get_selection().unselect_all()
+            return True
+        self.tree.get_selection().select_path(hit[0])
+        self.tree.grab_focus()
+        return self.popup(event=event)
 
     def populate(self, keep=None):
         if self.closed:
@@ -252,6 +329,15 @@ class EventWindow(Gtk.ApplicationWindow):
         return True
 
     def key(self, _window, event):
+        # Do not steal copying from selected text in search or the details pane.
+        if (self.get_focus() == self.tree and event.keyval in (Gdk.KEY_c, Gdk.KEY_C)
+                and event.state & Gdk.ModifierType.CONTROL_MASK):
+            self.copy_event()
+            return True
+        if (self.get_focus() == self.tree and event.keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter)
+                and event.state & Gdk.ModifierType.MOD1_MASK):
+            self.properties()
+            return True
         if event.keyval == Gdk.KEY_F5:
             self.request()
             return True

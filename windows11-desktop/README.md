@@ -367,3 +367,6 @@ On the validation machine, the first test failed because a background thumbnail 
 Wi-Fi recovery separately selected an unusable saved network and waited for credentials. Prefer the intended working profile and disable autoconnect on an unusable profile using NetworkManager's connection editor. This is a per-machine choice: the installer does not change network profiles or embed personal SSIDs/UUIDs. The local preferred priority was set to 100; priority alone was insufficient, so autoconnect on the failing profile was disabled. The latter change still needs a fresh resume validation.
 
 Remaining app lifecycle issues: Mini Media's Soloist child survived sign-out, and OneDrive's tray UI retained invisible windows. The orphaned playback and tray UI were closed locally without stopping the OneDrive sync daemon. Preventing these app-specific lifecycle problems remains separate work; no Mini Media or OneDrive source was replaced.
+
+
+Event Viewer supports **right-click → Event Properties / Copy event**, double-click or **Alt+Enter** for Properties, and **Ctrl+C** while the event list is focused. Copying selected text in Search or Details retains its normal behavior. Properties and menu actions keep the event that was selected when opened, even if auto-refresh changes the list. These actions work on native Wayland and do not require administrator access.
