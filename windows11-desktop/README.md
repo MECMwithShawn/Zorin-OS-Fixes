@@ -376,3 +376,6 @@ Event Viewer supports **right-click → Event Properties / Copy event**, double-
 
 
 Advanced display includes **Copy display report**, with all detected displays, current/preferred resolution, scaling, orientation, desktop positions, session type and graphics diagnostics. Copy is unavailable during refresh or after an error, and monitor changes invalidate older in-flight results. It does not alter display configuration.
+
+
+GNOME background window tracking uses cancellable asynchronous reads, with one request at a time per tracker. Slow Shell replies do not block the GTK loop during these periodic checks. Newer explicit refreshes supersede older pending replies, and closing the tracker cancels outstanding reads. Foreground window commands and explicit refreshes retain their synchronous behavior.
