@@ -10,6 +10,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Xfce taskbar: per-app badges and progress indicators when real application state is available.
 - [x] Taskbar: Snap Group cards with live layout previews; restore grouped positions and minimized members together; remove stale/closed members.
 - [x] Window switching: native GTK Alt+Tab chooser with individual windows and Snap Groups, live mosaics, combined MRU, forward/reverse cycling, release-to-select and Escape. Xfce shortcuts work on Xfwm and Compiz; verified 2026-10-18.
+- [x] Wayland background window tracking: asynchronous, bounded requests with stale-response rejection, shutdown cancellation and safe tracking of newly opened group members. Delayed real D-Bus and native snapping/Alt+Tab checks passed 2026-10-27.
 - [x] Wayland Alt+Tab preview lifecycle: sample only visible/nonminimized clients, discard stale results, skip obsolete queued captures, retain minimized previews and reject oversized images. Native Wayland client/GTK fixtures passed against source and installed runtime 2026-10-21; physical Alt-key state is controlled inside the fixture.
 - [x] Start: app folders with drag/drop creation, persistent ordering, rename, keyboard-accessible move controls and ungrouping. Shared GNOME/Xfce interface; verified 2026-10-19.
 - [x] Start: optional recommended/recent documents from existing local desktop history, respecting search scopes, private entries and exclusions. Verified 2026-10-19.
@@ -54,6 +55,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] GNOME Task Manager: Mission Center, expandable application groups, program icons, merged usage and supported GPU graphs. Intel and NVIDIA RTX 4090 laptop telemetry verified in Mission Center after the local NVIDIA driver reboot.
 - [x] GNOME Device Manager: expandable hardware categories/icons, driver and ID search, Properties/copy details and manual refresh. Read-only PCI/USB, disks and input endpoints; verified locally on 2026-10-20.
 - [x] GNOME Event Viewer: Application/System/Kernel journal sources, time/severity filters, loaded-event search, details, Copy event, refresh and optional five-second auto-refresh. Native GTK and installed GNOME/X11 tests passed 2026-10-20.
+- [x] Event Viewer interaction polish: right-click actions, double-click/Alt+Enter Properties and tree-scoped Ctrl+C; preserve event identity during auto-refresh. Native Wayland and GTK tests passed 2026-10-27.
 - [ ] Device driver-management actions and Disk Management; Task Manager includes Mission Center's Services view.
 - [ ] Polish cursor, emoji input, scaling, accessibility, keyboard navigation and reduced-motion behavior.
 - [ ] Evaluate per-monitor taskbars, wallpapers, snapping and mixed-DPI layouts. Confirm physical output on each screen: laptop 125% / Dell 100% fails with external cropping on the tested Intel/NVIDIA X11 output-sink configuration; the user confirmed improved scaling on Wayland and the prior native snapping/preview checks passed; broader mixed-DPI hardware coverage remains pending.
