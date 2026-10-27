@@ -605,3 +605,20 @@ These snapshots provide selective recovery, not automatic repair after every OS 
 - Right-click selects the event under the pointer; blank-area clicks clear stale selection. The keyboard context menu offers Event Properties and Copy event. Double-click/Alt+Enter opens an immutable Properties snapshot; Ctrl+C copies the selected event only while the tree is focused, preserving text-control copying.
 - Six journal model/subprocess tests and the private GTK interaction suite passed. The interaction suite also passed on a private headless GNOME/Wayland compositor against both source and the installed runtime. It checks that changing selection after opening a menu cannot retarget its actions, Properties survives refresh unchanged, copying works, absent selections cannot open Properties, and existing filter/refresh/cancellation/cleanup behavior remains intact. Tests invoke GTK actions; physical mouse/key input is not injected.
 - Installed only event_viewer.py through the existing compare-safe rollback manifest. OneDrive and the shared companion/frontend remain unchanged. Sign-out, sleep and reboot tests remain deferred.
+
+## Adaptive taskbar centering — 2026-10-27
+
+- **Problem.** The user raised display scaling to 150% and taskbar icons were clipped. With `centerMonitor`, Zorin Taskbar limits the apps group to the panel width minus twice the tray (`panel.js` allocation). At 150% the logical screen is a third narrower and the tray is relatively wider, so the apps scroll and clip. `centered` (used in #40) uses all the space beside the tray but is off the screen centre, which #41 reverted.
+- **Fix.** `gnome-extension/taskbar-centering.js` checks each Zorin Taskbar panel once a second through `global.zorinTaskbar.panels`. Clipped apps (scroll adjustment larger than its page) switch that monitor to `centered`. When the allocated group would fit on the screen centre with a 24 px margin, it switches back to `centerMonitor`. A 2-second cooldown follows each switch.
+  - Positions are written through Zorin Taskbar's own `panelSettings.js` module instance, so monitor IDs and its cache stay consistent.
+  - It only acts while the taskbar element is Centered or Monitor Center. Vertical and dynamic-length panels are skipped.
+  - The `adaptive-taskbar-center` key (default true) turns it off.
+- **`tests/test_taskbar_center_state.mjs`.** Covers the decisions: clip to free space, fit with margin, no flapping at the boundary, the neighbouring-group limit, other layouts ignored, and no input mutation.
+- **`tests/taskbar_center_live.py`.** Runs a private headless GNOME Shell with the real Zorin Taskbar at 1280 logical pixels, the width of a 1920 px screen at 150%, with synthetic app and tray widths:
+  - few apps stay on the centre;
+  - 500 px of apps beside a two-item crowded tray switch to `centered` and show every app without overlapping the tray;
+  - fewer apps return to `centerMonitor` within 40 px of the screen centre and stay there;
+  - with the key off, the setting is left unchanged;
+  - no JS errors.
+- **Other suites.** `tests/test_gnome.py` (8) and `tests/test_progress_state.mjs` pass.
+

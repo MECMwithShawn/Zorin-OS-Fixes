@@ -9,6 +9,7 @@ import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extension
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import {TaskbarProgress} from './taskbar-progress.js';
+import {TaskbarCentering} from './taskbar-centering.js';
 
 const XML = `<node><interface name="local.zorin11.Gnome">
 <method name="Call"><arg direction="in" type="s"/><arg direction="out" type="s"/></method>
@@ -57,6 +58,7 @@ export default class Zorin11 extends Extension {
         if(global.zorinTaskbar)this._connect(global.zorinTaskbar,'panels-created',()=>this._panels());
         this._panels();
         this._taskbarProgress=new TaskbarProgress();
+        this._taskbarCentering=new TaskbarCentering(this._settings);
     }
     _syncMenu() {
         const menu=Main.extensionManager.lookup('zorin-menu@zorinos.com')?.stateObj;
@@ -224,6 +226,7 @@ export default class Zorin11 extends Extension {
     }
     disable() {
         this._taskbarProgress?.destroy();this._taskbarProgress=null;
+        this._taskbarCentering?.destroy();this._taskbarCentering=null;
         this._injections?.clear();
         for(const {settings,key,before} of this._bindingChanges || [])if(settings.get_strv(key).length===0)settings.set_value(key,before);
         this._bindingChanges=[];

@@ -219,6 +219,14 @@ If the adapter's links to Zorin Desktop Icons or its compiled schema are missing
 
 Downloaded pictures and credits stay in your local account. Both GNOME light/dark wallpaper values are journaled before changing them. Restore preserves a wallpaper you changed later through another tool. No Windows images, proprietary fonts, personal wallpaper exports or account data are committed.
 
+### Taskbar centering
+
+Taskbar apps sit on the screen's centre line, as in Windows 11, while they fit. At a large display scale (150%) or with a crowded tray, centring on the screen would leave Zorin Taskbar too little room and clip icons. In that case the apps move into the free space beside the tray, and they return to the centre line when there is room again (with a 24 px margin so they don't flip back and forth). The check runs once a second for each monitor. It only changes the taskbar's own centring setting, and only while that is Centered or Monitor Center. Turn it off with:
+
+```bash
+gsettings --schemadir ~/.local/share/gnome-shell/extensions/zorin11@zorin-os-fixes/schemas set org.gnome.shell.extensions.zorin11 adaptive-taskbar-center false
+```
+
 ## Shortcuts
 
 | Shortcut | Action |
