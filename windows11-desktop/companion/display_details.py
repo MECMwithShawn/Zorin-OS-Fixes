@@ -102,6 +102,16 @@ def fields(row):
         ('Pixel density at current mode',f'{dpi[0]:.1f} × {dpi[1]:.1f} DPI' if dpi else 'Unavailable')]
 
 
+def report(data):
+    lines = ['Advanced display report', 'Desktop session: '+data['session']]
+    for row in data['monitors']:
+        lines += ['', row['name']] + [name+': '+value for name,value in fields(row)]
+    lines += ['', 'Graphics adapters:'] + [g['name'] for g in data['gpus']]
+    lines += ['OpenGL renderer (diagnostic client): '+(data['renderer'] or 'Unavailable'),
+              'This renderer describes the diagnostic client, not necessarily the compositor.']
+    return '\n'.join(lines)
+
+
 class DisplayWindow(Gtk.ApplicationWindow):
     def __init__(self,app):
         super().__init__(application=app,title='Advanced display')
@@ -109,6 +119,7 @@ class DisplayWindow(Gtk.ApplicationWindow):
         self.set_default_size(700,720);self.set_position(Gtk.WindowPosition.CENTER)
         self.set_icon_name('video-display');self.set_wmclass('Zorin11-display-details','Zorin11-display-details')
         self.closed=False;self.pending=False;self.again=False;self.data=None;self.debounce=0;self.watch=0
+        self.generation=0
         self.pool=ThreadPoolExecutor(max_workers=1)
         header=Gtk.HeaderBar(title='Advanced display',show_close_button=True);self.set_titlebar(header)
         self.refresh_button=Gtk.Button.new_from_icon_name('view-refresh-symbolic',Gtk.IconSize.BUTTON)
@@ -121,6 +132,8 @@ class DisplayWindow(Gtk.ApplicationWindow):
         self.status=Gtk.Label(xalign=0);self.status.set_line_wrap(True);outer.pack_start(self.status,False,False,0)
         scroll=Gtk.ScrolledWindow();scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.AUTOMATIC);outer.pack_start(scroll,True,True,0)
         self.content=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=16);scroll.add(self.content)
+        self.copy_button=Gtk.Button(label='Copy display report');self.copy_button.set_sensitive(False)
+        self.copy_button.connect('clicked',self.copy_report);outer.pack_end(self.copy_button,False,False,0)
         button=Gtk.Button(label='Open display settings');button.connect('clicked',self.open_settings);outer.pack_end(button,False,False,0)
         self.connect('key-press-event',self.key);self.connect('destroy',self.close_worker)
         self.bus=Gio.bus_get_sync(Gio.BusType.SESSION,None)
@@ -132,7 +145,13 @@ class DisplayWindow(Gtk.ApplicationWindow):
         if event.keyval==Gdk.KEY_F5:self.refresh();return True
         return False
 
+    def copy_report(self,*_):
+        if self.data and not self.pending and not self.debounce:
+            Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(report(self.data),-1)
+
     def schedule(self):
+        self.generation+=1
+        self.copy_button.set_sensitive(False)
         if not self.closed and not self.debounce:self.debounce=GLib.timeout_add(300,self.scheduled)
 
     def scheduled(self):
@@ -140,19 +159,25 @@ class DisplayWindow(Gtk.ApplicationWindow):
 
     def refresh(self):
         if self.closed:return
+        self.generation+=1
+        self.copy_button.set_sensitive(False)
         if self.pending:self.again=True;return
         self.pending=True;self.refresh_button.set_sensitive(False);self.status.set_text('Reading display information…')
-        self.pool.submit(collect).add_done_callback(lambda future:GLib.idle_add(self.received,future))
+        token=self.generation
+        self.pool.submit(collect).add_done_callback(lambda future:GLib.idle_add(self.received,future,token))
 
-    def received(self,future):
+    def received(self,future,token=None):
         if self.closed:return False
         self.pending=False;self.refresh_button.set_sensitive(True)
+        if token is not None and token!=self.generation:
+            if self.again:self.again=False;self.refresh()
+            return False
         try:
             data=future.result();selected=self.selector.get_active_id();self.data=None;self.selector.remove_all();self.data=data
             for row in data['monitors']:self.selector.append(row['connector'],row['name']+' · '+row['connector']+(' · Main display' if row['primary'] else ''))
             if not selected or not self.selector.set_active_id(selected):self.selector.set_active(0)
             self.status.set_text('Current configuration · updates when displays change' if data['monitors'] else 'No displays reported by GNOME.')
-            self.render()
+            self.render();self.copy_button.set_sensitive(bool(data['monitors']))
         except Exception as error:
             self.data=None;self.render();self.selector.remove_all()
             self.status.set_text('Display information is unavailable. Choose Refresh to try again.\n'+str(error).split('\n')[0][:240])
