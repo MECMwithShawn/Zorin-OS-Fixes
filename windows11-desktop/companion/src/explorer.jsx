@@ -5,7 +5,6 @@ import {FilePreview} from './file-preview.jsx';
 import {FileThumbnail,canThumbnail} from './file-thumbnail.jsx';
 import {TransferDialog} from './transfer-dialog.jsx';
 const send=(action,payload={})=>window.webkit.messageHandlers.desktop.postMessage(JSON.stringify({action,...payload}));
-const fileUri=path=>'file://'+path.split('/').map(encodeURIComponent).join('/');
 export function Glyph({name,size=18}){
  if(fluentPaths[name])return <svg width={size} height={size} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">{fluentPaths[name].map((d,i)=><path key={i} d={d}/>)}</svg>;
  const captions={min:'M1 5.5H11',max:'M1.5 1.5H10.5V10.5H1.5Z',restore:'M3.5 3.5V.5H11.5V8.5H8.5M.5 3.5H8.5V11.5H.5Z',close:'M1 1 11 11M11 1 1 11'};
@@ -50,8 +49,9 @@ export function Explorer({data,toast}){
  const canRename=chosen.length===1&&(!data.path.startsWith('::')||data.path==='::computer');
  const fileAction=action=>{setMenu(null);if(data.path.startsWith('::')&&['trash','cut','new-folder','paste'].includes(action))return;if(action==='new-folder'){setValue('New folder');setDialog('new-folder');}else if(action==='rename'){if(!canRename)return;setValue(chosen[0].label||chosen[0].name);setDialog(data.path==='::computer'?'rename-drive':'rename');}else if(action==='properties'){setDialog('properties');}else send('file-'+action,{paths:selected,path:selected[0]});};
  const open=item=>item.folder?navigate(item.path):send('file-open',{path:item.path});
- // Hand other apps (browsers, upload forms, the desktop) a standard file list.
- const dragOut=(e,item)=>{const paths=selected.includes(item.path)?selected:[item.path];if(!selected.includes(item.path))setSelected(paths);const uris=paths.map(fileUri);e.dataTransfer.effectAllowed='copy';e.dataTransfer.setData('text/uri-list',uris.join('\r\n'));e.dataTransfer.setData('text/plain',paths.join('\n'));};
+ // WebKit flattens a multi-file text/uri-list into one bogus URL, so the
+ // companion starts a GTK file drag instead (browsers, upload forms, the desktop).
+ const dragOut=(e,item)=>{e.preventDefault();const paths=selected.includes(item.path)?selected:[item.path];if(!selected.includes(item.path))setSelected(paths);send('file-drag',{paths});};
  const select=(e,item)=>{if(e.shiftKey&&anchor.current){const a=entries.findIndex(x=>x.path===anchor.current),b=entries.findIndex(x=>x.path===item.path);setSelected(entries.slice(Math.min(a,b),Math.max(a,b)+1).map(x=>x.path));}else if(e.ctrlKey){setSelected(s=>s.includes(item.path)?s.filter(p=>p!==item.path):[...s,item.path]);anchor.current=item.path;}else {setSelected([item.path]);anchor.current=item.path;}};
  const context=(e,item)=>{e.preventDefault();e.stopPropagation();if(item&&!selected.includes(item.path))setSelected([item.path]);if(!item)setSelected([]);setMenu({kind:'context',x:Math.max(8,Math.min(e.clientX,innerWidth-292)),y:Math.max(8,Math.min(e.clientY,innerHeight-400))});};
  const toolbar=(name,label,fn,disabled=false)=> <button title={label} aria-label={label} disabled={disabled} onClick={fn}><Glyph name={name}/></button>;

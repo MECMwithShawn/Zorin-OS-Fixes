@@ -291,6 +291,19 @@ class Surface(Gtk.ApplicationWindow):
         # Let a receiving fence commit first; it moves the item itself.
         GLib.timeout_add(300, settle)
 
+    def drag_files(self, paths):
+        # Explorer rows hand their paths over here; a GTK drag source offers a
+        # proper uri-list (plus the file-transfer portal) to the drop target.
+        if not hasattr(self, 'dragged_files'):
+            self.connect('drag-data-get', lambda _w, _c, selection, *_:
+                         selection.set_uris([Path(p).as_uri() for p in self.dragged_files]))
+            self.connect('drag-begin', lambda _w, context: Gtk.drag_set_icon_name(
+                context, 'text-x-generic' if len(self.dragged_files) == 1 else 'edit-copy', 0, 0))
+        self.dragged_files = paths
+        targets = Gtk.TargetList.new([])
+        targets.add_uri_targets(0)
+        self.drag_begin_with_coordinates(targets, Gdk.DragAction.COPY, 1, None, -1, -1)
+
     def drag_group(self, resize=False):
         # Xfwm intentionally disallows its interactive moveresize on DESKTOP
         # windows. Track the pointer while pressed and request geometry directly.
@@ -1752,6 +1765,9 @@ class Hub(Gtk.Application):
                 _,x,y=pointer.get_position()
                 if action=='file-move':surface.begin_move_drag(1,x,y,Gdk.CURRENT_TIME)
                 else:surface.begin_resize_drag(Gdk.WindowEdge.SOUTH_EAST,1,x,y,Gdk.CURRENT_TIME)
+        elif action=='file-drag':
+            paths=[str(Path(p).absolute()) for p in message.get('paths',[]) if isinstance(p,str) and Path(p).exists()]
+            if paths:surface.drag_files(paths)
         elif action=='file-copy-path':
             Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text('\n'.join(message['paths']),-1)
             surface.send({'type':'notice','message':'Path copied'})
