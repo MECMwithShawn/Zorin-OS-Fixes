@@ -85,6 +85,10 @@ def session(temp):
         row = until(lambda: (r if (r := call()['rows'][0])['overflow'] <= 1 else None))
         assert row['appWidth'] >= 500 and row['appX'] + row['appWidth'] <= row['trayX'] + 1, row
         print('PASS crowded taskbar moves into the free space; no app is clipped', flush=True)
+        # In the free space the group is nudged right, up to the tray.
+        row = until(lambda: (r if (r := call()['rows'][0])['trayX'] - r['appX'] - r['appWidth'] <= 40 else None), seconds=5)
+        assert row['appX'] + row['appWidth'] <= row['trayX'] - 4, row
+        print('PASS the off-centre group is nudged towards the centre and stops before the tray', flush=True)
         # Room again: back to the screen centre.
         call(layout=dict(apps=144, tray=1))
         until(lambda: mode() == 'centerMonitor', seconds=10)
