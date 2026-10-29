@@ -106,6 +106,8 @@ class Multitasking:
     def key(self,win,event):
         view=getattr(self,'task_view',None)
         if view and view.alive() and view.key(event):return True
+        saved=getattr(self,'saved_view',None)
+        if saved and saved.alive() and saved.key(event):return True
         if event.keyval==Gdk.KEY_Escape:self.close();return True
         if win.get_title()=='Snap layouts' and Gdk.KEY_1<=event.keyval<=Gdk.KEY_6:
             index=event.keyval-Gdk.KEY_1

@@ -5,7 +5,7 @@
 
 ## Save current window layout
 
-Open **Win+Tab → Saved groups → Save current layout…**, enter a name, then choose **Save layout**. This captures visible, non-minimized application windows on the current desktop across all connected monitors (up to 128 windows). Select **Restore layout** on its saved card to restore positions and maximized/fullscreen states. Saved layouts can be renamed and removed.
+Open **Win+Tab → Saved groups → Save current layout…**, enter a name, then choose **Save layout**. This captures visible, non-minimized application windows on the current desktop across all connected monitors (up to 128 windows). Select **Restore layout** on its saved card to restore positions and maximized/fullscreen states. Saved layouts can be renamed and removed. Use the search field or **Ctrl+F** to filter by layout/app name. **Escape** cancels an unfinished name edit, then clears an active search before closing the panel.
 
 Positions scale relative to each monitor’s work area. If a monitor is disconnected, its windows are fitted onto the primary display. Existing windows are reused; missing apps with installed launchers can be opened. Apps without a recognized launcher must already be open. Windows that cannot be resized produce an explicit error rather than being silently omitted. Native Wayland application IDs distinguish apps that share a toolkit window class.
 
