@@ -43,6 +43,14 @@ class SavedGroupsView:
             name.connect('activate',rename);name.connect('focus-out-event',lambda entry,event,f=rename:(f(entry),False)[1])
             names=[apps[r['app']].get_display_name() if r['app'] in apps else (r['app']+' (not installed)' if r['app'] else r['class']+' (must be open)') for r in recipe['members']]
             text=label(' · '.join(names),'z11-small');text.set_ellipsize(Pango.EllipsizeMode.END);text.set_max_width_chars(38);text.set_tooltip_text(' · '.join(names));details.pack_start(text,False,False,0)
+            if recipe.get('kind')=='layout':
+                startup=Gtk.CheckButton(label='Restore automatically when I sign in')
+                startup.set_active(self.saved.store.data.get('startup_layout')==recipe['id'])
+                startup.set_tooltip_text('Restore this layout once after sign-in. Only one layout can be selected. Apps may open; documents follow each app’s settings.')
+                def toggle(widget,ident=recipe['id']):
+                    try:self.saved.store.set_startup(ident if widget.get_active() else '');self.render()
+                    except (OSError,ValueError) as error:self.notice(str(error))
+                startup.connect('toggled',toggle);details.pack_start(startup,False,False,0)
             actions=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8);row.pack_end(actions,False,False,0)
             restore=button('Restore layout' if recipe.get('kind')=='layout' else 'Reopen group',lambda ident=recipe['id']:self.restore(ident),'z11-primary');restore.get_accessible().set_name('Reopen saved group '+recipe['name']);actions.pack_start(restore,False,False,0)
             remove=button('Remove',lambda ident=recipe['id']:self.remove(ident));remove.get_accessible().set_name('Remove saved group '+recipe['name']);actions.pack_start(remove,False,False,0)

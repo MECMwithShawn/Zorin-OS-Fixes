@@ -657,3 +657,9 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - Nine focused model tests cover identity matching, private recipe persistence, validation, monitor reorder/scaling and disconnected-monitor fallback. The isolated GTK dialog fixture covers the actual Save button, blank-name rejection, persistence and cancellation.
 - The live Wayland fixture uses three disposable native apps across both monitors. It verifies native desktop IDs despite changed class strings, reuse without duplicate launches, unaffected unrelated windows, save/move/restore geometry and maximized/fullscreen restoration. It also runs against the installed runtime. No real documents are opened or modified by this fixture.
 - OneDrive sync and protected Explorer/frontend files are checked separately. Sign-out, suspend/resume and reboot tests remain deferred. Reopening specific documents after logout is outside this feature’s scope.
+
+## Optional sign-in layout restore (2026-10-29)
+
+- Added one persisted opt-in selection on saved layout cards, cleared when the chosen layout is removed. Session-manager identity and a private runtime marker prevent repeated restoration on companion restart, including when the feature was disabled at the beginning of the login.
+- Four focused tests verify selection persistence/deletion, atomic once-per-session claiming, delayed scheduling, locked/busy behavior and disabling. The isolated GTK fixture toggles the actual checkbox both ways. A live fixture invokes the startup controller against disposable Wayland windows, with real placement and completion notification routing; the delay is bypassed only in that fixture.
+- Actual sign-out/sign-in and sleep tests remain deferred. Existing Explorer windows are not interrupted for reloading installed Python helpers. OneDrive startup configuration and executable remain unchanged.

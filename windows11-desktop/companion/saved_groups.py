@@ -46,6 +46,8 @@ def validate(data):
                 if member.get('state') not in ('normal','maximized','fullscreen'):raise ValueError('Invalid window state.')
                 continue
             if not (0<=x<1 and 0<=y<1 and 0<w<=1 and 0<h<=1 and x+w<=1.001 and y+h<=1.001):raise ValueError('Layout must fit one display.')
+    startup=data.get('startup_layout','')
+    if not isinstance(startup,str) or (startup and not any(g['id']==startup and g.get('kind')=='layout' for g in data['groups'])):raise ValueError('Invalid sign-in layout.')
     return data
 
 
@@ -91,7 +93,12 @@ class Recipes:
         self.write(data)
 
     def remove(self,ident):
-        data=copy.deepcopy(self.data);data['groups']=[g for g in data['groups'] if g['id']!=ident];self.write(data)
+        data=copy.deepcopy(self.data);data['groups']=[g for g in data['groups'] if g['id']!=ident]
+        if data.get('startup_layout')==ident:data.pop('startup_layout')
+        self.write(data)
+
+    def set_startup(self,ident):
+        data=copy.deepcopy(self.data);data['startup_layout']=ident;self.write(data)
 
 
 def catalog():
