@@ -17,6 +17,7 @@ base=Path(os.environ.get('ZORIN11_TEST_RUNTIME',Path(__file__).resolve().parent)
 import gnome_bridge as bridge
 from windowing import Windows
 from saved_groups import SavedGroups,identify
+from window_layouts import monitors,encode,decode
 from snap_groups import Group
 from unittest.mock import patch
 from types import SimpleNamespace as NS
@@ -67,7 +68,45 @@ try:
         assert {x for x,_ in m.groups[0]}=={byapp[i+'.desktop'].get_xid() for i in ids[:2]}
         assert unrelated.get_geometry()==before,'Unrelated fixture was moved'
         assert len(owned())==3,'Duplicate app was launched'
+        outputs=monitors();assert len(outputs)>=2,'This live test needs two monitors'
+        for i,w in enumerate(owned()):
+            a=outputs[i%len(outputs)]['area']
+            manager.place(w.get_xid(),(a[0]+60+i*20,a[1]+60+i*20,500,350))
+        wait(lambda:all(w.get_geometry()[2:]==(500,350) for w in owned()))
+        # Capture all three visible clients, including two apps on one monitor.
+        with patch('saved_groups.catalog',return_value=apps):
+            snapshot=saved.current_layout();full=saved.save_current('Both monitors',snapshot)
+        recipe=next(g for g in saved.store.groups if g['id']==full)
+        assert recipe['kind']=='layout' and len(recipe['members'])==3
+        assert len({r['monitor']['index'] for r in recipe['members']})==2
+        expected={saved.layout_windows[full][i]:decode(r,outputs) for i,r in enumerate(recipe['members'])}
+        assert '_window' not in saved.store.path.read_text()
+        for w in owned():manager.place(w.get_xid(),(area.x+30,area.y+30,450,320))
+        wait(lambda:all(w.get_geometry()[2:]==(450,320) for w in owned()))
+        messages=[]
+        with patch('saved_groups.catalog',return_value=apps):
+            saved.restore(full,lambda *args:messages.append(args));wait(lambda:saved.operation is None)
+        assert messages[-1]==('Layout restored.',True),messages
+        for w in owned():assert all(abs(a-b)<=12 for a,b in zip(w.get_geometry(),expected[w.get_xid()])),(w.get_geometry(),expected)
+        maximized=byapp[ids[0]+'.desktop'];full=byapp[ids[1]+'.desktop']
+        maximized.maximize();full.set_fullscreen(True)
+        wait(lambda:maximized.is_maximized() and full.is_fullscreen())
+        with patch('saved_groups.catalog',return_value=apps):states=saved.save_current('Window states')
+        full.set_fullscreen(False);maximized.unmaximize()
+        wait(lambda:not maximized.is_maximized() and not full.is_fullscreen())
+        messages=[]
+        with patch('saved_groups.catalog',return_value=apps):
+            saved.restore(states,lambda *args:messages.append(args));wait(lambda:saved.operation is None)
+        assert messages[-1]==('Layout restored.',True),messages
+        wait(lambda:maximized.is_maximized() and full.is_fullscreen())
+        messages=[]
+        with patch('saved_groups.catalog',return_value=apps):
+            saved.restore(states,lambda *args:messages.append(args));wait(lambda:saved.operation is None)
+        assert messages[-1]==('Layout restored.',True),messages
+        wait(lambda:maximized.is_maximized() and full.is_fullscreen())
         saved.close()
+        print('PASS: maximized and fullscreen states restored')
+        print('PASS: Save current layout, private persistence, three windows on both monitors, moved windows restored')
     print('PASS: native app identity, saved restore despite changed classes, reuse without relaunch, unrelated window unchanged')
 finally:
     for process in processes:

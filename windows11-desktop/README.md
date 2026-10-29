@@ -3,6 +3,14 @@
 **GNOME is the primary desktop.** The same installer detects Zorin 18 GNOME or Zorin Lite/Xfce and installs the matching integration. The shared companion provides the Windows 11-style Start menu, File Explorer, Settings, Quick Settings, notification/calendar flyout, Desktop Groups and multitasking UI.
 
 
+## Save current window layout
+
+Open **Win+Tab → Saved groups → Save current layout…**, enter a name, then choose **Save layout**. This captures visible, non-minimized application windows on the current desktop across all connected monitors (up to 128 windows). Select **Restore layout** on its saved card to restore positions and maximized/fullscreen states. Saved layouts can be renamed and removed.
+
+Positions scale relative to each monitor’s work area. If a monitor is disconnected, its windows are fitted onto the primary display. Existing windows are reused; missing apps with installed launchers can be opened. Apps without a recognized launcher must already be open. Windows that cannot be resized produce an explicit error rather than being silently omitted. Native Wayland application IDs distinguish apps that share a toolkit window class.
+
+This saves window arrangements, not document contents: browser tabs, files and terminal sessions follow each app’s own restore settings. Multiple windows of the same app retain their slots while the companion remains running; after restarting it, matching uses application identity and window order, not individual document identity. Layout recipes are stored privately in `~/.config/zorin11-hub/snap-groups.json` and are included in desktop backups. Sign-in restoration is not automatic.
+
 ## Axentra Update (GNOME)
 
 **Axentra Update** adds an update tray icon near the clock, notifications, a package inventory, restart-required status and daily/weekly automatic update schedules. Open it from the tray or Start. Its header uses the installed Zorin OS logo alongside Axentra branding. It starts in the tray without an open window; the settings window requests no main-taskbar or pager entry. This small GTK window uses XWayland on Wayland sessions because GNOME ignores those hiding hints on native Wayland windows. **Check for updates** refreshes repository metadata through Zorin's authenticated APT service; **Review / install updates** opens the native Zorin updater. Background inventory reads the existing APT cache every 30 minutes and displays the last repository refresh separately. Repeated notifications for the same package versions are suppressed, with notification mute and tray-at-sign-in controls.

@@ -19,6 +19,8 @@ class SavedGroupsView:
     def render(self):
         for child in self.box.get_children():child.destroy()
         head=Gtk.Box(spacing=16);head.pack_start(label('Saved groups','z11-heading'),True,True,0)
+        self.capture_button=button('Save current layout…',self.save_current_dialog,'z11-primary')
+        head.pack_start(self.capture_button,False,False,0)
         head.pack_end(button('Close',lambda:self.m.close()),False,False,0);self.box.pack_start(head,False,False,0)
         intro=label('Reopen your apps together, with their saved layout.','z11-muted');self.box.pack_start(intro,False,False,0)
         hint=label('Documents, browser tabs and terminal sessions follow each app’s own restore settings.','z11-small');hint.set_line_wrap(True);self.box.pack_start(hint,False,False,0)
@@ -39,17 +41,17 @@ class SavedGroupsView:
                 try:self.saved.store.rename(ident,entry.get_text())
                 except (OSError,ValueError) as error:self.notice(str(error))
             name.connect('activate',rename);name.connect('focus-out-event',lambda entry,event,f=rename:(f(entry),False)[1])
-            names=[apps[r['app']].get_display_name() if r['app'] in apps else r['app']+' (not installed)' for r in recipe['members']]
+            names=[apps[r['app']].get_display_name() if r['app'] in apps else (r['app']+' (not installed)' if r['app'] else r['class']+' (must be open)') for r in recipe['members']]
             text=label(' · '.join(names),'z11-small');text.set_ellipsize(Pango.EllipsizeMode.END);text.set_max_width_chars(38);text.set_tooltip_text(' · '.join(names));details.pack_start(text,False,False,0)
             actions=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8);row.pack_end(actions,False,False,0)
-            restore=button('Reopen group',lambda ident=recipe['id']:self.restore(ident),'z11-primary');restore.get_accessible().set_name('Reopen saved group '+recipe['name']);actions.pack_start(restore,False,False,0)
+            restore=button('Restore layout' if recipe.get('kind')=='layout' else 'Reopen group',lambda ident=recipe['id']:self.restore(ident),'z11-primary');restore.get_accessible().set_name('Reopen saved group '+recipe['name']);actions.pack_start(restore,False,False,0)
             remove=button('Remove',lambda ident=recipe['id']:self.remove(ident));remove.get_accessible().set_name('Remove saved group '+recipe['name']);actions.pack_start(remove,False,False,0)
         for group in self.m.groups:
             if getattr(group,'saved_id',None) in {g['id'] for g in self.saved.store.groups}:continue
             row=Gtk.Box(spacing=12);row.pack_start(label(f'Open group · {len(group)} windows','z11-muted'),True,True,0)
             row.pack_end(button('Choose apps and save…',lambda g=group:self.save_dialog(g)),False,False,0);content.pack_start(row,False,False,0)
         if not self.saved.store.groups:
-            empty=label('Create a layout with Win + Z and Snap Assist.\nRecognized apps are saved automatically.','z11-muted');empty.set_line_wrap(True);content.pack_start(empty,False,False,8)
+            empty=label('Use Save current layout to remember your open windows.\nSnap Assist groups also appear here.','z11-muted');empty.set_line_wrap(True);content.pack_start(empty,False,False,8)
         self.status=label(self.saved.store.error or self.saved.last_error,'z11-muted');self.status.set_line_wrap(True);self.status.set_max_width_chars(85);self.box.pack_start(self.status,False,False,0)
         self.cancel_button=button('Cancel restore',self.cancel);self.cancel_button.set_no_show_all(True)
         self.box.pack_end(self.cancel_button,False,False,0)
@@ -62,7 +64,7 @@ class SavedGroupsView:
         self.editing=False
         def status(text,finished):
             if not self.alive():return
-            self.notice(text);self.controls.set_sensitive(finished);self.cancel_button.set_visible(not finished)
+            self.notice(text);self.controls.set_sensitive(finished);self.capture_button.set_sensitive(finished);self.cancel_button.set_visible(not finished)
             if finished:
                 if text=='Layout restored.':
                     self.m.close(False)
@@ -73,11 +75,35 @@ class SavedGroupsView:
         except (ValueError,OSError) as error:self.notice(str(error))
 
     def cancel(self):
-        self.saved.cancel();self.controls.set_sensitive(True);self.cancel_button.hide();self.notice('Restore cancelled. Apps already opened stay open.')
+        self.saved.cancel();self.controls.set_sensitive(True);self.capture_button.set_sensitive(True);self.cancel_button.hide();self.notice('Restore cancelled. Apps already opened stay open.')
 
     def remove(self,ident):
         try:self.saved.store.remove(ident);self.render()
         except (ValueError,OSError) as error:self.notice(str(error))
+
+    def save_current_dialog(self):
+        if self.saved.operation:self.notice('Wait for the current restore to finish.');return
+        try:snapshot=self.saved.current_layout()
+        except (ValueError,OSError) as error:self.notice(str(error));return
+        self.modal=True
+        dialog=Gtk.Dialog(title='Save current layout',transient_for=self.win,modal=True,destroy_with_parent=True)
+        dialog.add_buttons('Cancel',Gtk.ResponseType.CANCEL,'Save layout',Gtk.ResponseType.OK)
+        box=dialog.get_content_area();box.set_border_width(20);box.set_spacing(12)
+        count=len(snapshot[0]);screens=len({r['monitor']['index'] for r in snapshot[0]})
+        box.pack_start(label(f'{count} windows across {screens} displays on this desktop.'),False,False,0)
+        name=Gtk.Entry(text='My desktop layout',activates_default=True);name.get_accessible().set_name('Layout name')
+        box.pack_start(name,False,False,0)
+        note=label('Saves positions and window states. Documents and tabs follow each app’s restore settings.');note.set_line_wrap(True);note.set_max_width_chars(55);box.pack_start(note,False,False,0)
+        error=label('');box.pack_start(error,False,False,0)
+        def respond(widget,response):
+            if response==Gtk.ResponseType.OK:
+                try:
+                    if not name.get_text().strip():raise ValueError('Enter a layout name.')
+                    self.saved.save_current(name.get_text(),snapshot)
+                except (ValueError,OSError) as problem:error.set_text(str(problem));return
+            self.modal=False;widget.destroy()
+            if self.alive():self.render();self.win.present()
+        dialog.connect('response',respond);dialog.set_default_response(Gtk.ResponseType.OK);dialog.show_all();name.grab_focus();name.select_region(0,-1)
 
     def save_dialog(self,group):
         self.modal=True;dialog=Gtk.Dialog(title='Save Snap Group',transient_for=self.win,modal=True)
@@ -106,7 +132,16 @@ class SavedGroupsView:
     def draw(self,widget,cr,recipe):
         width,height=widget.get_allocated_width(),widget.get_allocated_height()
         cr.set_source_rgb(.10,.11,.13);cr.paint()
+        rects=[]
         for member in recipe['members']:
-            x,y,w,h=member['rect'];cr.set_source_rgba(.38,.81,1,.7)
+            x,y,w,h=member['rect']
+            if recipe.get('kind')=='layout':
+                a,b,c,d=member['monitor']['area'];x,y,w,h=a+x*c,b+y*d,w*c,h*d
+            rects.append((x,y,w,h))
+        left=min(r[0] for r in rects);top=min(r[1] for r in rects)
+        right=max(r[0]+r[2] for r in rects);bottom=max(r[1]+r[3] for r in rects)
+        for x,y,w,h in rects:
+            if recipe.get('kind')=='layout':x,y,w,h=(x-left)/max(1,right-left),(y-top)/max(1,bottom-top),w/max(1,right-left),h/max(1,bottom-top)
+            cr.set_source_rgba(.38,.81,1,.7)
             cr.rectangle(x*width+1,y*height+1,max(1,w*width-2),max(1,h*height-2));cr.fill()
         return False

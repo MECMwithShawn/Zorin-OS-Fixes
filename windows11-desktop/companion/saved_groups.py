@@ -27,15 +27,24 @@ def validate(data):
         ids.add(group['id'])
         if not isinstance(group.get('name'),str) or not 1<=len(group['name'])<=80:raise ValueError('Invalid group name.')
         if not isinstance(group.get('desktop',''),str) or len(group.get('desktop',''))>80:raise ValueError('Invalid desktop identity.')
+        layout=group.get('kind')=='layout'
         members=group.get('members')
-        if not isinstance(members,list) or not 2<=len(members)<=6:raise ValueError('A saved group needs two to six windows.')
+        if not isinstance(members,list) or not (1<=len(members)<=128 if layout else 2<=len(members)<=6):raise ValueError('A saved layout needs one to 128 windows.' if layout else 'A saved group needs two to six windows.')
         for member in members:
             if not isinstance(member,dict):raise ValueError('Invalid saved app.')
             app=member.get('app','');wmclass=member.get('class','');rect=member.get('rect')
-            if not isinstance(app,str) or not app.endswith('.desktop') or len(app)>240 or any(c in app for c in ('/','\\','\x00','\n')):raise ValueError('Invalid application ID.')
+            if not isinstance(app,str) or not (app.endswith('.desktop') or (layout and app=='')) or len(app)>240 or any(c in app for c in ('/','\\','\x00','\n')):raise ValueError('Invalid application ID.')
             if not isinstance(wmclass,str) or not wmclass or len(wmclass)>200:raise ValueError('Invalid window class.')
             if not isinstance(rect,list) or len(rect)!=4 or any(type(v) not in (int,float) or not math.isfinite(v) for v in rect):raise ValueError('Invalid saved geometry.')
             x,y,w,h=rect
+            if layout:
+                monitor=member.get('monitor',{})
+                if not isinstance(monitor,dict) or not all(isinstance(monitor.get(k),str) for k in ('model','manufacturer')) or type(monitor.get('index')) is not int:raise ValueError('Invalid monitor identity.')
+                area=monitor.get('area')
+                if not isinstance(area,list) or len(area)!=4 or any(type(v) not in (int,float) or not math.isfinite(v) for v in area) or min(area[2:])<=0:raise ValueError('Invalid display bounds.')
+                if not (-8<=x<=8 and -8<=y<=8 and 0<w<=16 and 0<h<=16):raise ValueError('Invalid layout geometry.')
+                if member.get('state') not in ('normal','maximized','fullscreen'):raise ValueError('Invalid window state.')
+                continue
             if not (0<=x<1 and 0<=y<1 and 0<w<=1 and 0<h<=1 and x+w<=1.001 and y+h<=1.001):raise ValueError('Layout must fit one display.')
     return data
 
@@ -44,7 +53,7 @@ class Recipes:
     def __init__(self,path):
         self.path=Path(path);self.error='';self.revision=0
         try:
-            if self.path.exists() and self.path.stat().st_size>256000:raise ValueError('Saved groups file is too large.')
+            if self.path.exists() and self.path.stat().st_size>4194304:raise ValueError('Saved groups file is too large.')
             self.data=validate(json.loads(self.path.read_text())) if self.path.exists() else {'version':1,'groups':[]}
         except (OSError,ValueError) as error:self.data={'version':1,'groups':[]};self.error=str(error)
 
@@ -63,7 +72,7 @@ class Recipes:
             if os.path.exists(temp):os.unlink(temp)
         self.data=data;self.revision+=1
 
-    def put(self,members,desktop='',ident=None,name=None):
+    def put(self,members,desktop='',ident=None,name=None,kind=None):
         data=copy.deepcopy(self.data)
         old=next((g for g in data['groups'] if g['id']==ident),None)
         if not old:old=next((g for g in data['groups'] if g['members']==members and g.get('desktop','')==desktop),None)
@@ -71,6 +80,7 @@ class Recipes:
         elif len(data['groups'])>=40:raise ValueError('Saved groups is full. Remove a group before saving another.')
         ident=ident or uuid.uuid4().hex
         data['groups'].insert(0,dict(id=ident,name=(name or 'Snap group').strip()[:80] or 'Snap group',desktop=desktop,members=members))
+        if kind:data['groups'][0]['kind']=kind
         self.write(data);return ident
 
     def rename(self,ident,name):
@@ -99,7 +109,7 @@ def application_id(w):
 
 def matches_member(w,member):
     ident=application_id(w)
-    if ident:return ident==member['app']
+    if ident and member['app']:return ident==member['app']
     return normalize(w.get_class_group_name())==normalize(member['class'])
 
 
@@ -125,7 +135,7 @@ def identify(w,apps):
 
 class SavedGroups:
     def __init__(self,m):
-        self.m=m;self.store=Recipes(m.config/'snap-groups.json');self.operation=None;self.last_error=self.store.error
+        self.m=m;self.store=Recipes(m.config/'snap-groups.json');self.operation=None;self.last_error=self.store.error;self.layout_windows={}
 
     def close(self):self.cancel()
 
@@ -150,6 +160,27 @@ class SavedGroups:
         title=name or (None if ident else ' + '.join(dict.fromkeys(apps[r['app']].get_display_name() for r in members)))
         group.saved_id=self.store.put(members,uid,ident,title);self.last_error='';return group.saved_id
 
+    def current_layout(self):
+        from window_layouts import monitors,encode
+        outputs=monitors()
+        if not outputs:raise ValueError('No displays are available.')
+        apps=catalog();members=[];desktop=self.m.desktops.current()
+        for w in reversed(self.m.windows.windows()):
+            if w.is_minimized() or not self.m.desktops.on(w,desktop):continue
+            if not self.m.windows.can_snap(w) and not w.is_fullscreen():
+                raise ValueError('This window cannot be restored automatically: '+w.get_name()+'. Close it before saving the layout.')
+            members.append(dict(_window=w.get_xid(),app=identify(w,apps) or '',**{'class':w.get_class_group_name()},
+                **encode(w.get_geometry(),outputs),state='fullscreen' if w.is_fullscreen() else 'maximized' if w.is_maximized() else 'normal'))
+        if not members:raise ValueError('Open some windows on this desktop before saving a layout.')
+        uid=next((d['uid'] for d in self.m.desktops.items() if d['id']==desktop),'')
+        return members,uid
+
+    def save_current(self,name,snapshot=None):
+        members,desktop=snapshot or self.current_layout()
+        members=copy.deepcopy(members);ids={i:r.pop('_window') for i,r in enumerate(members)}
+        ident=self.store.put(members,desktop,name=name or 'Desktop layout',kind='layout')
+        self.layout_windows[ident]=ids;return ident
+
     def automatic(self,group,ident=None):
         try:self.capture(group,ident)
         except (OSError,ValueError) as error:self.last_error=str(error)
@@ -165,11 +196,16 @@ class SavedGroups:
         recipe=next((g for g in self.store.groups if g['id']==ident),None)
         if not recipe:raise ValueError('That saved group no longer exists.')
         recipe=copy.deepcopy(recipe);apps=catalog()
-        missing=[r['app'] for r in recipe['members'] if r['app'] not in apps]
+        missing=[r['app'] for r in recipe['members'] if r['app'] and r['app'] not in apps]
         if missing:raise ValueError('Install these apps first: '+', '.join(dict.fromkeys(missing)))
         items=self.m.desktops.items();target=next((d['id'] for d in items if d['uid']==recipe.get('desktop')),self.m.desktops.current())
         area=self.m.area(self.m.windows.active());ax,ay,aw,ah=area
         rects=[(ax+round(r['rect'][0]*aw),ay+round(r['rect'][1]*ah),max(1,round(r['rect'][2]*aw)),max(1,round(r['rect'][3]*ah))) for r in recipe['members']]
+        if recipe.get('kind')=='layout':
+            from window_layouts import monitors,decode
+            outputs=monitors()
+            if not outputs:raise ValueError('No displays are available.')
+            rects=[decode(r,outputs) for r in recipe['members']]
         op={'recipe':recipe,'apps':apps,'target':target,'rects':rects,'assigned':{},'launched':set(),'deadline':time.monotonic()+30,'timer':0,'notify':notify,'phase':'matching','started':False}
         self.operation=op
         if self.m.desktops.current()!=target:self.m.desktops.switch(target)
@@ -183,7 +219,12 @@ class SavedGroups:
                     return True
                 op['started']=True
                 if op['phase']=='placing':return self.finish_placement(op)
-                live=self.m.windows.windows();used=set(op['assigned'].values())
+                live=self.m.windows.windows()
+                if not op['assigned'] and recipe.get('kind')=='layout':
+                    for i,xid in self.layout_windows.get(ident,{}).items():
+                        w=next((w for w in live if w.get_xid()==xid),None)
+                        if w and self.m.desktops.on(w,target) and matches_member(w,recipe['members'][i]):op['assigned'][i]=xid
+                used=set(op['assigned'].values())
                 # Reuse each matching window once, preferring this desktop and
                 # MRU order. A matching window on another desktop is left there.
                 for index,member in enumerate(recipe['members']):
@@ -195,6 +236,7 @@ class SavedGroups:
                     if matches:
                         xid=matches[0].get_xid();op['assigned'][index]=xid;used.add(xid);continue
                     if index not in op['launched']:
+                        if not member['app']:raise ValueError('Open the missing '+member['class']+' window, then restore again.')
                         # Launch one missing window at a time for each app. This
                         # avoids repeated launches while an app is still starting.
                         waiting=any(recipe['members'][i]['app']==member['app'] and i not in op['assigned'] for i in op['launched'])
@@ -209,6 +251,7 @@ class SavedGroups:
                     for w,rect in zip(windows,rects):
                         if any(a>b for a,b in zip(self.m.windows.minimum(w),rect[2:])):raise ValueError('An app needs more space than this layout allows on this screen.')
                         if w.is_minimized():w.unminimize(self.m.windows.timestamp())
+                        if recipe.get('kind')=='layout' and w.is_fullscreen():w.set_fullscreen(False)
                     if not all(self.m.windows.can_snap(w) and not w.is_minimized() for w in windows):
                         if time.monotonic()>op['deadline']:raise ValueError('An app did not become resizable in time.')
                         return True
@@ -226,13 +269,19 @@ class SavedGroups:
         op['timer']=GLib.timeout_add(150,poll)
 
     def finish_placement(self,op):
-        settled=True
+        settled=not any(xid in getattr(self.m.windows,'pending',{}) for xid,_ in op['placements'])
         for xid,rect in op['placements']:
             w=self.m.windows.get(xid)
             if not w:raise ValueError('A window closed while the layout was being restored.')
             if any(abs(a-b)>12 for a,b in zip(w.get_geometry(),rect)):settled=False
         if not settled and time.monotonic()<op['deadline']:return True
         if not settled:raise ValueError('An app or window manager constrained the layout. Your apps remain open; the saved layout is unchanged.')
+        if op['recipe'].get('kind')=='layout':
+            for i,member in enumerate(op['recipe']['members']):
+                w=self.m.windows.get(op['assigned'][i])
+                if member['state']=='maximized':w.maximize()
+                elif member['state']=='fullscreen':w.set_fullscreen(True)
+            self.operation=None;op['timer']=0;op['notify']('Layout restored.',True);return False
         # Build fresh session tokens only from the newly matched live XIDs.
         self.m.snap_groups.remember(op['placements'],persist=False)
         group=next((g for g in self.m.groups if list(g)==op['placements']),None)

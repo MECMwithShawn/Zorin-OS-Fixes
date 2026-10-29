@@ -650,3 +650,10 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
   - `test_quick_hardware_live.py` passes with 9 tiles.
   - `test_flyouts.NotificationTests` reads the live notification service and fails on unmodified master as well.
 - **Live check.** On the installed session, the Axentra Update StatusNotifierItem reports `Passive` and the status file was written on restart.
+
+## Save current layout on Wayland (2026-10-28)
+
+- Added named whole-desktop layouts in Task View’s Saved groups, with monitor-relative geometry, maximized/fullscreen state and missing-monitor fallback. Legacy Snap Groups remain supported.
+- Nine focused model tests cover identity matching, private recipe persistence, validation, monitor reorder/scaling and disconnected-monitor fallback. The isolated GTK dialog fixture covers the actual Save button, blank-name rejection, persistence and cancellation.
+- The live Wayland fixture uses three disposable native apps across both monitors. It verifies native desktop IDs despite changed class strings, reuse without duplicate launches, unaffected unrelated windows, save/move/restore geometry and maximized/fullscreen restoration. It also runs against the installed runtime. No real documents are opened or modified by this fixture.
+- OneDrive sync and protected Explorer/frontend files are checked separately. Sign-out, suspend/resume and reboot tests remain deferred. Reopening specific documents after logout is outside this feature’s scope.
