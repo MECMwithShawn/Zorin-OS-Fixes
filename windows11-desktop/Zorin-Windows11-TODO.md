@@ -95,3 +95,6 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Consolidate AccountsService account-photo refresh, Custom EQ/live preview, System EQ menu and modern HEIC decoder fixes from the related chats.
 - [x] Optional APT pre-update snapshots and deferred, compatibility-gated repair of missing desktop files/reset layout settings. OneDrive failure postpones updates; arbitrary app updates and major GNOME changes still require separate handling.
 - [x] Desktop icons survive an incomplete desktop-menu adapter (falls back to Zorin's desktop at sign-in and relaunch); package restore tests no longer touch the live desktop menu or SnippingTool shortcuts.
+
+- [x] Saved layouts across monitors, optional once-per-GNOME-login restoration, name/app search, Ctrl+F and Escape cancellation, glass-style cards. Local GTK/controller/Wayland fixtures verified; actual sign-out remains deferred.
+- [x] Trusted desktop shortcut Rename/F2 and glass-style icon menus. User confirmed the live menu and finish; launcher commands/icons remain intact.

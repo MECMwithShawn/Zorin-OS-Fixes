@@ -674,3 +674,9 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 
 - Desktop and icon context menus now use an Explorer-inspired charcoal tint, restrained gradient, soft rim/shadow, rounded hover highlights and muted separators. GTK3 does not support CSS backdrop blur; this is a glass-style finish, not a compositor blur effect.
 - Existing GTK action/rename tests pass with the new stylesheet. Rendered preview inspected; theme-provided separator borders explicitly suppressed. Applied by reloading only the desktop icon process; Explorer and OneDrive untouched.
+
+## Saved layout keyboard and visual polish (2026-10-29)
+
+- Saved groups now filters by layout/app name, supports Ctrl+F, and treats Escape as cancel-name-edit → clear-search → close. Canceling an edited name before focus-out prevents unintended persistence. Successful renames refresh the search terms immediately. Cards use the restrained glass-style palette with explicit keyboard focus outlines.
+- Extended GTK fixture passed against source and installed runtime: search/no results, actual manager key routing, cancel then focus-out preservation, rename/search refresh, startup toggle and save dialog. CSS loaded successfully and a rendered preview was inspected. Reloaded the companion only after verifying no visible companion windows; opened Saved groups locally.
+- OneDrive reports synced and its executable plus Explorer/frontend hashes are unchanged. Sign-out, sleep and reboot testing remain deferred.
