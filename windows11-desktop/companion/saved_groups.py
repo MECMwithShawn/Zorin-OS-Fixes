@@ -91,7 +91,21 @@ def catalog():
 def normalize(value):return re.sub('[^a-z0-9]','',(value or '').casefold())
 
 
+def application_id(w):
+    """GNOME's desktop identity is stronger than shared toolkit window classes."""
+    try:return w.get_application_id() or ''
+    except AttributeError:return ''  # libwnck/X11 has no equivalent method.
+
+
+def matches_member(w,member):
+    ident=application_id(w)
+    if ident:return ident==member['app']
+    return normalize(w.get_class_group_name())==normalize(member['class'])
+
+
 def identify(w,apps):
+    ident=application_id(w)
+    if ident in apps:return ident
     cls=normalize(w.get_class_group_name());instance=normalize(w.get_class_instance_name().split(' (',1)[0])
     candidates=[]
     for ident,app in apps.items():
@@ -177,7 +191,7 @@ class SavedGroups:
                         if not self.m.windows.get(op['assigned'][index]):raise ValueError('A matched window closed. You can retry the saved group.')
                         continue
                     matches=[w for w in live if w.get_xid() not in used and self.m.desktops.on(w,target)
-                             and normalize(w.get_class_group_name())==normalize(member['class'])]
+                             and matches_member(w,member)]
                     if matches:
                         xid=matches[0].get_xid();op['assigned'][index]=xid;used.add(xid);continue
                     if index not in op['launched']:
@@ -185,7 +199,7 @@ class SavedGroups:
                         # avoids repeated launches while an app is still starting.
                         waiting=any(recipe['members'][i]['app']==member['app'] and i not in op['assigned'] for i in op['launched'])
                         if waiting:continue
-                        if any(not self.m.desktops.on(w,target) and normalize(w.get_class_group_name())==normalize(member['class']) for w in live):
+                        if any(not self.m.desktops.on(w,target) and matches_member(w,member) for w in live):
                             raise ValueError(apps[member['app']].get_display_name()+' is open on another desktop. Move the desired window here, then retry.')
                         context=Gdk.Display.get_default().get_app_launch_context();context.set_timestamp(self.m.windows.timestamp())
                         if not apps[member['app']].launch([],context):raise ValueError('Could not open '+apps[member['app']].get_display_name()+'.')

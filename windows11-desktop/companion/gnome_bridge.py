@@ -55,6 +55,7 @@ class Window:
     def get_class_group_name(self):return self.row()['cls']
     def get_class_instance_name(self):return self.row()['app'].removesuffix('.desktop') or self.get_class_group_name()
     def get_pid(self):return self.row()['pid']
+    def get_application_id(self):return self.row().get('app','')
     def get_geometry(self):return tuple(self.row()['rect'])
     def get_client_window_geometry(self):return self.get_geometry()
     def is_minimized(self):return self.row()['minimized']
