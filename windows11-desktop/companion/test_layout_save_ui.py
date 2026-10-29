@@ -33,5 +33,14 @@ with tempfile.TemporaryDirectory() as folder:
         view.capture_button.clicked()
         dialog=next(w for w in Gtk.Window.list_toplevels() if isinstance(w,Gtk.Dialog))
         dialog.response(Gtk.ResponseType.CANCEL);assert len(m.saved_groups.store.groups)==1
+        def descendants(widget):
+            yield widget
+            if isinstance(widget,Gtk.Container):
+                for child in widget.get_children():yield from descendants(child)
+        toggle=next(w for w in descendants(view.win) if isinstance(w,Gtk.CheckButton))
+        toggle.set_active(True)
+        assert m.saved_groups.store.data['startup_layout']==m.saved_groups.store.groups[0]['id']
+        toggle=next(w for w in descendants(view.win) if isinstance(w,Gtk.CheckButton))
+        toggle.set_active(False);assert not m.saved_groups.store.data['startup_layout']
         view.win.destroy()
 print('PASS: named Save current layout dialog, blank-name validation, persistence, cancel')

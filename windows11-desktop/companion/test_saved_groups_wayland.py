@@ -104,6 +104,16 @@ try:
             saved.restore(states,lambda *args:messages.append(args));wait(lambda:saved.operation is None)
         assert messages[-1]==('Layout restored.',True),messages
         wait(lambda:maximized.is_maximized() and full.is_fullscreen())
+        from layout_startup import StartupRestore
+        from unittest.mock import Mock
+        m.hub=Mock();saved.store.set_startup(states)
+        with patch('layout_startup.session_key',return_value='fixture'),patch('layout_startup.claim_session',return_value=True),patch('layout_startup.GLib.timeout_add_seconds',return_value=0),patch('layout_startup.locked',return_value=False),patch('saved_groups.catalog',return_value=apps):
+            auto=StartupRestore(saved);assert auto.run() is False
+            wait(lambda:saved.operation is None)
+            assert saved.last_error=='',saved.last_error
+            m.hub.send_notification.assert_called_once()
+            auto.close()
+        print('PASS: sign-in controller restored disposable native windows and notified completion')
         saved.close()
         print('PASS: maximized and fullscreen states restored')
         print('PASS: Save current layout, private persistence, three windows on both monitors, moved windows restored')
