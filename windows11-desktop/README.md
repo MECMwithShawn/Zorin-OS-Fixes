@@ -235,6 +235,14 @@ Taskbar apps sit on the screen's centre line, as in Windows 11, while they fit. 
 gsettings --schemadir ~/.local/share/gnome-shell/extensions/zorin11@zorin-os-fixes/schemas set org.gnome.shell.extensions.zorin11 adaptive-taskbar-center false
 ```
 
+### Tray drawer
+
+The tray icons left of the network/volume/battery button (Quick settings, notifications, app indicators, drives) fold behind one arrow, like Windows 11's hidden-icons chevron. Click the arrow and they slide out in place, so each icon's own menu opens from where it sits; the drawer folds again three seconds after the pointer leaves the tray and no tray menu is open. Icons that show or hide themselves while folded keep that choice, and the arrow hides when there is nothing to fold. Turn it off in Settings › Personalization › Tuck away tray icons, or with:
+
+```bash
+gsettings --schemadir ~/.local/share/gnome-shell/extensions/zorin11@zorin-os-fixes/schemas set org.gnome.shell.extensions.zorin11 tray-drawer false
+```
+
 ## Shortcuts
 
 | Shortcut | Action |
