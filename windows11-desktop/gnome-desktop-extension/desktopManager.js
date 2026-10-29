@@ -77,7 +77,34 @@ function launch(page) {
     launcher.spawnv(['/usr/bin/python3', `${runtime}/app.py`, '--settings', page]);
 }
 
+// Preserve native file operations, while exposing rename for trusted launchers.
+const FileItem = imports.fileItem.FileItem;
+const originalCanRename = Object.getOwnPropertyDescriptor(FileItem.prototype, 'canRename').get;
+Object.defineProperty(FileItem.prototype, 'canRename', {configurable:true, get() {
+    return originalCanRename.call(this) || (this.trustedDesktopFile && !this.isSpecial);
+}});
+const FileMenu = imports.fileItemMenu.FileItemMenu;
+const originalAdd = FileMenu.prototype._addElementToMenu;
+const translate = imports.gettext.domain('ding').gettext;
+const menuIcons = new Map([
+    ['Open','document-open-symbolic'],['Cut','edit-cut-symbolic'],['Copy','edit-copy-symbolic'],
+    ['Rename…','edit-rename-symbolic'],['Move to Trash','user-trash-symbolic'],
+    ['Properties','document-properties-symbolic'],['Open With Other Application','application-x-executable-symbolic'],
+].map(([label,icon]) => [translate(label),icon]));
+FileMenu.prototype._addElementToMenu = function(label, action = null) {
+    this._menu.get_style_context().add_class('axentra-desktop-menu');
+    if (!menuIcons.has(label)) return originalAdd.call(this,label,action);
+    const row = item(label,menuIcons.get(label));this._menu.add(row);
+    if (action) this._menuSignals.connectSignal(row,'activate',action);
+    return row;
+};
+
 var DesktopManager = class extends Upstream.DesktopManager {
+    doRename(fileItem, allowReturnOnSameName) {
+        if (fileItem?.trustedDesktopFile && !fileItem.isSpecial) return imports.shortcutRename.ask(this,fileItem);
+        return super.doRename(fileItem,allowReturnOnSameName);
+    }
+
     _createDesktopBackgroundMenu() {
         super._createDesktopBackgroundMenu();
         const original = this._menu;

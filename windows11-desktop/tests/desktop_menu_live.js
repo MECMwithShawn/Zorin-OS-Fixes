@@ -56,4 +56,46 @@ if (ARGV[1]) {
     });
     Gtk.main();
 }
+// Trusted launchers now expose Rename, while special icons retain restrictions.
+const fileProto = imports.fileItem.FileItem.prototype;
+const shortcut = Object.create(fileProto);
+Object.defineProperties(shortcut, {trustedDesktopFile:{value:true},isSpecial:{value:false}});
+check(shortcut.canRename, 'Trusted shortcut is missing Rename');
+const special = Object.create(fileProto);
+special._fileExtra = imports.enums.FileType.USER_DIRECTORY_HOME;
+Object.defineProperties(special, {trustedDesktopFile:{value:false},isSpecial:{value:true}});
+check(!special.canRename, 'Special icon unexpectedly renamable');
+const fileMenu = Object.create(imports.fileItemMenu.FileItemMenu.prototype);
+fileMenu._menu = new Gtk.Menu();
+fileMenu._menuSignals = new imports.signalManager.SignalManager();
+let renameActivated=false;
+const renameRow=fileMenu._addElementToMenu('Rename…',()=>renameActivated=true);
+check(fileMenu._menu.get_style_context().has_class('axentra-desktop-menu'),'Icon menu is not styled');
+renameRow.activate();check(renameActivated,'Rename action did not route');
+fileMenu._menuSignals.disconnectAllSignals();fileMenu._menu.destroy();
+const path = `${ARGV[0]}/shortcut-test.desktop`;
+const file = Gio.File.new_for_path(path);
+GLib.file_set_contents(path, '[Desktop Entry]\nType=Application\nName=Before\nName[en_US]=Before localized\nExec=/usr/bin/true --example\nIcon=test-icon\n');
+file.set_attribute_uint32('unix::mode', 0o755, Gio.FileQueryInfoFlags.NONE, null);
+const rename = imports.shortcutRename;
+rename.renameShortcut(file,'After rename');
+const key = new GLib.KeyFile();key.load_from_file(path,GLib.KeyFileFlags.KEEP_TRANSLATIONS);
+check(key.get_string('Desktop Entry','Name') === 'After rename','Label not saved');
+check(key.get_string('Desktop Entry','Name[en_US]') === 'After rename','Localized label not updated');
+check(key.get_string('Desktop Entry','Exec') === '/usr/bin/true --example','Launch command changed');
+check(key.get_string('Desktop Entry','Icon') === 'test-icon','Icon changed');
+check((file.query_info('unix::mode',0,null).get_attribute_uint32('unix::mode') & 0o777) === 0o755,'Execute permission lost');
+for (const invalid of ['', 'bad/name', 'bad\nname']) {
+    let rejected=false;try {rename.renameShortcut(file,invalid);} catch(e) {rejected=true;}
+    check(rejected,'Invalid shortcut name accepted');
+}
+let popupCount=0;
+const dialog = rename.ask({showPopup:()=>popupCount++,hidePopup:()=>popupCount--}, {file,fileName:'shortcut-test.desktop'});
+const entry = dialog.get_content_area().get_children().find(c=>c instanceof Gtk.Entry);
+entry.text='Dialog renamed';dialog.response(Gtk.ResponseType.OK);
+check(popupCount===0,'Rename popup was not released');
+key.load_from_file(path,GLib.KeyFileFlags.KEEP_TRANSLATIONS);
+check(key.get_string('Desktop Entry','Name') === 'Dialog renamed','Dialog did not rename');
+file.delete(null);
+print('PASS trusted shortcut Rename, dialog, locale labels, validation, executable and icon preservation');
 print('PASS real GTK menu routing, icon preferences, refresh, clipboard sensitivity, native file action delegation');

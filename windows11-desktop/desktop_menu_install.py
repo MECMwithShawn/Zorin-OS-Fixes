@@ -20,7 +20,7 @@ def prepare(destination=None, vendor=VENDOR):
     destination.mkdir(parents=True, exist_ok=True)
     overlay = destination/'app'
     overlay.mkdir(exist_ok=True)
-    links = {overlay/p.name:p for p in app.iterdir() if p.name not in ('desktopManager.js','menu.css')}
+    links = {overlay/p.name:p for p in app.iterdir() if p.name not in ('desktopManager.js','menu.css','shortcutRename.js')}
     links[overlay/'zorinOriginal'] = app
     for target, source in links.items():
         if target.is_symlink() and target.readlink() == source:
@@ -34,7 +34,7 @@ def prepare(destination=None, vendor=VENDOR):
             continue
         relative = source.relative_to(ROOT/'gnome-desktop-extension')
         target = destination/relative
-        if source.name in ('desktopManager.js','menu.css'):
+        if source.name in ('desktopManager.js','menu.css','shortcutRename.js'):
             target = overlay/source.name
         files[target] = source.read_bytes()
     return files
