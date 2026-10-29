@@ -443,3 +443,7 @@ Advanced display includes **Copy display report**, with all detected displays, c
 
 
 GNOME background window tracking uses cancellable asynchronous reads, with one request at a time per tracker. Slow Shell replies do not block the GTK loop during these periodic checks. Newer explicit refreshes supersede older pending replies, and closing the tracker cancels outstanding reads. Foreground window commands and explicit refreshes retain their synchronous behavior.
+
+### Desktop shortcut names
+
+Right-click a desktop application shortcut and choose **Rename…**, or select it and press **F2**. Trusted launchers now support changing their displayed name while preserving their command, icon, permissions and filename. The icon menu uses the same Windows-style appearance as the desktop background menu, with icons for Open, Cut, Copy, Rename, Trash and Properties. Regular files continue using Zorin’s native rename operation; special system/drive icons retain their native restrictions.
