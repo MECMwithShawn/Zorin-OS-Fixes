@@ -29,6 +29,7 @@ import start_preferences
 import file_transfer
 import threading
 import settings_backend
+import window_glass
 import wallpaper
 import notifications
 import quick_controls
@@ -1426,6 +1427,7 @@ class Hub(Gtk.Application):
         result=settings_backend.snapshot()
         result.update(facts=settings_backend.facts(),wallpaper=wallpaper.status(),updates=settings_backend.update_status(),loading=False)
         result.update(startPreferences=self.start_preferences.snapshot(), recentHistoryAllowed=self.recent_history_allowed())
+        result.update(glass=dict(window_glass.read(),installed=window_glass.installed()))
         return result
 
     def update_settings_surface(self):
@@ -1530,6 +1532,12 @@ class Hub(Gtk.Application):
         elif action=='settings-launch':self.launch(message.get('id'))
         elif action=='settings-groups':
             self.store.state['groups_visible']=bool(message['value']);self.store.save();self.sync_groups();self.update_settings_surface()
+        elif action=='settings-glass':
+            # Sliders send while dragging; the page keeps its own slider state,
+            # so only the on/off switch needs the page redrawn.
+            cfg=window_glass.save(message.get('changes'))
+            self.settings_data['glass']=dict(cfg,installed=window_glass.installed())
+            if 'enabled' in (message.get('changes') or {}):self.update_settings_surface()
         elif action=='settings-start':self.show_start()
         elif action=='settings-wallpaper-config':
             self.settings_change(lambda:wallpaper.configure(message.get('key'),message.get('value')))
