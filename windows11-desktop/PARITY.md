@@ -42,3 +42,7 @@ GNOME backend (2026-10-19): shared Start, Explorer, Settings, Quick Settings, no
 5. Validate on the laptop, especially real backlight control, battery, touchpad, scaling, suspend and multiple displays.
 
 All changes should remain reproducible through this package and reversible through its recovery manifest. Personal Windows assets and wallpaper caches stay outside Git. No bootloader, Windows partition, GPU driver or dual-boot configuration changes are part of the visual package.
+
+### Whole-desktop saved layouts (GNOME/Wayland)
+
+Task View → Saved groups → Save current layout captures visible application windows across connected monitors, with named restore cards and maximized/fullscreen states. Missing displays fall back to the primary display. Restoring document contents or automatic login sessions is not implemented; each app controls those. See README for matching and supported-window limits.
