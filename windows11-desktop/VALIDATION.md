@@ -669,3 +669,8 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - Zorin deliberately suppresses Rename on trusted desktop launchers. The per-user adapter now exposes that action and F2, with a dedicated displayed-name editor that preserves launch command, icon and executable mode. Blank/slash/newline names and symlinks are rejected; writes use an etag to detect intervening changes. Localized Name fields are updated too. Vendor files and OneDrive remain untouched.
 - The isolated GTK menu test covers trusted/special icon eligibility, styled Rename action routing, the real dialog, persisted labels/localizations, invalid input and command/icon/mode preservation. Existing desktop menu tests pass. The installed icon process was reloaded without restarting GNOME, Explorer or OneDrive.
 - The broader disposable-GNOME lifecycle test passed its initial render/menu/icon checks but timed out in the existing missing-adapter-links recovery section (line 197). That fallback lifecycle check is not reported as passing. No sign-out or sleep was performed.
+
+## Glass-style desktop menus (2026-10-29)
+
+- Desktop and icon context menus now use an Explorer-inspired charcoal tint, restrained gradient, soft rim/shadow, rounded hover highlights and muted separators. GTK3 does not support CSS backdrop blur; this is a glass-style finish, not a compositor blur effect.
+- Existing GTK action/rename tests pass with the new stylesheet. Rendered preview inspected; theme-provided separator borders explicitly suppressed. Applied by reloading only the desktop icon process; Explorer and OneDrive untouched.
