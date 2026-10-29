@@ -657,3 +657,12 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - Nine focused model tests cover identity matching, private recipe persistence, validation, monitor reorder/scaling and disconnected-monitor fallback. The isolated GTK dialog fixture covers the actual Save button, blank-name rejection, persistence and cancellation.
 - The live Wayland fixture uses three disposable native apps across both monitors. It verifies native desktop IDs despite changed class strings, reuse without duplicate launches, unaffected unrelated windows, save/move/restore geometry and maximized/fullscreen restoration. It also runs against the installed runtime. No real documents are opened or modified by this fixture.
 - OneDrive sync and protected Explorer/frontend files are checked separately. Sign-out, suspend/resume and reboot tests remain deferred. Reopening specific documents after logout is outside this feature’s scope.
+
+## Window glass (2026-10-29)
+
+- New GNOME Shell extension `zorin11-glass@zorin-os-fixes` (`gnome-glass-extension/`) gives app windows a slight acrylic look. A `Shell.BlurEffect` background actor sits under each window, and the window's surfaces drop to 90% opacity when focused and 85% when not. Fullscreen windows, skip-taskbar companion surfaces, popups and Axentra Terminal (which has its own acrylic) stay solid.
+- Settings live in `~/.config/zorin11-hub/glass.json` (`enabled`, `active`, `inactive`, `blur`). Changes apply live; values are clamped to 60–100% and 0–80 px, and a bad file falls back to the defaults.
+- **Tests.**
+  - `tests/test_glass.mjs` covers config clamping and window rules.
+  - `tests/glass_live.py` runs on a private headless GNOME 46 Wayland session with two native GTK windows. It checks the blur actor size, focused and inactive opacity, fullscreen staying solid, live config changes, the bad-config fallback and that disable restores every window. Screenshots were reviewed.
+- Installed for the user; it loads at the next sign-in. Performance with many windows on the Intel iGPU is not measured.
