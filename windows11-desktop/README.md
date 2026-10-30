@@ -451,3 +451,7 @@ Right-click a desktop application shortcut and choose **Rename…**, or select i
 ### Static application windows
 
 If the optional `zorin11-glass@zorin-os-fixes` extension causes changing shades or background bleed-through, run `python3 windows11-desktop/static_window_appearance.py` as your desktop user. It disables that global effect and saves solid active/inactive window settings. Menu styling and application code are preserved. Its settings and recovery records are included in desktop backups.
+
+### Copy paths in GNOME Files
+
+The independent Nautilus extension adds **Copy full path** to a selected file/folder, **Copy full paths** for multiple selections (one per line), and **Copy folder path** to the folder background menu. Local paths are plain text with spaces and Unicode intact; remote locations use their URI. It does not modify the Axentra CloudDrive integration. Restart Files after installing the extension.
