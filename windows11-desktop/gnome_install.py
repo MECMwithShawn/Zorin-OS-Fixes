@@ -156,6 +156,8 @@ def install():
     import audio_effects
     files[DEST/'audio-presets.json']=json.dumps(audio_effects.PRESETS).encode()
     files[HOME/'.config/systemd/user'/audio_effects.UNIT]=audio_effects.unit(DEST).encode()
+    import session_cleanup
+    files.update({HOME/'.config/systemd/user'/name:text.encode() for name,text in session_cleanup.units(DEST).items()})
     import thumbnail_cache
     files.update({HOME/'.config/systemd/user'/name:text.encode()
                   for name,text in thumbnail_cache.units(DEST).items()})
@@ -169,6 +171,7 @@ def install():
     snipping_install.record_shortcut()
     subprocess.run(['systemctl','--user','daemon-reload'],check=True)
     subprocess.run(['systemctl','--user','enable','--now','zorin11-update-agent.service'],check=True)
+    subprocess.run(['systemctl','--user','enable','--now','zorin11-session-cleanup.service'],check=True)
     # A running Python daemon keeps its old preset catalog after files are upgraded.
     subprocess.run(['systemctl','--user','try-restart','zorin11-audio-effects.service'],check=True)
     subprocess.run(['systemctl','--user','enable','--now','zorin11-thumbnail-cache.timer'],check=True)
@@ -214,6 +217,7 @@ def restore():
     snipping_install.restore_record_shortcut()
     subprocess.run(['systemctl','--user','disable','--now','zorin11-audio-effects.service'],capture_output=True)
     subprocess.run(['systemctl','--user','disable','--now','zorin11-update-agent.service'],capture_output=True)
+    subprocess.run(['systemctl','--user','disable','--now','zorin11-session-cleanup.service'],capture_output=True)
     subprocess.run(['systemctl','--user','disable','--now','zorin11-thumbnail-cache.timer'],capture_output=True)
     subprocess.run(['systemctl','--user','stop','zorin11-thumbnail-cache.service'],capture_output=True)
     subprocess.run(['systemctl','--user','disable','--now',lockscreen_install.UNIT+'.timer'],capture_output=True)

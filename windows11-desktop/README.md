@@ -455,3 +455,9 @@ If the optional `zorin11-glass@zorin-os-fixes` extension causes changing shades 
 ### Copy paths in GNOME Files
 
 The independent Nautilus extension adds **Copy full path** to a selected file/folder, **Copy full paths** for multiple selections (one per line), and **Copy folder path** to the folder background menu. Local paths are plain text with spaces and Unicode intact; remote locations use their URI. It does not modify the Axentra CloudDrive integration. Restart Files after installing the extension.
+
+### Logout cleanup and recovery validation
+
+The GNOME installer includes the existing session cleanup helper and its graphical-session service. Cleanup matches only exact user-owned Mini Media/Soloist or legacy OneDrive GUI executable paths, using pidfds to avoid reused-PID signalling. The current lowercase `axentra-onedrive` sync daemon is excluded. During an active desktop session, stopping/uninstalling the cleanup service skips app termination; cleanup is permitted only while the graphical-session target is deactivating or inactive.
+
+For read-only recovery diagnostics, use `python3 ~/.local/share/zorin11-hub/wayland_resume_check.py --output ~/.local/state/zorin11-resume-check`. Adding `--watch` records one subsequent sleep/wake cycle without initiating sleep. Logs stay local; no account details or filenames are included in the OneDrive status snapshot.
