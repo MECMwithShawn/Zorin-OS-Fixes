@@ -129,7 +129,17 @@ class SavedGroupsView:
         dialog.add_buttons('Cancel',Gtk.ResponseType.CANCEL,'Save layout',Gtk.ResponseType.OK)
         box=dialog.get_content_area();box.set_border_width(20);box.set_spacing(12)
         count=len(snapshot[0]);screens=len({r['monitor']['index'] for r in snapshot[0]})
-        box.pack_start(label(f'{count} windows across {screens} displays on this desktop.'),False,False,0)
+        summary=label(f'{count} windows across {screens} displays on this desktop.');box.pack_start(summary,False,False,0)
+        scope=Gtk.ComboBoxText();scope.get_accessible().set_name('Displays to save')
+        scope.append('all','All displays on this desktop')
+        outputs={r['monitor']['index']:r['monitor'] for r in snapshot[0]}
+        for index,monitor in sorted(outputs.items()):
+            scope.append(str(index),f"Display {index+1}: {monitor['model']} only")
+        scope.set_active_id('all');box.pack_start(scope,False,False,0)
+        def selected():
+            ident=scope.get_active_id()
+            return snapshot if ident=='all' else ([r for r in snapshot[0] if r['monitor']['index']==int(ident)],snapshot[1])
+        scope.connect('changed',lambda *_:summary.set_text(f'{len(selected()[0])} windows will be saved.'))
         name=Gtk.Entry(text='My desktop layout',activates_default=True);name.get_accessible().set_name('Layout name')
         box.pack_start(name,False,False,0)
         note=label('Saves positions and window states. Documents and tabs follow each app’s restore settings.');note.set_line_wrap(True);note.set_max_width_chars(55);box.pack_start(note,False,False,0)
@@ -138,7 +148,7 @@ class SavedGroupsView:
             if response==Gtk.ResponseType.OK:
                 try:
                     if not name.get_text().strip():raise ValueError('Enter a layout name.')
-                    self.saved.save_current(name.get_text(),snapshot)
+                    self.saved.save_current(name.get_text(),selected(),display_only=scope.get_active_id()!='all')
                 except (ValueError,OSError) as problem:error.set_text(str(problem));return
             self.modal=False;widget.destroy()
             if self.alive():self.render();self.win.present()

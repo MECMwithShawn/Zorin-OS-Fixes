@@ -680,3 +680,10 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - Saved groups now filters by layout/app name, supports Ctrl+F, and treats Escape as cancel-name-edit → clear-search → close. Canceling an edited name before focus-out prevents unintended persistence. Successful renames refresh the search terms immediately. Cards use the restrained glass-style palette with explicit keyboard focus outlines.
 - Extended GTK fixture passed against source and installed runtime: search/no results, actual manager key routing, cancel then focus-out preservation, rename/search refresh, startup toggle and save dialog. CSS loaded successfully and a rendered preview was inspected. Reloaded the companion only after verifying no visible companion windows; opened Saved groups locally.
 - OneDrive reports synced and its executable plus Explorer/frontend hashes are unchanged. Sign-out, sleep and reboot testing remain deferred.
+
+## Display-only layouts and static window appearance (2026-10-30)
+
+- Save dialog now offers individual displays. Display-only restore filters same-app candidates to that screen, matches nearby positions first, and reports a disconnected target display instead of moving laptop windows. All restored normal frames are clamped to the target work area.
+- GTK save-dialog test covers selecting and persisting display scope. Model tests cover present/missing-monitor containment, and a restore test verifies a laptop browser is not borrowed for an external-screen recipe. The live native Wayland fixture checks display-only restoration with other-display windows unchanged. One initial legacy placement attempt was constrained by the compositor; the diagnostic rerun passed.
+- Diagnosed a real oversized Brave frame beginning 17 pixels above the laptop work area; fitted only that frame to the laptop, leaving the four external-screen YouTube windows unchanged. Disabled the separately installed global Window Glass extension (90% active/85% inactive) and saved 100%/100%, no-blur settings; no app code was replaced.
+- Sign-out and sleep testing remain deferred.
