@@ -28,6 +28,7 @@ def validate(data):
         if not isinstance(group.get('name'),str) or not 1<=len(group['name'])<=80:raise ValueError('Invalid group name.')
         if not isinstance(group.get('desktop',''),str) or len(group.get('desktop',''))>80:raise ValueError('Invalid desktop identity.')
         layout=group.get('kind')=='layout'
+        if type(group.get('display_only',False)) is not bool:raise ValueError('Invalid display scope.')
         members=group.get('members')
         if not isinstance(members,list) or not (1<=len(members)<=128 if layout else 2<=len(members)<=6):raise ValueError('A saved layout needs one to 128 windows.' if layout else 'A saved group needs two to six windows.')
         for member in members:
@@ -74,7 +75,7 @@ class Recipes:
             if os.path.exists(temp):os.unlink(temp)
         self.data=data;self.revision+=1
 
-    def put(self,members,desktop='',ident=None,name=None,kind=None):
+    def put(self,members,desktop='',ident=None,name=None,kind=None,display_only=False):
         data=copy.deepcopy(self.data)
         old=next((g for g in data['groups'] if g['id']==ident),None)
         if not old:old=next((g for g in data['groups'] if g['members']==members and g.get('desktop','')==desktop),None)
@@ -83,6 +84,7 @@ class Recipes:
         ident=ident or uuid.uuid4().hex
         data['groups'].insert(0,dict(id=ident,name=(name or 'Snap group').strip()[:80] or 'Snap group',desktop=desktop,members=members))
         if kind:data['groups'][0]['kind']=kind
+        if display_only:data['groups'][0]['display_only']=True
         self.write(data);return ident
 
     def rename(self,ident,name):
@@ -182,10 +184,10 @@ class SavedGroups:
         uid=next((d['uid'] for d in self.m.desktops.items() if d['id']==desktop),'')
         return members,uid
 
-    def save_current(self,name,snapshot=None):
+    def save_current(self,name,snapshot=None,display_only=False):
         members,desktop=snapshot or self.current_layout()
         members=copy.deepcopy(members);ids={i:r.pop('_window') for i,r in enumerate(members)}
-        ident=self.store.put(members,desktop,name=name or 'Desktop layout',kind='layout')
+        ident=self.store.put(members,desktop,name=name or 'Desktop layout',kind='layout',display_only=display_only)
         self.layout_windows[ident]=ids;return ident
 
     def automatic(self,group,ident=None):
@@ -209,9 +211,10 @@ class SavedGroups:
         area=self.m.area(self.m.windows.active());ax,ay,aw,ah=area
         rects=[(ax+round(r['rect'][0]*aw),ay+round(r['rect'][1]*ah),max(1,round(r['rect'][2]*aw)),max(1,round(r['rect'][3]*ah))) for r in recipe['members']]
         if recipe.get('kind')=='layout':
-            from window_layouts import monitors,decode
+            from window_layouts import monitors,decode,resolve_monitor,encode
             outputs=monitors()
             if not outputs:raise ValueError('No displays are available.')
+            if recipe.get('display_only') and any(resolve_monitor(r,outputs) is None for r in recipe['members']):raise ValueError('Connect the saved display before restoring this display-only layout.')
             rects=[decode(r,outputs) for r in recipe['members']]
         op={'recipe':recipe,'apps':apps,'target':target,'rects':rects,'assigned':{},'launched':set(),'deadline':time.monotonic()+30,'timer':0,'notify':notify,'phase':'matching','started':False}
         self.operation=op
@@ -240,6 +243,13 @@ class SavedGroups:
                         continue
                     matches=[w for w in live if w.get_xid() not in used and self.m.desktops.on(w,target)
                              and matches_member(w,member)]
+                    if recipe.get('display_only'):
+                        target_monitor=resolve_monitor(member,outputs)
+                        matches=[w for w in matches if encode(w.get_geometry(),outputs)['monitor']['index']==target_monitor['index']]
+                        # Same-app windows on the laptop are never borrowed for
+                        # a display-only layout. Match nearby quadrants first.
+                        rect=rects[index]
+                        matches.sort(key=lambda w:sum((a-b)**2 for a,b in zip(w.get_geometry()[:2],rect[:2])))
                     if matches:
                         xid=matches[0].get_xid();op['assigned'][index]=xid;used.add(xid);continue
                     if index not in op['launched']:

@@ -8,11 +8,16 @@ def member(rect=(50,20,800,700)):
     return dict(app='one.desktop',**{'class':'One'},state='normal',**encode(rect,OUTPUTS))
 class LayoutTests(unittest.TestCase):
     def test_geometry_round_trip_and_scale_and_reordered_outputs(self):
-        for rect in [(50,20,800,700),(500,980,800,700),(100,300,2400,1000)]:
+        for rect in [(50,20,800,700),(500,980,800,700)]:
             r=member(rect)
             self.assertEqual(decode(r,list(reversed(OUTPUTS))),rect)
         r=member();changed=[dict(OUTPUTS[1],area=[100,0,1200,450])]
         self.assertEqual(decode(r,changed),(125,10,400,350))
+    def test_oversized_window_is_contained_on_present_monitor(self):
+        laptop=OUTPUTS[0]
+        r=dict(member(),monitor=laptop,rect=[-.4,-.02,2,1.7])
+        self.assertEqual(decode(r,OUTPUTS),tuple(laptop['area']))
+
     def test_missing_display_fits_to_remaining_display(self):
         rect=decode(member(),OUTPUTS[:1]);x,y,w,h=rect;a,b,c,d=OUTPUTS[0]['area']
         self.assertTrue(a<=x and b<=y and x+w<=a+c and y+h<=b+d)
