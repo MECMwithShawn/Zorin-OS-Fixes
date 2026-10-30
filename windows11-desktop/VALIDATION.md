@@ -687,3 +687,8 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - GTK save-dialog test covers selecting and persisting display scope. Model tests cover present/missing-monitor containment, and a restore test verifies a laptop browser is not borrowed for an external-screen recipe. The live native Wayland fixture checks display-only restoration with other-display windows unchanged. One initial legacy placement attempt was constrained by the compositor; the diagnostic rerun passed.
 - Diagnosed a real oversized Brave frame beginning 17 pixels above the laptop work area; fitted only that frame to the laptop, leaving the four external-screen YouTube windows unchanged. Disabled the separately installed global Window Glass extension (90% active/85% inactive) and saved 100%/100%, no-blur settings; no app code was replaced.
 - Sign-out and sleep testing remain deferred.
+
+## GNOME Files Copy full path (2026-10-30)
+
+- Independent Nautilus 4 MenuProvider adds selected-file and folder-background copy-path actions, preserving plain local paths and remote URIs. No file contents or sync operations are accessed. GNOME installer and selective backup include the new extension.
+- Isolated GTK4/Nautilus fixture activates real menu items and reads the clipboard back, covering multiple files, spaces, Unicode, background folders and remote URIs. Installed locally and gracefully restarted Files, reopening its prior folder. The CloudDrive extension and OneDrive executable hashes are unchanged; OneDrive reports synced.
