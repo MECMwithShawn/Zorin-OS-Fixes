@@ -692,3 +692,11 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 
 - Independent Nautilus 4 MenuProvider adds selected-file and folder-background copy-path actions, preserving plain local paths and remote URIs. No file contents or sync operations are accessed. GNOME installer and selective backup include the new extension.
 - Isolated GTK4/Nautilus fixture activates real menu items and reads the clipboard back, covering multiple files, spaces, Unicode, background folders and remote URIs. Installed locally and gracefully restarted Files, reopening its prior folder. The CloudDrive extension and OneDrive executable hashes are unchanged; OneDrive reports synced.
+
+## Session reliability audit (2026-10-30)
+
+- Found that the installed 2026-10-20 logout cleanup helper/service were absent from the repository installer. Added the helper and service generation, enablement and removal to GNOME installation. Added an active-session guard so maintenance stops cannot close apps. Current OneDrive daemon remains excluded.
+- Three tests cover real disposable exact-executable cleanup, unrelated-process preservation, active/unknown-session skipping, logout states and unit/sync-daemon constraints. Installed helper skips safely during the current active session. Existing cleanup service remains active; no apps were terminated during local installation.
+- Existing logs show s2idle exit at 15:10:36, NetworkManager wake at 15:10:37, policy auto-activation at 15:10:47 and successful Wi-Fi activation at 15:10:48. This is evidence of automatic Wi-Fi recovery for that one cycle, not universal suspend reliability.
+- Current read-only snapshot: Wayland session, two logical monitors, NVIDIA query succeeds, network connected/full, OneDrive mounted/up_to_date with zero pending/upload/download counts. Snapshot stored locally under ~/.local/state/zorin11-audit/2026-10-30.
+- Only a two-window layout named test is saved, with automatic restoration disabled. Actual sign-out/sign-in cleanup and visible dual-monitor wake behavior still require user testing; no new suspend or sign-out was triggered.
