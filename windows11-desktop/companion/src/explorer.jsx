@@ -99,6 +99,7 @@ export function Explorer({data,toast}){
  {chosen.length===1&&chosen[0].folder&&<ContextItem icon="plus" label="Open in new tab" onClick={()=>{newTab(chosen[0].path);setMenu(null);}}/>}
  {chosen.length===1&&!chosen[0].folder&&<ContextItem icon="apps" label="Open with…" onClick={()=>fileAction('open-with')}/>}
  <div className="menu-separator"/>
+ {!data.path.startsWith('::')&&chosen.some(i=>!i.folder)&&<ContextItem icon="mail" label="Email" onClick={()=>fileAction('email')}/>}
  <ContextItem icon="copy" label="Copy as path" shortcut="Ctrl+Shift+C" onClick={()=>fileAction('copy-path')}/>
  <ContextItem icon="rename" label="Rename" shortcut="F2" disabled={!canRename} onClick={()=>fileAction('rename')}/>
  <div className="menu-separator"/>

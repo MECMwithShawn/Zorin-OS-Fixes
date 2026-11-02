@@ -700,3 +700,9 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - Existing logs show s2idle exit at 15:10:36, NetworkManager wake at 15:10:37, policy auto-activation at 15:10:47 and successful Wi-Fi activation at 15:10:48. This is evidence of automatic Wi-Fi recovery for that one cycle, not universal suspend reliability.
 - Current read-only snapshot: Wayland session, two logical monitors, NVIDIA query succeeds, network connected/full, OneDrive mounted/up_to_date with zero pending/upload/download counts. Snapshot stored locally under ~/.local/state/zorin11-audit/2026-10-30.
 - Only a two-window layout named test is saved, with automatic restoration disabled. Actual sign-out/sign-in cleanup and visible dual-monitor wake behavior still require user testing; no new suspend or sign-out was triggered.
+
+## Email from right-click (2026-11-02)
+
+- Explorer's file context menu gains **Email** (shown when the selection has at least one file); GNOME Files gains the same item through `nautilus-extension/zorin11_email.py`, hidden when `axentra-outlook` isn't on PATH or nothing selected is a local file. Both run `axentra-outlook --compose --subject "Emailing: <names>" --attach <file>…`, which only opens a draft; nothing is sent. Folders and remote locations are skipped. The mail glyph is Fluent's `ic_fluent_mail_20_regular` from the pinned revision.
+- `companion/test_email_files.py` (stand-in `axentra-outlook` on PATH): file-only attachments, Unicode names, folder-only selection, missing Outlook. `tests/nautilus_email_live.py` (real Nautilus MenuItem under Xvfb): files only, folder/remote skipped, hidden without Outlook, exact compose arguments. Both passed, as did `tests/nautilus_copy_path_live.py`.
+- Explorer preview harness: Email appears for files and not for folders, and clicking it posts `file-email` with the selected paths. A rebuild of master's sources reproduced the committed `dist/main.js` first.
