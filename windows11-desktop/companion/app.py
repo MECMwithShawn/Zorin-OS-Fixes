@@ -1426,7 +1426,19 @@ class Hub(Gtk.Application):
         result=settings_backend.snapshot()
         result.update(facts=settings_backend.facts(),wallpaper=wallpaper.status(),updates=settings_backend.update_status(),loading=False)
         result.update(startPreferences=self.start_preferences.snapshot(), recentHistoryAllowed=self.recent_history_allowed())
+        taskbar = self.taskbar_settings()
+        result.update(taskbarDisplays=None if taskbar is None else dict(
+            all=taskbar.get_boolean('multi-monitors'), isolate=taskbar.get_boolean('isolate-monitors')))
         return result
+
+    @staticmethod
+    def taskbar_settings():
+        """Zorin Taskbar's settings, if it is installed; it rebuilds its panels when these change."""
+        source = Gio.SettingsSchemaSource.get_default()
+        schema = source.lookup('org.gnome.shell.extensions.zorin-taskbar', True) if source else None
+        if schema is None or not all(schema.has_key(k) for k in ('multi-monitors', 'isolate-monitors')):
+            return None
+        return Gio.Settings.new_full(schema, None, None)
 
     def update_settings_surface(self):
         surface=self.surfaces.get('settings')
@@ -1530,6 +1542,11 @@ class Hub(Gtk.Application):
         elif action=='settings-launch':self.launch(message.get('id'))
         elif action=='settings-groups':
             self.store.state['groups_visible']=bool(message['value']);self.store.save();self.sync_groups();self.update_settings_surface()
+        elif action=='settings-taskbar-displays':
+            taskbar=self.taskbar_settings()
+            key={'all':'multi-monitors','isolate':'isolate-monitors'}.get(message.get('key'))
+            if taskbar is not None and key:taskbar.set_boolean(key,bool(message.get('value')));Gio.Settings.sync()
+            self.update_settings_surface()
         elif action=='settings-start':self.show_start()
         elif action=='settings-wallpaper-config':
             self.settings_change(lambda:wallpaper.configure(message.get('key'),message.get('value')))
