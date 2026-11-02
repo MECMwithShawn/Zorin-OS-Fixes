@@ -267,8 +267,42 @@ def paste(sources, destination, cut=False):
 
 
 def trash(paths):
+    """Moves paths to the Recycle Bin and returns the ones whose drive has none.
+
+    The OneDrive drive, for one, refuses a local trash folder. Every other path
+    is still trashed; any other failure is raised after the rest are done.
+    """
+    unsupported, failed = [], None
     for path in paths:
-        Gio.File.new_for_path(path).trash(None)
+        try:
+            Gio.File.new_for_path(path).trash(None)
+        except GLib.Error as error:
+            if error.matches(Gio.io_error_quark(), Gio.IOErrorEnum.NOT_SUPPORTED):
+                unsupported.append(path)
+            else:
+                failed = failed or error
+    if failed:
+        raise failed
+    return unsupported
+
+
+def delete(paths):
+    """Deletes paths outright; only used once the user agreed they can't be recycled."""
+    for path in paths:
+        p = Path(path)
+        if p.is_dir() and not p.is_symlink():
+            shutil.rmtree(p)
+        else:
+            p.unlink(missing_ok=True)
+
+
+def online_recycle_bin(paths):
+    """The cloud service whose own recycle bin keeps deletes from every path, if any."""
+    for place in cloud_places():
+        root = Path(place['path'])
+        if all(Path(p) == root or root in Path(p).parents for p in paths):
+            return place['name']
+    return None
 
 
 def clipboard_read(clipboard):
