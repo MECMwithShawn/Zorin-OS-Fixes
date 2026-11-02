@@ -36,7 +36,7 @@ class DesktopMenuTests(unittest.TestCase):
             runtime=root/'hub';runtime.mkdir()
             (root/'run').mkdir(mode=0o700)
             (runtime/'app.py').write_text("import sys\nfrom pathlib import Path\nwith Path(__file__).with_name('actions').open('a') as f:f.write(' '.join(sys.argv[1:])+'\\n')\n")
-            (runtime/'wallpaper_action.py').write_text("from pathlib import Path\nwith Path(__file__).with_name('actions').open('a') as f:f.write('next wallpaper\\n')\n")
+            (runtime/'wallpaper_action.py').write_text("import sys\nfrom pathlib import Path\nwith Path(__file__).with_name('actions').open('a') as f:f.write(' '.join(sys.argv[1:])+' wallpaper\\n')\n")
             env=dict(os.environ,GSETTINGS_BACKEND='memory',XDG_CONFIG_HOME=str(root/'config'),
                      XDG_CACHE_HOME=str(root/'cache'),XDG_RUNTIME_DIR=str(root/'run'),
                      GIO_USE_VFS='local',GIO_USE_VOLUME_MONITOR='unix',
@@ -47,7 +47,7 @@ class DesktopMenuTests(unittest.TestCase):
             self.assertEqual(result.returncode,0,result.stdout+result.stderr)
             self.assertIn('PASS',result.stdout)
             self.assertEqual((runtime/'actions').read_text().splitlines(),
-                             ['--settings display','--settings personalization','next wallpaper'])
+                             ['--settings display','--settings personalization','next wallpaper','previous wallpaper'])
             self.assertEqual(original.read_bytes(),before)
 
 

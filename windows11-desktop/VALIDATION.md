@@ -1,3 +1,8 @@
+## Desktop menu Previous background — 2026-11-02
+
+- Right-click desktop → Next desktop background no longer opens Settings → Background. Next and the new Previous desktop background walk the saved background history (newest first); Next past the newest downloads a new Bing/Spotlight picture as before, only when one of those is on. When there is nowhere to go, or a download fails, a desktop notification says so instead.
+- `companion/test_wallpaper_step.py` covers walking history both ways, the history ends, a picture outside history, download only with a picture service, and that the action never starts Settings. `tests/test_desktop_menu.py` (live GTK menu under Xvfb) checks the menu order and that both items run the action with `next`/`previous`; a screenshot showed the new item under Next.
+
 ## Taskbar Motion tab and Apply — 2026-10-23
 
 - Settings → Personalization → Taskbar opens a native preferences host with Zorin’s installed Style, Position, Behavior and Action pages plus Motion. The vendor source is loaded in place through GNOME 46’s preferences loader; vendor files and the companion frontend are unchanged. A separate Taskbar settings Start entry provides immediate access. Quick Settings Customize motion opens the same tab.

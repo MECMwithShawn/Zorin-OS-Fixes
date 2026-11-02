@@ -176,13 +176,15 @@ var DesktopManager = class extends Upstream.DesktopManager {
         main.append(new Gtk.SeparatorMenuItem());
         main.append(item('Display settings', 'video-display-symbolic', () => launch('display')));
         main.append(item('Personalize', 'preferences-desktop-wallpaper-symbolic', () => launch('personalization')));
-        main.append(item('Next desktop background', 'media-skip-forward-symbolic', () => {
+        const wallpaper = direction => {
             const runtime = GLib.getenv('ZORIN11_RUNTIME_DIR') ||
                 GLib.build_filenamev([GLib.get_home_dir(), '.local/share/zorin11-hub']);
             const launcher = new Gio.SubprocessLauncher({flags: Gio.SubprocessFlags.NONE});
             launcher.setenv('GDK_BACKEND', 'x11', true);
-            launcher.spawnv(['/usr/bin/python3', `${runtime}/wallpaper_action.py`]);
-        }));
+            launcher.spawnv(['/usr/bin/python3', `${runtime}/wallpaper_action.py`, direction]);
+        };
+        main.append(item('Next desktop background', 'media-skip-forward-symbolic', () => wallpaper('next')));
+        main.append(item('Previous desktop background', 'media-skip-backward-symbolic', () => wallpaper('previous')));
         main.append(new Gtk.SeparatorMenuItem());
         const more = item('Show more options', 'view-more-symbolic');
         more.set_submenu(original);

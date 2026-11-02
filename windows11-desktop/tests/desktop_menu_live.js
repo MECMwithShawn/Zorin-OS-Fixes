@@ -26,7 +26,7 @@ function activate(menu, name) {
     return found;
 }
 const names = m._menu.get_children().filter(r => !(r instanceof Gtk.SeparatorMenuItem)).map(r => r.get_accessible().accessible_name);
-check(JSON.stringify(names) === JSON.stringify(['View','Sort by','Refresh','New fence here','Paste','New','Display settings','Personalize','Next desktop background','Show more options']), names);
+check(JSON.stringify(names) === JSON.stringify(['View','Sort by','Refresh','New fence here','Paste','New','Display settings','Personalize','Next desktop background','Previous desktop background','Show more options']), names);
 activate(m._menu, 'Refresh'); check(refreshes === 1, 'Refresh did not reload');
 const view = row(m._menu, 'View').get_submenu();
 activate(view, 'Small icons'); check(Prefs.desktopSettings.get_string('icon-size') === 'small', 'Icon size did not change');
@@ -39,7 +39,7 @@ m._pasteMenuItem.set_sensitive(false);check(!row(m._menu, 'Paste').get_sensitive
 m._pasteMenuItem.set_sensitive(true);activate(m._menu, 'Paste');check(pastes === 1, 'Paste did not delegate');
 activate(row(m._menu, 'New').get_submenu(), 'Folder');check(folders === 1, 'New folder did not delegate');
 check(row(m._menu, 'Show more options').get_submenu().get_children().includes(m._undoMenuItem), 'Original operations missing');
-for (const name of ['Display settings','Personalize','Next desktop background']) {
+for (const name of ['Display settings','Personalize','Next desktop background','Previous desktop background']) {
     activate(m._menu, name);
     GLib.usleep(150000);
 }
