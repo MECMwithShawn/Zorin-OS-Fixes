@@ -1775,6 +1775,14 @@ class Hub(Gtk.Application):
                 dialog.destroy()
                 if not accepted:return
                 task=lambda: explorer.trash(selected)
+                def recycled(unsupported):
+                    if unsupported and self.confirm_delete(surface,unsupported):
+                        self.file_task(surface,lambda:explorer.delete(unsupported))
+                    elif str(id(surface)) in self.surfaces:
+                        surface.send({'type':'notice','message':'Done'})
+                        self.load_folder(surface,surface.location,bool((surface.file_state or {}).get('hidden')))
+                self.file_task(surface,task,recycled)
+                return
             elif action=='file-new-folder':
                 task=lambda: explorer.create_folder(destination,message['name'])
             elif action=='file-rename':
@@ -1791,12 +1799,39 @@ class Hub(Gtk.Application):
                 return
             else:
                 raise ValueError('Unknown file action')
-            surface.send({'type':'notice','message':'Working…'})
-            def done(result):
-                if str(id(surface)) not in self.surfaces:return
-                surface.send({'type':'notice','message':'Done'})
+            self.file_task(surface,task)
+
+    def file_task(self, surface, task, then=None):
+        surface.send({'type':'notice','message':'Working…'})
+        def reload():
+            if str(id(surface)) in self.surfaces:
                 self.load_folder(surface,surface.location, bool((surface.file_state or {}).get('hidden')))
-            self.background(task,done,lambda e:surface.send({'type':'error','message':e}))
+        def done(result):
+            if str(id(surface)) not in self.surfaces:return
+            if then:return then(result)
+            surface.send({'type':'notice','message':'Done'})
+            reload()
+        def failed(error):
+            # Part of a multi-item change may have happened before the error.
+            surface.send({'type':'error','message':error})
+            reload()
+        self.background(task,done,failed)
+
+    def confirm_delete(self, surface, paths):
+        """Asks before deleting items that have no Recycle Bin, as Windows does."""
+        if str(id(surface)) not in self.surfaces:
+            return False
+        service=explorer.online_recycle_bin(paths)
+        count=f'{len(paths)} item(s)' if len(paths)>1 else f'“{Path(paths[0]).name}”'
+        dialog=Gtk.MessageDialog(transient_for=surface,modal=True,message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.NONE,text=f'{count} can’t be moved to the Recycle Bin. Delete anyway?')
+        dialog.format_secondary_text(f'{service} keeps deleted items in its online recycle bin, where you can restore them.'
+            if service else 'This drive has no Recycle Bin, so they will be deleted permanently.')
+        dialog.add_buttons('Cancel',Gtk.ResponseType.CANCEL,'Delete',Gtk.ResponseType.OK)
+        dialog.set_default_response(Gtk.ResponseType.CANCEL)
+        accepted=dialog.run()==Gtk.ResponseType.OK
+        dialog.destroy()
+        return accepted
 
     def diagnostics(self, path):
         report = {'apps': len(self.apps), 'pins': len(self.store.state['pins']),

@@ -80,6 +80,36 @@ class ExplorerTests(unittest.TestCase):
             self.assertEqual((target/'source/nested/file').read_text(),'content')
             with self.assertRaises(ValueError):explorer.paste([str(src)],str(src/'nested'))
 
+    def test_trash_reports_paths_without_a_recycle_bin(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);(root/'a.txt').write_text('a');(root/'b.txt').write_text('b');(root/'c').mkdir();(root/'c/d.txt').write_text('d')
+            trashed=[]
+            def fake(self,_):
+                path=self.get_path()
+                if path.endswith('b.txt') or path.endswith('/c'):
+                    raise explorer.GLib.Error.new_literal(explorer.Gio.io_error_quark(),'no trash',explorer.Gio.IOErrorEnum.NOT_SUPPORTED)
+                trashed.append(path)
+            with patch.object(explorer.Gio.File,'trash',fake,create=True):
+                left=explorer.trash([str(root/'a.txt'),str(root/'b.txt'),str(root/'c')])
+            self.assertEqual(left,[str(root/'b.txt'),str(root/'c')])
+            self.assertEqual(trashed,[str(root/'a.txt')])
+            explorer.delete(left)
+            self.assertFalse((root/'b.txt').exists() or (root/'c').exists())
+            explorer.delete([str(root/'missing.txt')])
+    def test_other_trash_errors_still_raise_after_the_rest(self):
+        trashed=[]
+        def fake(self,_):
+            if self.get_path()=='/x/locked':
+                raise explorer.GLib.Error.new_literal(explorer.Gio.io_error_quark(),'denied',explorer.Gio.IOErrorEnum.PERMISSION_DENIED)
+            trashed.append(self.get_path())
+        with patch.object(explorer.Gio.File,'trash',fake,create=True):
+            with self.assertRaises(explorer.GLib.Error):explorer.trash(['/x/locked','/x/ok'])
+        self.assertEqual(trashed,['/x/ok'])
+    def test_online_recycle_bin_only_for_items_inside_the_cloud_folder(self):
+        with patch.object(explorer,'cloud_places',return_value=[dict(name='OneDrive',path='/home/u/OneDrive')]):
+            self.assertEqual(explorer.online_recycle_bin(['/home/u/OneDrive/a','/home/u/OneDrive/b/c']),'OneDrive')
+            self.assertIsNone(explorer.online_recycle_bin(['/home/u/OneDrive/a','/media/usb/b']))
+            self.assertIsNone(explorer.online_recycle_bin(['/home/u/OneDrive2/a']))
     def test_onedrive_gets_its_own_navigation_entry(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);drive=root/'OneDrive';(drive/'Docs').mkdir(parents=True)

@@ -1,3 +1,8 @@
+## Explorer delete on drives without a Recycle Bin — 2026-11-02
+
+- Deleting on the OneDrive drive failed with “Unable to find or create trash directory”, so the files stayed in the list. Explorer now trashes what it can, then asks before deleting the rest (“can’t be moved to the Recycle Bin. Delete anyway?”), naming OneDrive’s online recycle bin when every item is inside the OneDrive folder. One failing item no longer stops the others, and the folder reloads after a failure too.
+- `test_explorer.py` checks which paths are reported, that other errors still raise after the rest are trashed, recursive delete, and the online-recycle-bin match. `test_explorer_delete_flow.py` drives the real dispatch path with stand-in dialogs: confirm, cancel, and refresh after failure. A probe file on the live OneDrive mount was reported as not recyclable with “OneDrive - Personal”, then removed. The rest of the companion suite fails the same with and without this change (live desktop tests and timing tests).
+
 ## Taskbar Motion tab and Apply — 2026-10-23
 
 - Settings → Personalization → Taskbar opens a native preferences host with Zorin’s installed Style, Position, Behavior and Action pages plus Motion. The vendor source is loaded in place through GNOME 46’s preferences loader; vendor files and the companion frontend are unchanged. A separate Taskbar settings Start entry provides immediate access. Quick Settings Customize motion opens the same tab.
