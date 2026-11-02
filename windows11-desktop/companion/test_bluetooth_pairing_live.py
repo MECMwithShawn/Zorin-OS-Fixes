@@ -37,7 +37,7 @@ class ObjectManager(dbus.service.Object):
     def GetManagedObjects(self):return objects
 object_manager=ObjectManager(bus,'/')
 class Device(Properties):
-    mode='confirm';pending=None
+    mode='confirm';pending=None;refuse=False
     @dbus.service.method(pairing.DEVICE,in_signature='',out_signature='',async_callbacks=('reply','error'),sender_keyword='sender')
     def Pair(self,reply,error,sender=None):
         pairs.append(self.path);self.pending=error
@@ -50,7 +50,9 @@ class Device(Properties):
         elif self.mode=='display':agent.DisplayPasskey(self.path,dbus.UInt32(123456),dbus.UInt16(0),reply_handler=lambda:None,error_handler=error)
         else:error(Failed('The device refused pairing'))
     @dbus.service.method(pairing.DEVICE,in_signature='',out_signature='')
-    def Connect(self):self.state['Connected']=True
+    def Connect(self):
+        if self.refuse:raise Failed('Page timeout')
+        self.state['Connected']=True
     @dbus.service.method(pairing.DEVICE,in_signature='',out_signature='')
     def CancelPairing(self):
         if self.pending:self.pending(Failed('Pairing canceled'));self.pending=None
@@ -59,6 +61,7 @@ def device(ident,alias,number):
     return Device('/org/bluez/hci0/dev_'+ident,pairing.DEVICE,dict(Alias=alias,Address=f'AA:BB:CC:DD:EE:{number:02X}',Adapter=dbus.ObjectPath('/org/bluez/hci0'),Paired=False,Connected=False,RSSI=dbus.Int16(-40)))
 headphones=device('AA','Test AirPods',1);keyboard=device('BB','Test Keyboard',2);legacy=device('CC','Test PIN',3);display=device('DD','Test Display',4)
 omni=[device('OMNI'+str(i),'Omni',i+10) for i in range(84)]
+saved=device('EE','Saved Earbuds',5);saved.state['Paired']=True;saved.refuse=True
 window=pairing.PairingWindow()
 provider=Gtk.CssProvider();provider.load_from_path(str(Path(__file__).with_name('native-controls.css')))
 Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(),provider,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -93,7 +96,15 @@ def capture(name):
 try:
     wait(lambda:len(window.list.get_children())==5)
     assert len(leases)==2
+    # Already paired devices are offered for reconnection, never as pairing candidates.
+    wait(lambda:any(w.get_accessible().get_name()=='Saved Earbuds, '+saved.state['Address'] for w in window.paired.get_children()))
+    assert window.paired.get_visible() and not any('Saved Earbuds' in (w.get_accessible().get_name() or '') for w in window.list.get_children())
     capture('grouped-picker.png')
+    button('Connect',window.paired).clicked();wait(lambda:'Could not connect to Saved Earbuds' in window.status.get_text() and window.session.connecting is None)
+    assert not saved.state['Connected'] and window.list.get_sensitive()
+    saved.refuse=False;button('Connect',window.paired).clicked()
+    wait(lambda:saved.state['Connected'] and 'Saved Earbuds is connected' in window.status.get_text())
+    wait(lambda:not any(isinstance(w,Gtk.Button) and w.get_label()=='Connect' for w in descendants(window.paired)))
     group=next(w for w in window.list.get_children() if '84 entries' in (w.get_label() or ''));group.clicked();pump(.1)
     assert len(window.list.get_children())==89
     next(w for w in window.list.get_children() if '84 entries' in (w.get_label() or '')).clicked();pump(.1)
@@ -118,6 +129,9 @@ try:
     assert not display.state['Paired']
     window.search.set_text('AirPods');pump(.2);assert len(window.list.get_children())==1
     assert isinstance(window.list.get_children()[0],Gtk.Label), 'Paired AirPods still appear as available'
+    assert any(w.get_accessible().get_name()=='Test AirPods, '+headphones.state['Address'] for w in window.paired.get_children())
+    capture('paired-search.png')
+    window.search.set_text('Omni');pump(.2);assert not window.paired.get_visible()
     window.search.set_text('Omni');pump(.2);capture('search-picker.png')
     window.session.start();wait(lambda:len(leases)==2)
     window.session.stop();pump(.1);assert leases=={'other-client'}
@@ -130,6 +144,6 @@ try:
     window.destroy();pump(.15)
     assert leases=={'other-client'} and not agents
     assert not display.state['Paired']
-    print('Native pairing passed: 84 duplicate names grouped/expanded, search, exact address selection, confirmation/rejection, numeric/legacy PIN, displayed passkey cancellation, trust/connect, retry, and scan cleanup without stopping another client.',flush=True)
+    print('Native pairing passed: 84 duplicate names grouped/expanded, search, exact address selection, confirmation/rejection, numeric/legacy PIN, displayed passkey cancellation, trust/connect, retry, paired-device reconnect with refusal/retry, and scan cleanup without stopping another client.',flush=True)
 finally:
     if not window.session.closed:window.destroy();pump(.1)

@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock,patch
 import dbus
-from bluetooth_pairing import nearby_groups,PairingAgent,Rejected,PairingSession
+from bluetooth_pairing import nearby_groups,paired_devices,PairingAgent,Rejected,PairingSession
 
 class PairingTests(unittest.TestCase):
     def objects(self):
@@ -35,6 +35,28 @@ class PairingTests(unittest.TestCase):
         self.assertEqual(nearby_groups(objects)[-1]['name'],'Unnamed devices')
         info['Alias']='<b>AirPods</b>'
         self.assertEqual(nearby_groups(objects,'AirPods')[0]['name'],'<b>AirPods</b>')
+    def test_paired_devices_are_listed_for_reconnection(self):
+        objects=self.objects();info=objects['/adapter/airpods']['org.bluez.Device1']
+        self.assertEqual(paired_devices(objects),[])
+        info['Paired']=True
+        objects['/adapter/keyboard']={'org.bluez.Device1':dict(Alias='Keyboard',Address='22:33:44:55:66:77',Adapter='/adapter',Paired=True,Connected=True)}
+        self.assertEqual([d['name'] for d in paired_devices(objects)],['Keyboard',"Shawn's AirPods"])
+        self.assertEqual([d['connected'] for d in paired_devices(objects)],[True,False])
+        self.assertEqual([d['id'] for d in paired_devices(objects,'airpods')],['/adapter/airpods'])
+        self.assertEqual([d['id'] for d in paired_devices(objects,'66:77')],['/adapter/keyboard'])
+        info['Blocked']=True;self.assertEqual(len(paired_devices(objects)),1)
+        objects['/adapter']['org.bluez.Adapter1']['Powered']=False;self.assertEqual(paired_devices(objects),[])
+    def test_connect_rechecks_that_the_device_is_still_paired(self):
+        session=object.__new__(PairingSession)
+        session.closed=False;session.pending=False;session.waiters=[];session.target=None;session.connecting=None
+        session.objects=self.objects();session.status=Mock();session.call=Mock()
+        session.refresh=lambda done=None:done()
+        session.connect('/adapter/airpods')
+        session.call.assert_not_called();self.assertIn('no longer paired',session.status.call_args.args[0])
+        session.objects['/adapter/airpods']['org.bluez.Device1']['Paired']=True
+        session.connect('/adapter/airpods')
+        self.assertEqual(session.call.call_args.args[:3],('/adapter/airpods','org.bluez.Device1','Connect'))
+        self.assertEqual(session.connecting,'/adapter/airpods')
     def test_agent_rejects_unrequested_devices_and_other_bus_clients(self):
         agent=object.__new__(PairingAgent);agent.session=Mock(owner=':1.42',target='/expected')
         agent.check(':1.42','/expected')
