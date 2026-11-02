@@ -254,6 +254,28 @@ def update():
         raise
 
 
+@locked
+def step(direction):
+    """Moves through the saved backgrounds, newest first, as the desktop menu does.
+
+    Next past the newest picture downloads a new one when a picture service is on.
+    Returns the entry now shown, or None when there is nowhere to go.
+    """
+    state=load();ids=[i['id'] for i in state['history']]
+    index=ids.index(state['current']) if state.get('current') in ids else -1
+    if direction=='previous':
+        target=index+1
+    elif direction=='next':
+        target=index-1
+        if target<0:
+            return update() if state['source'] in FEEDS else None
+    else:
+        raise ValueError('Unknown direction.')
+    if target>=len(ids):return None
+    apply(ids[target])
+    return state['history'][target]
+
+
 def status():
     state=load();state.pop('original',None);state.pop('appliedPath',None);state.pop('appliedPaths',None)
     for key in ('desktopWrites','desktopShared','desktopPictures'):state.pop(key,None)

@@ -1,23 +1,27 @@
-"""Desktop-menu wallpaper action, independent of Explorer's running process."""
-import os
-from pathlib import Path
+"""Desktop-menu wallpaper actions, independent of Explorer's running process."""
 import subprocess
+import sys
 import wallpaper
 
 
-def main():
-    # Present the existing controls immediately, including status/error refresh.
-    subprocess.Popen(['/usr/bin/python3', str(Path(__file__).with_name('app.py')),
-                      '--settings', 'background'], env=dict(os.environ, GDK_BACKEND='x11'))
-    if wallpaper.load()['source'] in wallpaper.FEEDS:
-        try:
-            wallpaper.update()
-        except Exception as error:
-            # update() persists the error for the Settings page; keep the desktop.
-            print(str(error), flush=True)
-            return 1
+def notify(title, body=''):
+    try:subprocess.run(['notify-send','--app-name=Desktop background','--icon=preferences-desktop-wallpaper',title,body],timeout=5)
+    except (OSError,subprocess.SubprocessError):pass
+
+
+def main(direction='next'):
+    try:
+        entry=wallpaper.step(direction)
+    except Exception as error:
+        # update() also keeps the error for the Settings page.
+        print(str(error), flush=True)
+        notify('Couldn\u2019t change the desktop background', str(error))
+        return 1
+    if entry is None:
+        notify('No earlier background' if direction=='previous' else 'No newer background',
+               'Turn on Bing or Windows Spotlight in Personalization to get new pictures.' if direction=='next' else '')
     return 0
 
 
 if __name__ == '__main__':
-    raise SystemExit(main())
+    raise SystemExit(main(*sys.argv[1:2]))
