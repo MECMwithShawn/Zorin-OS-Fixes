@@ -184,7 +184,9 @@ def install():
     changes={'org.gnome.shell':{'enabled-extensions':list(dict.fromkeys(shell.get_strv('enabled-extensions')+[UUID,'zorin11-audio@zorin-os-fixes','zorin-window-move-effect@zorinos.com'])),
                              'favorite-apps':explorer_favorites(shell.get_strv('favorite-apps')),
                              'disabled-extensions':[x for x in shell.get_strv('disabled-extensions') if x not in (UUID,'zorin11-audio@zorin-os-fixes','zorin-window-move-effect@zorinos.com')]},
-             'org.gnome.mutter':{'dynamic-workspaces':False}}
+             'org.gnome.mutter':{'dynamic-workspaces':False},
+             # Mutter handles this directly for native Wayland and XWayland windows.
+             'org.gnome.desktop.wm.keybindings':{'always-on-top':['<Super><Control>t']}}
     gnome_setup.install(gnome_setup.plan(changes))
     if not desktop_menu_install.activate():
         print('Desktop menu installed; it will activate at the next sign-in.')

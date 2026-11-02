@@ -235,12 +235,17 @@ Taskbar apps sit on the screen's centre line, as in Windows 11, while they fit. 
 gsettings --schemadir ~/.local/share/gnome-shell/extensions/zorin11@zorin-os-fixes/schemas set org.gnome.shell.extensions.zorin11 adaptive-taskbar-center false
 ```
 
+## Pin a window above other windows
+
+Focus the window and press **Win+Ctrl+T** to toggle **Always on Top**. Press it again to unpin. This uses GNOME/Mutter directly and works with native Wayland and XWayland windows, including Brave. Alternatively press **Alt+Space → Always on Top**; the checkmark shows its current state. Brave’s tab-strip right-click menu is its own menu and does not expose this native action. Pinning lasts for that window’s lifetime; it does not pin a browser tab or automatically reopen the window after login.
+
 ## Shortcuts
 
 | Shortcut | Action |
 |---|---|
 | Super / Ctrl+Esc | Start |
 | Win+S | Search |
+| Win+Ctrl+T | Toggle Always on Top for the focused window |
 | Win+E | File Explorer |
 | Win+I | Settings |
 | Win+A | Quick Settings |
