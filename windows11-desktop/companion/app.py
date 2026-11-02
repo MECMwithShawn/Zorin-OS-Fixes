@@ -30,6 +30,7 @@ import file_transfer
 import threading
 import settings_backend
 import email_files
+import image_convert
 import wallpaper
 import notifications
 import quick_controls
@@ -1783,6 +1784,8 @@ class Hub(Gtk.Application):
                 task=lambda: explorer.create_folder(destination,message['name'])
             elif action=='file-rename':
                 task=lambda: explorer.rename(message['path'],message['name'])
+            elif action=='file-convert':
+                task=lambda: image_convert.convert(selected,message.get('format'))
             elif action=='file-rename-drive' and destination=='::computer':
                 task=lambda: explorer.rename_drive(message['path'],message['name'])
             elif action=='file-paste':

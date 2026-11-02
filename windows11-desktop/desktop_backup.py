@@ -80,6 +80,7 @@ def collect(home=HOME):
         '.local/share/gnome-shell/extensions/zorin11*',
         '.local/share/nautilus-python/extensions/zorin11_copy_path.py',
         '.local/share/nautilus-python/extensions/zorin11_email.py',
+        '.local/share/nautilus-python/extensions/zorin11_convert.py',
         '.local/share/applications/zorin11*.desktop',
         '.config/autostart/zorin11*.desktop',
         '.config/systemd/user/zorin11*.service',

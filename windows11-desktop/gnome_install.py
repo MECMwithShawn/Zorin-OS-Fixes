@@ -132,6 +132,7 @@ def install():
     files.update(personalization_entries(apps))
     files[HOME/'.local/share/nautilus-python/extensions/zorin11_copy_path.py']=(ROOT/'nautilus-extension/zorin11_copy_path.py').read_bytes()
     files[HOME/'.local/share/nautilus-python/extensions/zorin11_email.py']=(ROOT/'nautilus-extension/zorin11_email.py').read_bytes()
+    files[HOME/'.local/share/nautilus-python/extensions/zorin11_convert.py']=(ROOT/'nautilus-extension/zorin11_convert.py').read_bytes()
     files[apps/'zorin11-explorer.desktop']+=b'MimeType=inode/directory;\nKeywords=Files;Folders;File Manager;Explorer;\n'
     files[apps/'zorin11-event-viewer.desktop']=event_viewer_entry()
     launcher=f'/usr/bin/env GDK_BACKEND=x11 /usr/bin/python3 "{DEST / "app.py"}"'

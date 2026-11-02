@@ -463,6 +463,8 @@ The independent Nautilus extension adds **Copy full path** to a selected file/fo
 
 **Email** in Explorer's and GNOME Files' right-click menus opens a new Axentra Outlook message with the selected files attached and the subject "Emailing: <file names>". It only creates a draft for you to address and send. Folders are skipped, and the GNOME Files item is hidden when Axentra Outlook isn't installed.
 
+**Convert to → PNG / JPG** in Explorer's and GNOME Files' right-click menus saves a converted copy of each selected picture (HEIC/HEIF, JPG, PNG, WebP, GIF, BMP, TIFF) beside the original, for example `IMG_0001.HEIC` → `IMG_0001.png`. Originals are never changed. If the name is taken, the copy becomes `IMG_0001 (2).png`. Copies are full size, keep the photo's rotation, and carry no EXIF or location data. Transparent areas become white in JPG. Pictures already in the chosen format are skipped, and the PNG/JPG choice is only offered for formats it would change. HEIC uses the same private libheif runtime as previews.
+
 ### Logout cleanup and recovery validation
 
 The GNOME installer includes the existing session cleanup helper and its graphical-session service. Cleanup matches only exact user-owned Mini Media/Soloist or legacy OneDrive GUI executable paths, using pidfds to avoid reused-PID signalling. The current lowercase `axentra-onedrive` sync daemon is excluded. During an active desktop session, stopping/uninstalling the cleanup service skips app termination; cleanup is permitted only while the graphical-session target is deactivating or inactive.

@@ -100,6 +100,7 @@ export function Explorer({data,toast}){
  {chosen.length===1&&!chosen[0].folder&&<ContextItem icon="apps" label="Open with…" onClick={()=>fileAction('open-with')}/>}
  <div className="menu-separator"/>
  {!data.path.startsWith('::')&&chosen.some(i=>!i.folder)&&<ContextItem icon="mail" label="Email" onClick={()=>fileAction('email')}/>}
+{!data.path.startsWith('::')&&chosen.some(canThumbnail)&&<ContextItem icon="image" label="Convert to" onClick={()=>setMenu({...menu,kind:'convert'})}/>}
  <ContextItem icon="copy" label="Copy as path" shortcut="Ctrl+Shift+C" onClick={()=>fileAction('copy-path')}/>
  <ContextItem icon="rename" label="Rename" shortcut="F2" disabled={!canRename} onClick={()=>fileAction('rename')}/>
  <div className="menu-separator"/>
@@ -111,6 +112,7 @@ export function Explorer({data,toast}){
  {!data.path.startsWith('::')&&<><div className="menu-separator"/><ContextItem icon="paste" label="Paste" shortcut="Ctrl+V" onClick={()=>fileAction('paste')}/><ContextItem icon="plus" label="New folder" onClick={()=>fileAction('new-folder')}/></>}
  </>}</>}
  {menu.kind==='sort'&&['name','date','size'].map(v=><button key={v} onClick={()=>{setSort(v);setMenu(null);}}>{sort===v?'✓ ':''}{v==='date'?'Date modified':v[0].toUpperCase()+v.slice(1)}</button>)}
+ {menu.kind==='convert'&&<>{[['png','PNG'],['jpg','JPG']].map(([format,label])=><button key={format} role="menuitem" onClick={()=>{setMenu(null);send('file-convert',{paths:chosen.filter(canThumbnail).map(i=>i.path),format});}}>{label}</button>)}</>}
  {menu.kind==='view'&&<>{['details','icons'].map(v=><button key={v} onClick={()=>{setView(v);setMenu(null);}}>{view===v?'✓ ':''}{v==='details'?'Details':'Large icons'}</button>)}<button onClick={()=>{setHidden(!hidden);send('file-navigate',{path:data.path,hidden:!hidden});setMenu(null);}}>{hidden?'✓ ':''}Hidden items</button></>}
  {menu.kind==='more'&&<><button onClick={()=>{send('file-native');setMenu(null);}}>Open in system file manager</button><button onClick={()=>{setAddress(data.path.startsWith('::')?'':data.path);setMenu(null);}}>Edit folder address</button></>}
  </div>}
