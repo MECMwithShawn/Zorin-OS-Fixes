@@ -461,6 +461,8 @@ If the optional `zorin11-glass@zorin-os-fixes` extension causes changing shades 
 
 The independent Nautilus extension adds **Copy full path** to a selected file/folder, **Copy full paths** for multiple selections (one per line), and **Copy folder path** to the folder background menu. Local paths are plain text with spaces and Unicode intact; remote locations use their URI. It does not modify the Axentra CloudDrive integration. Restart Files after installing the extension.
 
+**Email** in Explorer's and GNOME Files' right-click menus opens a new Axentra Outlook message with the selected files attached and the subject "Emailing: <file names>". It only creates a draft for you to address and send. Folders are skipped, and the GNOME Files item is hidden when Axentra Outlook isn't installed.
+
 ### Logout cleanup and recovery validation
 
 The GNOME installer includes the existing session cleanup helper and its graphical-session service. Cleanup matches only exact user-owned Mini Media/Soloist or legacy OneDrive GUI executable paths, using pidfds to avoid reused-PID signalling. The current lowercase `axentra-onedrive` sync daemon is excluded. During an active desktop session, stopping/uninstalling the cleanup service skips app termination; cleanup is permitted only while the graphical-session target is deactivating or inactive.
