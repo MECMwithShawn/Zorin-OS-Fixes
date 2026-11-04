@@ -10,19 +10,21 @@ from gnome_live import until, systemd_fixture
 
 ROOT = Path(__file__).resolve().parents[1]
 UUID = 'zorin11-lock-test@zorin-os-fixes'
+OTHER = 'earlier-test@zorin-os-fixes'
 WRAPPER = r'''
 import Base from './lockscreen.js';
 import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 const XML='<node><interface name="local.zorin11.KeepTest"><method name="Call"><arg type="s" direction="in"/><arg type="s" direction="out"/></method></interface></node>';
 export default class Test extends Base {
- enable(){super.enable();this.bus=Gio.DBusExportedObject.wrapJSObject(XML,this);this.bus.export(Gio.DBus.session,'/local/zorin11/KeepTest');this.owner=Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.KeepTest',0,null,null);}
+ enable(){super.enable();this.hook();if(this.bus)return;this.bus=Gio.DBusExportedObject.wrapJSObject(XML,this);this.bus.export(Gio.DBus.session,'/local/zorin11/KeepTest');this.owner=Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.KeepTest',0,null,null);}
+ hook(){if(!this._keepAwake)return;if(this.idle!==undefined)this._keepAwake._idleTime=()=>this.idle;if(this.minutes)this._keepAwake._minutes=this.minutes;}
  Call(text){const p=JSON.parse(text);Main.overview.hide();
-  if(p.idle!==undefined)this._keepAwake._idleTime=()=>p.idle;
-  if(p.minutes)this._keepAwake._minutes=p.minutes;
+  if(p.idle!==undefined)this.idle=p.idle;
+  if(p.minutes)this.minutes=p.minutes;
+  this.hook();
   if(p.unlock)Main.screenShield.deactivate(false);
-  return JSON.stringify({active:Main.screenShield.active,locked:Main.screenShield.locked});}
- disable(){this.bus.unexport();Gio.bus_unown_name(this.owner);super.disable();}
+  return JSON.stringify({active:Main.screenShield.active,locked:Main.screenShield.locked,black:Main.screenShield._shortLightbox.visible});}
 }
 '''
 
@@ -37,7 +39,14 @@ def session(temp):
     (ext/'metadata.json').write_text(json.dumps(meta))
     subprocess.run(['glib-compile-schemas', '--strict', str(ext/'schemas')], check=True)
     shell = Gio.Settings.new('org.gnome.shell')
-    shell.set_strv('enabled-extensions', [UUID])
+    # GNOME disables and re-enables a later extension whenever an earlier one
+    # leaves for the lock screen, which is what happens on the real desktop.
+    other = temp/'data/gnome-shell/extensions'/OTHER
+    other.mkdir()
+    (other/'metadata.json').write_text(json.dumps({'uuid': OTHER, 'name': 'Other', 'description': 'Other',
+                                                   'shell-version': ['46'], 'session-modes': ['user']}))
+    (other/'extension.js').write_text('export default class { enable() {} disable() {} }\n')
+    shell.set_strv('enabled-extensions', [OTHER, UUID])
     shell.set_string('welcome-dialog-last-shown-version', '46.0')
     Gio.Settings.sync()
     log = (temp/'shell.log').open('w'); children = []
@@ -63,7 +72,15 @@ def session(temp):
                                           '--wayland-display', 'lock-test'], stdout=log, stderr=subprocess.STDOUT))
         until(call, seconds=20)
         assert 'Exception in callback' not in (temp/'shell.log').read_text()
-        call(idle=0, minutes=2/60)
+        call(idle=0)
+        for attempt in range(3):
+            lock(); pump(2.5)
+            state = call()
+            assert state['active'] and not state['black'] and signals == [], (attempt, state, signals)
+            call(unlock=True); until(lambda: (pump(.1), not call()['active'])[1], seconds=5); pump(1.5)
+            signals.clear()
+        print('PASS three manual locks in a row stay lit and hidden from the power service', flush=True)
+        call(minutes=2/60)
         lock(); pump(1)
         assert call()['active'] and signals == [], signals
         assert 'Exception in callback' not in (temp/'shell.log').read_text()
@@ -75,8 +92,8 @@ def session(temp):
         assert signals == [True, False], signals
         signals.clear()
         call(idle=60000)
-        lock(); pump(.6)
-        assert signals == [True], signals
+        lock(); pump(1.5)
+        assert signals == [True] and call()['black'], (signals, call())
         print('PASS an idle lock tells the power service at once', flush=True)
         assert 'Exception in callback' not in (temp/'shell.log').read_text()
     finally:

@@ -30,13 +30,23 @@ export default class LockScreen extends Extension {
             try { owner._attach(this); } catch (e) { console.error(`Axentra lock screen: ${e.message}`); }
         });
         if (Main.screenShield?._dialog instanceof UnlockDialog) this._attach(Main.screenShield._dialog);
+        this._lockInjections ??= this._keepDisplaysOn();
+    }
+    _keepDisplaysOn() {
         const idle = global.backend.get_core_idle_monitor();
-        this._keepAwake = new KeepAwake(() => idle.get_idletime());
-        const screenSaver = Main.screenShield?._screenSaverDBus?._dbusImpl;
-        if (screenSaver) this._injections.overrideMethod(screenSaver, 'emit_signal', original => function (name, parameters) {
-            const send = () => original.call(this, name, parameters);
-            if (name !== 'ActiveChanged' || !owner._keepAwake?.holdBack(parameters.deepUnpack()[0], send)) send();
+        const keepAwake = this._keepAwake = new KeepAwake(() => idle.get_idletime());
+        const injections = new InjectionManager();
+        const shield = Main.screenShield;
+        if (!shield) return injections;
+        // Left alone, GNOME fades a manual lock to black and waits for a key press.
+        injections.overrideMethod(Object.getPrototypeOf(shield), '_lockScreenShown', original => function (params) {
+            original.call(this, keepAwake.recentInput() ? {...params, fadeToBlack: false} : params);
         });
+        injections.overrideMethod(shield._screenSaverDBus._dbusImpl, 'emit_signal', original => function (name, parameters) {
+            const send = () => original.call(this, name, parameters);
+            if (name !== 'ActiveChanged' || !keepAwake.holdBack(parameters.deepUnpack()[0], send)) send();
+        });
+        return injections;
     }
     _attach(dialog) {
         if (this._dialogs.has(dialog)) return;
@@ -124,7 +134,12 @@ export default class LockScreen extends Extension {
     }
     _refresh() { for (const row of this._dialogs.values()) this._render(row); }
     disable() {
-        this._keepAwake?.destroy(); this._keepAwake = null;
+        // A lock changes the session mode, so GNOME disables and re-enables this
+        // extension while it runs; the lock must keep these in place throughout.
+        if (!Main.sessionMode.isLocked) {
+            this._keepAwake?.destroy(); this._keepAwake = null;
+            this._lockInjections?.clear(); this._lockInjections = null;
+        }
         this._injections.clear();
         for (const [obj, id] of this._signals) obj.disconnect(id);
         for (const row of this._dialogs.values()) {

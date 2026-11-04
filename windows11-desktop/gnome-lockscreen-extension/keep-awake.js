@@ -15,13 +15,17 @@ export class KeepAwake {
         this._emit = null;
     }
 
+    recentInput() {
+        return this._idleTime() < RECENT_INPUT;
+    }
+
     // Returns true when the caller must not send this ActiveChanged yet.
     holdBack(active, emit) {
         if (!active) {
             this._clear();
             return false;
         }
-        if (this._emit || this._idleTime() >= RECENT_INPUT)
+        if (this._emit || !this.recentInput())
             return false;
         this._emit = emit;
         this._timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, this._minutes * 60, () => {
