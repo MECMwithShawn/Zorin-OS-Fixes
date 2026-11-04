@@ -1,3 +1,8 @@
+## Lock screen stays visible — 2026-11-04
+
+- GNOME turned the displays off about 30 seconds into a lock, even while a video played, because the browser's idle hold is dropped once the lock screen covers it. The lock screen add-on now holds a session idle inhibitor for 10 minutes after a manual lock (input within the last 5 seconds), releasing it on unlock or when the add-on is disabled. Idle locks are unaffected and suspend is never inhibited.
+- `tests/test_keep_awake.mjs` (gjs with a fake session manager) covers one hold per lock, release on unlock, idle locks, unlocking before the reply, disabling and the time limit. `tests/lockscreen_live.py` still passes with the module loaded. That GNOME's power service honours the inhibitor while locked has not been observed on a real lock yet.
+
 ## Taskbar Motion tab and Apply — 2026-10-23
 
 - Settings → Personalization → Taskbar opens a native preferences host with Zorin’s installed Style, Position, Behavior and Action pages plus Motion. The vendor source is loaded in place through GNOME 46’s preferences loader; vendor files and the companion frontend are unchanged. A separate Taskbar settings Start entry provides immediate access. Quick Settings Customize motion opens the same tab.

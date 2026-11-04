@@ -8,6 +8,7 @@ import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extension
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import {UnlockDialog} from 'resource:///org/gnome/shell/ui/unlockDialog.js';
+import {KeepAwake} from './keep-awake.js';
 
 // Presentation only: no verifier, password entry, key handler or unlock method is replaced.
 export default class LockScreen extends Extension {
@@ -29,6 +30,8 @@ export default class LockScreen extends Extension {
             try { owner._attach(this); } catch (e) { console.error(`Axentra lock screen: ${e.message}`); }
         });
         if (Main.screenShield?._dialog instanceof UnlockDialog) this._attach(Main.screenShield._dialog);
+        const idle = global.backend.get_core_idle_monitor();
+        if (Main.screenShield) this._keepAwake = new KeepAwake(Main.screenShield, () => idle.get_idletime());
     }
     _attach(dialog) {
         if (this._dialogs.has(dialog)) return;
@@ -116,6 +119,7 @@ export default class LockScreen extends Extension {
     }
     _refresh() { for (const row of this._dialogs.values()) this._render(row); }
     disable() {
+        this._keepAwake?.destroy(); this._keepAwake = null;
         this._injections.clear();
         for (const [obj, id] of this._signals) obj.disconnect(id);
         for (const row of this._dialogs.values()) {

@@ -64,7 +64,7 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 ## GNOME experience
 
 
-**Lock screen:** open **Settings → Personalization → Lock screen**, or search **Lock screen settings** in Start. The Windows 11 appearance uses GNOME's real clock, account photo, password entry, accessibility, notifications and unlock gestures. The photo stays clear behind the clock and blurs/dims behind native authentication. Installed media controls remain in the native clock. No authentication method or login-screen/GDM file is replaced.
+**Lock screen:** open **Settings → Personalization → Lock screen**, or search **Lock screen settings** in Start. The Windows 11 appearance uses GNOME's real clock, account photo, password entry, accessibility, notifications and unlock gestures. The photo stays clear behind the clock and blurs/dims behind native authentication. Installed media controls remain in the native clock. No authentication method or login-screen/GDM file is replaced. After a lock you start yourself the displays stay on for 10 minutes instead of GNOME's 30 seconds.
 
 Choose **Windows Spotlight**, **Bing image of the day**, **Zorin wallpapers**, **Use desktop background**, or a personal **Picture**. Online sources refresh daily through `zorin11-lockscreen-wallpaper.timer`; failures retain the last cached photo and retry on the next hourly check. All installed Zorin backgrounds remain available. Lock-screen choices are independent of the desktop except when explicitly following it. A selected personal picture is copied into the private cache so a cloud mount or removable disk is not needed at unlock. The cache keeps up to 30 recent photos plus the selected one.
 
