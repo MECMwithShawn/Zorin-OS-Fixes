@@ -1,7 +1,7 @@
 ## Lock screen stays visible — 2026-11-04
 
 - A D-Bus trace of a real lock showed gsd-power setting PowerSaveMode to off 2 ms after the screen saver's ActiveChanged signal, and any input turning it back on. The cue ignores idle inhibitors, so the lock screen add-on holds that one signal back for 10 minutes after a manual lock (input within the last 5 seconds). Unlocking drops it; idle locks send it at once.
-- `tests/test_keep_awake.mjs` covers holding, release on unlock, idle locks, disabling and the time limit. `tests/lock_keep_on_live.py` locks a private GNOME session over D-Bus and watches the real signal. Whether displays stay on was checked only on the real machine.
+- `tests/test_keep_awake.mjs` covers holding, release on unlock, idle locks, disabling and the time limit. `tests/lock_keep_on_live.py` locks a private GNOME session over D-Bus and watches the real signal. A private session has no real displays, so whether they stay on has not yet been seen on the real machine.
 
 ## Taskbar Motion tab and Apply — 2026-10-23
 
