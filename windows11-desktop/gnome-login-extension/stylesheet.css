@@ -1,0 +1,23 @@
+/* Scoped to GDM's login dialog, matching the Windows 11 lock screen. */
+.zorin11-login-clock { padding-top: 96px; spacing: 6px; }
+.zorin11-login-time {
+    font-size: 88px; font-weight: 600; color: white;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.45);
+}
+.zorin11-login-date {
+    font-size: 21px; font-weight: 500; color: white;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.5);
+}
+.zorin11-login .login-dialog-prompt-layout { spacing: 18px; width: 360px; }
+.zorin11-login .login-dialog-prompt-layout .user-icon {
+    icon-size: 112px; border-radius: 999px; border: 2px solid rgba(255,255,255,0.32);
+    background-color: rgba(255,255,255,0.12);
+}
+.zorin11-login .login-dialog-prompt-layout .user-widget-label {
+    font-size: 25px; font-weight: 600; color: white;
+}
+.zorin11-login .login-dialog-prompt-entry {
+    border-radius: 7px; border: 1px solid rgba(255,255,255,0.4);
+    background-color: rgba(25,29,36,0.88); color: white; padding: 12px 14px;
+}
+.zorin11-login .login-dialog-prompt-entry:focus { border-color: #60cdff; }

@@ -1,0 +1,6 @@
+# Installed by login_screen_install.sh. Remove with login_screen_install.sh --remove.
+[org/gnome/shell]
+enabled-extensions=['zorin11-login@zorin-os-fixes']
+
+[org/gnome/desktop/interface]
+clock-format='12h'
