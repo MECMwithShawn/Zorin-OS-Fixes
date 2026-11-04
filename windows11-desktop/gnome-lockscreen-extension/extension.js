@@ -31,7 +31,12 @@ export default class LockScreen extends Extension {
         });
         if (Main.screenShield?._dialog instanceof UnlockDialog) this._attach(Main.screenShield._dialog);
         const idle = global.backend.get_core_idle_monitor();
-        if (Main.screenShield) this._keepAwake = new KeepAwake(Main.screenShield, () => idle.get_idletime());
+        this._keepAwake = new KeepAwake(() => idle.get_idletime());
+        const screenSaver = Main.screenShield?._screenSaverDBus?._dbusImpl;
+        if (screenSaver) this._injections.overrideMethod(screenSaver, 'emit_signal', original => function (name, parameters) {
+            const send = () => original.call(this, name, parameters);
+            if (name !== 'ActiveChanged' || !owner._keepAwake?.holdBack(parameters.deepUnpack()[0], send)) send();
+        });
     }
     _attach(dialog) {
         if (this._dialogs.has(dialog)) return;
