@@ -1,3 +1,8 @@
+## Windows 11 login screen — 2026-11-04
+
+- Signing out reached GDM's greeter, a separate shell that never loads the session's lock-screen add-on. `gnome-login-extension` (session mode `gdm`) adds a blurred photo, clock and the lock screen's prompt styling around the native `LoginDialog`, hides the logo and taskbar date, and clicks a lone account once so the password box shows first. The greeter can't read home folders, so `lockscreen.py` publishes its photo to `/var/lib/zorin11-login`.
+- `tests/login_screen_live.py` runs a real `--mode=gdm` headless shell with `GDM_GREETER_TEST=1`: styling and photo layers, untouched native methods, the single automatic choice, the list after going back, a missing photo, and disabling. Headless startup finishes before the dialog exists, with or without the add-on, so the test runs GNOME's startup step itself. Password verification and session start can't run outside real GDM and were not exercised. `companion/test_lockscreen_login.py` covers publishing. The dconf file compiles with `dconf compile` beside the upstream settings; `login_screen_install.sh` passes `sh -n` but needs root, so it has only run on the real machine.
+
 ## Taskbar Motion tab and Apply — 2026-10-23
 
 - Settings → Personalization → Taskbar opens a native preferences host with Zorin’s installed Style, Position, Behavior and Action pages plus Motion. The vendor source is loaded in place through GNOME 46’s preferences loader; vendor files and the companion frontend are unchanged. A separate Taskbar settings Start entry provides immediate access. Quick Settings Customize motion opens the same tab.

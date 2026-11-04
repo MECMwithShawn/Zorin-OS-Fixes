@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import sys
 import tempfile
 import uuid
 import gi
@@ -17,6 +18,7 @@ UUID = 'zorin11-lockscreen@zorin-os-fixes'
 SCHEMA = 'org.gnome.shell.extensions.zorin11-lockscreen'
 ROOT = Path(os.environ.get('ZORIN11_LOCKSCREEN_DIR', str(Path.home()/'.config/zorin11-hub/lockscreen')))
 SOURCES = ('spotlight', 'bing', 'zorin', 'desktop', 'picture')
+LOGIN = Path(os.environ.get('ZORIN11_LOGIN_DIR', '/var/lib/zorin11-login'))
 
 def settings():
     directory = Path(os.environ.get('ZORIN11_LOCKSCREEN_SCHEMA', str(Path.home()/'.local/share/gnome-shell/extensions'/UUID/'schemas')))
@@ -64,6 +66,23 @@ def sync(state):
         setter = s.set_boolean if type(value) is bool else s.set_int if type(value) is int else s.set_string
         if not setter(key, value): s.revert(); raise RuntimeError('GNOME rejected '+key)
     s.apply(); Gio.Settings.sync()
+    publish_login(state)
+
+def publish_login(state):
+    """Shares the photo with the login screen, which can't read the home folder."""
+    if not os.access(LOGIN, os.W_OK): return
+    path = Path(state['path'])
+    if state['source'] == 'desktop':
+        desktop = Gio.Settings.new('org.gnome.desktop.background')
+        path = Path(Gio.File.new_for_uri(desktop.get_string('picture-uri-dark')).get_path() or path)
+    try:
+        data = path.read_bytes()
+        with tempfile.NamedTemporaryFile(dir=LOGIN, delete=False) as handle:
+            handle.write(data)
+        os.chmod(handle.name, 0o644)
+        os.replace(handle.name, LOGIN/'background.jpg')
+    except OSError as error:
+        print('Login screen keeps its previous photo:', error, file=sys.stderr)
 
 def prune(selected):
     assets = ROOT/'pictures'
@@ -142,8 +161,8 @@ def refresh(force=False):
         raise
 
 if __name__ == '__main__':
-    import sys
     if '--initialize' in sys.argv: apply(load())
+    elif '--publish-login' in sys.argv: publish_login(load())
     elif '--refresh' in sys.argv:
         try: refresh(force='--force' in sys.argv)
         except Exception as error: print('Keeping the cached lock-screen photo:', error, file=sys.stderr); sys.exit(1)
