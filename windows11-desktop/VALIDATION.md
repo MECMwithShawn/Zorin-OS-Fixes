@@ -1,3 +1,8 @@
+## Battery voltage in Quick Settings — 2026-11-05
+
+- The battery button in the taskbar's system menu now reads like `100% · 12.04 V`. The value comes from the battery's `voltage_now`, and refreshes each time the menu opens and whenever UPower reports a change. Wall adapter voltage isn't available: this laptop's `AC` supply reports only `online`.
+- `tests/test_battery_voltage.mjs` covers the conversion, reading only the battery, unreadable values, every taskbar, refresh on open, rebuilt taskbars and full cleanup on disable. `tests/taskbar_live.py` (private `gnome-shell --headless --wayland`) reads the real title from an open menu, saves a screenshot, and confirms the voltage goes away when the extension is disabled. Its single virtual monitor doesn't cover a real second taskbar.
+
 ## Taskbar Motion tab and Apply — 2026-10-23
 
 - Settings → Personalization → Taskbar opens a native preferences host with Zorin’s installed Style, Position, Behavior and Action pages plus Motion. The vendor source is loaded in place through GNOME 46’s preferences loader; vendor files and the companion frontend are unchanged. A separate Taskbar settings Start entry provides immediate access. Quick Settings Customize motion opens the same tab.
