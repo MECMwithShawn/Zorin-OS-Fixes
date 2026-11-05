@@ -16,7 +16,7 @@ def save():
         print(str(error), flush=True)
         notify('Couldn\u2019t save the desktop background', str(error))
         return 1
-    notify('Desktop background saved', f'Saved to {path}. It will stay until you change it.')
+    notify('Background kept', f'Saved to {path}. It will stay until you change it.')
     return 0
 
 

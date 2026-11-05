@@ -1,6 +1,6 @@
-## Desktop menu Save background — 2026-11-05
+## Desktop menu Keep background — 2026-11-05
 
-- Right-click desktop → Save desktop background copies the current picture to `Pictures/Wallpapers`, named after its title, and turns off the desktop's daily picture so it stays until changed. Saving the same picture again keeps one copy; a different picture with the same name gets its own. The lock screen keeps its own daily setting.
+- Right-click desktop → Keep this background copies the current picture to `Pictures/Wallpapers`, named after its title, and turns off the desktop's daily picture so it stays until changed. Saving the same picture again keeps one copy; a different picture with the same name gets its own. The lock screen keeps its own daily setting.
 - `companion/test_wallpaper_step.py` covers the copy, naming, repeat saves, rotation off, a failed save leaving rotation alone, and the menu action's notification. It now patches the config paths in `setUp`: the old environment variable did nothing when another test imported `wallpaper` first, which is the likely way the real `wallpapers.json` was overwritten with test entries on 2026-11-02. `tests/test_desktop_menu.py` (live GTK menu under Xvfb) checks the menu order and that the item runs the action with `save`.
 
 ## Desktop menu Previous background — 2026-11-02
