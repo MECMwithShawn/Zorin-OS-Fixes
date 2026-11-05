@@ -22,7 +22,10 @@ export default class Fixture extends Extension {
   if(action==='enter'){const [x,y]=button.get_transformed_position(),[w,h]=button.get_transformed_size();this.pointer.notify_absolute_motion(GLib.get_monotonic_time(),x+w/2,y+h/2);}
   if(action==='leave')this.pointer.notify_absolute_motion(GLib.get_monotonic_time(),500,200);
   if(action==='overview-close')Main.overview.hide();
-  return JSON.stringify({style:button.get_style(),icon:button.icon.get_parent()===button,visible:button.visible,
+  const quick=panel.panel.statusArea.quickSettings;
+  if(action==='battery-open')quick.menu.open();
+  if(action==='battery-close')quick.menu.close();
+  return JSON.stringify({battery:quick?._system?._systemItem?._powerToggle?.title,style:button.get_style(),icon:button.icon.get_parent()===button,visible:button.visible,
    windows:global.get_window_actors().map(a=>({title:a.meta_window.get_title(),visible:a.visible,minimized:a.meta_window.minimized}))});
  }
  async CaptureAsync(_args,invocation){try{
@@ -98,6 +101,13 @@ def session(temp,output):
         gb=Gio.bus_get_sync(Gio.BusType.SESSION,None)
         image=gb.call_sync('local.zorin11.TaskbarTest','/local/zorin11/TaskbarTest','local.zorin11.TaskbarTest','Capture',None,None,0,5000,None).unpack()[0]
         (output/'taskbar-progress.png').write_bytes(base64.b64decode(image))
+        if any(Path('/sys/class/power_supply').glob('BAT*')):
+            until(lambda:re.fullmatch(r'\d+\s?% · \d+\.\d\d V',test_call('battery-open')['battery'] or ''))
+            time.sleep(.5)
+            image=gb.call_sync('local.zorin11.TaskbarTest','/local/zorin11/TaskbarTest','local.zorin11.TaskbarTest','Capture',None,None,0,5000,None).unpack()[0]
+            (output/'battery-voltage.png').write_bytes(base64.b64decode(image))
+            test_call('battery-close')
+            print('Battery voltage in Quick Settings passed:',test_call('snapshot')['battery'],flush=True)
         update(count=dbus.Int64(0),**{'count-visible':dbus.Boolean(False)})
         until(lambda:row()['badge']=='')
         settings=Gio.Settings.new(gnome_setup.TASKBAR)
@@ -126,6 +136,7 @@ def session(temp,output):
         # Disable/enable tears down and reattaches overlays without touching the taskbar.
         enabled=shellsettings.get_strv('enabled-extensions')
         shellsettings.set_strv('enabled-extensions',[u for u in enabled if u!=UUID]);Gio.Settings.sync()
+        if any(Path('/sys/class/power_supply').glob('BAT*')):until(lambda:' V' not in (test_call('snapshot')['battery'] or ' V'))
         until(lambda:not gb.call_sync('org.freedesktop.DBus','/org/freedesktop/DBus','org.freedesktop.DBus','NameHasOwner',GLib.Variant('(s)',('local.zorin11.Gnome',)),None,0,2000,None).unpack()[0])
         shellsettings.set_strv('enabled-extensions',enabled);Gio.Settings.sync()
         until(lambda:row()['progress'] is None)
