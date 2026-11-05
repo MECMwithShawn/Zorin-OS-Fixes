@@ -185,6 +185,7 @@ var DesktopManager = class extends Upstream.DesktopManager {
         };
         main.append(item('Next desktop background', 'media-skip-forward-symbolic', () => wallpaper('next')));
         main.append(item('Previous desktop background', 'media-skip-backward-symbolic', () => wallpaper('previous')));
+        main.append(item('Keep this background', 'document-save-symbolic', () => wallpaper('save')));
         main.append(new Gtk.SeparatorMenuItem());
         const more = item('Show more options', 'view-more-symbolic');
         more.set_submenu(original);

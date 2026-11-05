@@ -9,7 +9,19 @@ def notify(title, body=''):
     except (OSError,subprocess.SubprocessError):pass
 
 
+def save():
+    try:
+        path=wallpaper.keep()
+    except Exception as error:
+        print(str(error), flush=True)
+        notify('Couldn\u2019t save the desktop background', str(error))
+        return 1
+    notify('Background kept', f'Saved to {path}. It will stay until you change it.')
+    return 0
+
+
 def main(direction='next'):
+    if direction=='save':return save()
     try:
         entry=wallpaper.step(direction)
     except Exception as error:

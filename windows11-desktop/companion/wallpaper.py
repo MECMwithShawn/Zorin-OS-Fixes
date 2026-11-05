@@ -20,7 +20,7 @@ from urllib.parse import urlparse
 import dbus
 import gi
 gi.require_version('GdkPixbuf','2.0')
-from gi.repository import GdkPixbuf
+from gi.repository import GdkPixbuf,GLib
 from settings_backend import properties, set_property
 from gnome_bridge import active as is_gnome
 import gnome_wallpaper
@@ -274,6 +274,32 @@ def step(direction):
     if target>=len(ids):return None
     apply(ids[target])
     return state['history'][target]
+
+
+def saved_folder():
+    pictures=GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES)
+    return Path(pictures or Path.home()/'Pictures')/'Wallpapers'
+
+
+@locked
+def keep():
+    """Copies the current background to Pictures and stops it changing on its own."""
+    path=current_path()
+    if not path or not path.is_file():raise ValueError('No background image is configured.')
+    data=path.read_bytes();state=load()
+    entry=next((i for i in state['history'] if i['id']==path.stem),{})
+    name=re.sub(r"[^\w,.'-]+",' ',entry.get('title') or f'Desktop background {path.stem[:8]}').strip(' .')
+    suffix='.png' if data.startswith(b'\x89PNG') else '.jpg' if data.startswith(b'\xff\xd8\xff') else path.suffix
+    folder=saved_folder();folder.mkdir(parents=True,exist_ok=True)
+    number=1
+    while True:
+        target=folder/(name+(f' ({number})' if number>1 else '')+suffix)
+        if not target.exists():
+            temp=target.with_suffix('.tmp');temp.write_bytes(data);temp.replace(target);break
+        if target.read_bytes()==data:break
+        number+=1
+    state['daily']=False;save(state)
+    return target
 
 
 def status():

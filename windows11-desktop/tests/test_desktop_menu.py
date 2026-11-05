@@ -47,7 +47,7 @@ class DesktopMenuTests(unittest.TestCase):
             self.assertEqual(result.returncode,0,result.stdout+result.stderr)
             self.assertIn('PASS',result.stdout)
             self.assertEqual((runtime/'actions').read_text().splitlines(),
-                             ['--settings display','--settings personalization','next wallpaper','previous wallpaper'])
+                             ['--settings display','--settings personalization','next wallpaper','previous wallpaper','save wallpaper'])
             self.assertEqual(original.read_bytes(),before)
 
 
