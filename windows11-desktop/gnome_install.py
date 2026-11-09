@@ -130,6 +130,7 @@ def install():
     files[apps/'zorin11-device-manager.desktop']=device_manager_entry()
     files[apps/'gnome-bluetooth-panel.desktop']=desktop('Bluetooth','--settings devices','bluetooth','Zorin11-settings','Settings;HardwareSettings;')+b'NoDisplay=true\nOnlyShowIn=GNOME;Unity;\nKeywords=Settings;Display;Background;\n'
     files.update(personalization_entries(apps))
+    files[HOME/'.local/share/nautilus-python/extensions/zorin11_copy_path.py']=(ROOT/'nautilus-extension/zorin11_copy_path.py').read_bytes()
     files[apps/'zorin11-explorer.desktop']+=b'MimeType=inode/directory;\nKeywords=Files;Folders;File Manager;Explorer;\n'
     files[apps/'zorin11-event-viewer.desktop']=event_viewer_entry()
     launcher=f'/usr/bin/env GDK_BACKEND=x11 /usr/bin/python3 "{DEST / "app.py"}"'
@@ -155,6 +156,8 @@ def install():
     import audio_effects
     files[DEST/'audio-presets.json']=json.dumps(audio_effects.PRESETS).encode()
     files[HOME/'.config/systemd/user'/audio_effects.UNIT]=audio_effects.unit(DEST).encode()
+    import session_cleanup
+    files.update({HOME/'.config/systemd/user'/name:text.encode() for name,text in session_cleanup.units(DEST).items()})
     import thumbnail_cache
     files.update({HOME/'.config/systemd/user'/name:text.encode()
                   for name,text in thumbnail_cache.units(DEST).items()})
@@ -168,6 +171,7 @@ def install():
     snipping_install.record_shortcut()
     subprocess.run(['systemctl','--user','daemon-reload'],check=True)
     subprocess.run(['systemctl','--user','enable','--now','zorin11-update-agent.service'],check=True)
+    subprocess.run(['systemctl','--user','enable','--now','zorin11-session-cleanup.service'],check=True)
     # A running Python daemon keeps its old preset catalog after files are upgraded.
     subprocess.run(['systemctl','--user','try-restart','zorin11-audio-effects.service'],check=True)
     subprocess.run(['systemctl','--user','enable','--now','zorin11-thumbnail-cache.timer'],check=True)
@@ -180,7 +184,9 @@ def install():
     changes={'org.gnome.shell':{'enabled-extensions':list(dict.fromkeys(shell.get_strv('enabled-extensions')+[UUID,'zorin11-audio@zorin-os-fixes','zorin-window-move-effect@zorinos.com'])),
                              'favorite-apps':explorer_favorites(shell.get_strv('favorite-apps')),
                              'disabled-extensions':[x for x in shell.get_strv('disabled-extensions') if x not in (UUID,'zorin11-audio@zorin-os-fixes','zorin-window-move-effect@zorinos.com')]},
-             'org.gnome.mutter':{'dynamic-workspaces':False}}
+             'org.gnome.mutter':{'dynamic-workspaces':False},
+             # Mutter handles this directly for native Wayland and XWayland windows.
+             'org.gnome.desktop.wm.keybindings':{'always-on-top':['<Super><Control>t']}}
     gnome_setup.install(gnome_setup.plan(changes))
     if not desktop_menu_install.activate():
         print('Desktop menu installed; it will activate at the next sign-in.')
@@ -213,6 +219,7 @@ def restore():
     snipping_install.restore_record_shortcut()
     subprocess.run(['systemctl','--user','disable','--now','zorin11-audio-effects.service'],capture_output=True)
     subprocess.run(['systemctl','--user','disable','--now','zorin11-update-agent.service'],capture_output=True)
+    subprocess.run(['systemctl','--user','disable','--now','zorin11-session-cleanup.service'],capture_output=True)
     subprocess.run(['systemctl','--user','disable','--now','zorin11-thumbnail-cache.timer'],capture_output=True)
     subprocess.run(['systemctl','--user','stop','zorin11-thumbnail-cache.service'],capture_output=True)
     subprocess.run(['systemctl','--user','disable','--now',lockscreen_install.UNIT+'.timer'],capture_output=True)

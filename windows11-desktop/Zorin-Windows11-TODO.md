@@ -98,3 +98,6 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 
 - [x] Saved layouts across monitors, optional once-per-GNOME-login restoration, name/app search, Ctrl+F and Escape cancellation, glass-style cards. Local GTK/controller/Wayland fixtures verified; actual sign-out remains deferred.
 - [x] Trusted desktop shortcut Rename/F2 and glass-style icon menus. User confirmed the live menu and finish; launcher commands/icons remain intact.
+
+- [x] Consolidate installed logout cleanup into GNOME installer, protect current OneDrive sync daemon, and skip cleanup on maintenance stops during active sessions. Disposable process tests pass (2026-10-30).
+- [x] Verify automatic Wi-Fi reconnection in one recorded sleep/wake cycle (2026-10-30: connected approximately 12 seconds after resume). Broader physical monitor, repeated sleep and sign-out checks remain pending.

@@ -64,7 +64,7 @@ try:
         recipe=saved.store.put(members,desktop='fixture');messages=[]
         with patch('saved_groups.catalog',return_value=apps):
             saved.restore(recipe,lambda *args:messages.append(args));wait(lambda:saved.operation is None)
-        assert messages[-1]==('Layout restored.',True),messages
+        assert messages[-1]==('Layout restored.',True),(messages,[(w.get_application_id(),w.get_geometry()) for w in owned()],m.area())
         assert {x for x,_ in m.groups[0]}=={byapp[i+'.desktop'].get_xid() for i in ids[:2]}
         assert unrelated.get_geometry()==before,'Unrelated fixture was moved'
         assert len(owned())==3,'Duplicate app was launched'
@@ -86,8 +86,20 @@ try:
         messages=[]
         with patch('saved_groups.catalog',return_value=apps):
             saved.restore(full,lambda *args:messages.append(args));wait(lambda:saved.operation is None)
-        assert messages[-1]==('Layout restored.',True),messages
+        assert messages[-1]==('Layout restored.',True),(messages,[(w.get_application_id(),w.get_geometry()) for w in owned()],m.area())
         for w in owned():assert all(abs(a-b)<=12 for a,b in zip(w.get_geometry(),expected[w.get_xid()])),(w.get_geometry(),expected)
+        display_index=snapshot[0][0]['monitor']['index']
+        subset=([r for r in snapshot[0] if r['monitor']['index']==display_index],snapshot[1])
+        display_recipe=saved.save_current('Only one display',subset,display_only=True)
+        selected={r['_window'] for r in subset[0]}
+        untouched={w.get_xid():w.get_geometry() for w in owned() if w.get_xid() not in selected}
+        saved.layout_windows.clear()  # Exercise persisted matching, not session IDs.
+        messages=[]
+        with patch('saved_groups.catalog',return_value=apps):
+            saved.restore(display_recipe,lambda *args:messages.append(args));wait(lambda:saved.operation is None)
+        assert messages[-1]==('Layout restored.',True),messages
+        for xid,rect in untouched.items():assert manager.get(xid).get_geometry()==rect
+        print('PASS: display-only saved layout restores without moving other display windows')
         maximized=byapp[ids[0]+'.desktop'];full=byapp[ids[1]+'.desktop']
         maximized.maximize();full.set_fullscreen(True)
         wait(lambda:maximized.is_maximized() and full.is_fullscreen())
@@ -97,12 +109,12 @@ try:
         messages=[]
         with patch('saved_groups.catalog',return_value=apps):
             saved.restore(states,lambda *args:messages.append(args));wait(lambda:saved.operation is None)
-        assert messages[-1]==('Layout restored.',True),messages
+        assert messages[-1]==('Layout restored.',True),(messages,[(w.get_application_id(),w.get_geometry()) for w in owned()],m.area())
         wait(lambda:maximized.is_maximized() and full.is_fullscreen())
         messages=[]
         with patch('saved_groups.catalog',return_value=apps):
             saved.restore(states,lambda *args:messages.append(args));wait(lambda:saved.operation is None)
-        assert messages[-1]==('Layout restored.',True),messages
+        assert messages[-1]==('Layout restored.',True),(messages,[(w.get_application_id(),w.get_geometry()) for w in owned()],m.area())
         wait(lambda:maximized.is_maximized() and full.is_fullscreen())
         from layout_startup import StartupRestore
         from unittest.mock import Mock

@@ -687,3 +687,23 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - **`tests/tray_drawer_live.py`** runs a private headless GNOME Shell with the real Zorin Taskbar and stand-in tray buttons, and clicks with a virtual pointer. It passed: icons fold and the tray narrows; clicking the arrow shows them all; an icon added while open shows and the arrow stays last; the drawer folds after the pointer leaves; an icon that hides or shows itself while folded keeps that choice; the arrow hides with nothing to fold; `tray-drawer=false` puts every icon back. No `JS ERROR` in the shell log. Folded and open screenshots were inspected.
 - The companion's `extension_settings` helper read and wrote the key against a compiled copy of the schema; `apply_start_button` now uses the same helper. A rebuild of master's sources reproduced the committed `dist/main.js` before the change.
 - Needs one sign-out to load on the real desktop.
+
+## Display-only layouts and static window appearance (2026-10-30)
+
+- Save dialog now offers individual displays. Display-only restore filters same-app candidates to that screen, matches nearby positions first, and reports a disconnected target display instead of moving laptop windows. All restored normal frames are clamped to the target work area.
+- GTK save-dialog test covers selecting and persisting display scope. Model tests cover present/missing-monitor containment, and a restore test verifies a laptop browser is not borrowed for an external-screen recipe. The live native Wayland fixture checks display-only restoration with other-display windows unchanged. One initial legacy placement attempt was constrained by the compositor; the diagnostic rerun passed.
+- Diagnosed a real oversized Brave frame beginning 17 pixels above the laptop work area; fitted only that frame to the laptop, leaving the four external-screen YouTube windows unchanged. Disabled the separately installed global Window Glass extension (90% active/85% inactive) and saved 100%/100%, no-blur settings; no app code was replaced.
+- Sign-out and sleep testing remain deferred.
+
+## GNOME Files Copy full path (2026-10-30)
+
+- Independent Nautilus 4 MenuProvider adds selected-file and folder-background copy-path actions, preserving plain local paths and remote URIs. No file contents or sync operations are accessed. GNOME installer and selective backup include the new extension.
+- Isolated GTK4/Nautilus fixture activates real menu items and reads the clipboard back, covering multiple files, spaces, Unicode, background folders and remote URIs. Installed locally and gracefully restarted Files, reopening its prior folder. The CloudDrive extension and OneDrive executable hashes are unchanged; OneDrive reports synced.
+
+## Session reliability audit (2026-10-30)
+
+- Found that the installed 2026-10-20 logout cleanup helper/service were absent from the repository installer. Added the helper and service generation, enablement and removal to GNOME installation. Added an active-session guard so maintenance stops cannot close apps. Current OneDrive daemon remains excluded.
+- Three tests cover real disposable exact-executable cleanup, unrelated-process preservation, active/unknown-session skipping, logout states and unit/sync-daemon constraints. Installed helper skips safely during the current active session. Existing cleanup service remains active; no apps were terminated during local installation.
+- Existing logs show s2idle exit at 15:10:36, NetworkManager wake at 15:10:37, policy auto-activation at 15:10:47 and successful Wi-Fi activation at 15:10:48. This is evidence of automatic Wi-Fi recovery for that one cycle, not universal suspend reliability.
+- Current read-only snapshot: Wayland session, two logical monitors, NVIDIA query succeeds, network connected/full, OneDrive mounted/up_to_date with zero pending/upload/download counts. Snapshot stored locally under ~/.local/state/zorin11-audit/2026-10-30.
+- Only a two-window layout named test is saved, with automatic restoration disabled. Actual sign-out/sign-in cleanup and visible dual-monitor wake behavior still require user testing; no new suspend or sign-out was triggered.

@@ -28,7 +28,10 @@ with tempfile.TemporaryDirectory() as folder:
         entry=next(c for c in dialog.get_content_area().get_children() if isinstance(c,Gtk.Entry))
         entry.set_text('');dialog.response(Gtk.ResponseType.OK)
         assert not m.saved_groups.store.groups and view.modal
+        scope=next(c for c in dialog.get_content_area().get_children() if isinstance(c,Gtk.ComboBoxText))
+        scope.set_active_id(str(snapshot[0][0]['monitor']['index']))
         entry.set_text('Both displays');dialog.response(Gtk.ResponseType.OK)
+        assert m.saved_groups.store.groups[0]['display_only']
         assert m.saved_groups.store.groups[0]['name']=='Both displays'
         assert m.saved_groups.store.groups[0]['kind']=='layout' and not view.modal
         view.capture_button.clicked()

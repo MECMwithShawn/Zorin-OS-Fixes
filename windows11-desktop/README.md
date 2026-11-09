@@ -5,9 +5,9 @@
 
 ## Save current window layout
 
-Open **Win+Tab → Saved groups → Save current layout…**, enter a name, then choose **Save layout**. This captures visible, non-minimized application windows on the current desktop across all connected monitors (up to 128 windows). Select **Restore layout** on its saved card to restore positions and maximized/fullscreen states. Saved layouts can be renamed and removed. Use the search field or **Ctrl+F** to filter by layout/app name. **Escape** cancels an unfinished name edit, then clears an active search before closing the panel.
+Open **Win+Tab → Saved groups → Save current layout…**, enter a name, then choose **Save layout**. Choose **All displays** or a specific display in the save dialog. This captures visible, non-minimized application windows on the current desktop (up to 128 windows). A display-only layout restores only apps on that screen; it does not borrow same-app windows from your laptop and requires its saved display to be connected. Select **Restore layout** on its saved card to restore positions and maximized/fullscreen states. Saved layouts can be renamed and removed. Use the search field or **Ctrl+F** to filter by layout/app name. **Escape** cancels an unfinished name edit, then clears an active search before closing the panel.
 
-Positions scale relative to each monitor’s work area. If a monitor is disconnected, its windows are fitted onto the primary display. Existing windows are reused; missing apps with installed launchers can be opened. Apps without a recognized launcher must already be open. Windows that cannot be resized produce an explicit error rather than being silently omitted. Native Wayland application IDs distinguish apps that share a toolkit window class.
+Positions scale relative to each monitor’s work area and restored frames are contained within that area, preventing oversized windows from spilling onto an adjacent screen. If a monitor is disconnected, its windows are fitted onto the primary display. Existing windows are reused; missing apps with installed launchers can be opened. Apps without a recognized launcher must already be open. Windows that cannot be resized produce an explicit error rather than being silently omitted. Native Wayland application IDs distinguish apps that share a toolkit window class.
 
 This saves window arrangements, not document contents: browser tabs, files and terminal sessions follow each app’s own restore settings. Multiple windows of the same app retain their slots while the companion remains running; after restarting it, matching uses application identity and window order, not individual document identity. Layout recipes are stored privately in `~/.config/zorin11-hub/snap-groups.json` and are included in desktop backups. To opt in, check **Restore automatically when I sign in** on one saved layout. The companion waits 20 seconds, defers while the desktop is locked or busy (up to two minutes), then restores once per GNOME login and reports the result. Restarting the companion does not repeat it. Uncheck the option to disable it; deleting the chosen layout also disables it. No layout is selected by default.
 
@@ -243,12 +243,17 @@ The tray icons left of the network/volume/battery button (Quick settings, notifi
 gsettings --schemadir ~/.local/share/gnome-shell/extensions/zorin11@zorin-os-fixes/schemas set org.gnome.shell.extensions.zorin11 tray-drawer false
 ```
 
+## Pin a window above other windows
+
+Focus the window and press **Win+Ctrl+T** to toggle **Always on Top**. Press it again to unpin. This uses GNOME/Mutter directly and works with native Wayland and XWayland windows, including Brave. Alternatively press **Alt+Space → Always on Top**; the checkmark shows its current state. Brave’s tab-strip right-click menu is its own menu and does not expose this native action. Pinning lasts for that window’s lifetime; it does not pin a browser tab or automatically reopen the window after login.
+
 ## Shortcuts
 
 | Shortcut | Action |
 |---|---|
 | Super / Ctrl+Esc | Start |
 | Win+S | Search |
+| Win+Ctrl+T | Toggle Always on Top for the focused window |
 | Win+E | File Explorer |
 | Win+I | Settings |
 | Win+A | Quick Settings |
@@ -455,3 +460,17 @@ GNOME background window tracking uses cancellable asynchronous reads, with one r
 ### Desktop shortcut names
 
 Right-click a desktop application shortcut and choose **Rename…**, or select it and press **F2**. Trusted launchers now support changing their displayed name while preserving their command, icon, permissions and filename. The icon menu uses the same Windows-style appearance as the desktop background menu, with icons for Open, Cut, Copy, Rename, Trash and Properties. Regular files continue using Zorin’s native rename operation; special system/drive icons retain their native restrictions.
+
+### Static application windows
+
+If the optional `zorin11-glass@zorin-os-fixes` extension causes changing shades or background bleed-through, run `python3 windows11-desktop/static_window_appearance.py` as your desktop user. It disables that global effect and saves solid active/inactive window settings. Menu styling and application code are preserved. Its settings and recovery records are included in desktop backups.
+
+### Copy paths in GNOME Files
+
+The independent Nautilus extension adds **Copy full path** to a selected file/folder, **Copy full paths** for multiple selections (one per line), and **Copy folder path** to the folder background menu. Local paths are plain text with spaces and Unicode intact; remote locations use their URI. It does not modify the Axentra CloudDrive integration. Restart Files after installing the extension.
+
+### Logout cleanup and recovery validation
+
+The GNOME installer includes the existing session cleanup helper and its graphical-session service. Cleanup matches only exact user-owned Mini Media/Soloist or legacy OneDrive GUI executable paths, using pidfds to avoid reused-PID signalling. The current lowercase `axentra-onedrive` sync daemon is excluded. During an active desktop session, stopping/uninstalling the cleanup service skips app termination; cleanup is permitted only while the graphical-session target is deactivating or inactive.
+
+For read-only recovery diagnostics, use `python3 ~/.local/share/zorin11-hub/wayland_resume_check.py --output ~/.local/state/zorin11-resume-check`. Adding `--watch` records one subsequent sleep/wake cycle without initiating sleep. Logs stay local; no account details or filenames are included in the OneDrive status snapshot.
