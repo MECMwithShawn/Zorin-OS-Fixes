@@ -40,10 +40,13 @@ class Multitasking:
         self.switcher=Switcher(self)
         from saved_groups import SavedGroups
         self.saved_groups=SavedGroups(self)
+        from layout_startup import StartupRestore
+        self.layout_startup=StartupRestore(self.saved_groups)
         self.css=Gtk.CssProvider();self.css.load_from_path(str(BASE/'multitasking.css'))
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(),self.css,650)
 
     def shutdown(self):
+        self.layout_startup.close()
         self.saved_groups.close()
         self.switcher.shutdown()
         self.snap_groups.close()
@@ -103,6 +106,8 @@ class Multitasking:
     def key(self,win,event):
         view=getattr(self,'task_view',None)
         if view and view.alive() and view.key(event):return True
+        saved=getattr(self,'saved_view',None)
+        if saved and saved.alive() and saved.key(event):return True
         if event.keyval==Gdk.KEY_Escape:self.close();return True
         if win.get_title()=='Snap layouts' and Gdk.KEY_1<=event.keyval<=Gdk.KEY_6:
             index=event.keyval-Gdk.KEY_1

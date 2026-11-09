@@ -6,10 +6,11 @@ from saved_groups import catalog,identify
 
 class SavedGroupsView:
     def __init__(self,m):
-        self.m=m;self.saved=m.saved_groups;self.editing=False;self.modal=False
+        self.m=m;self.saved=m.saved_groups;self.editing=False;self.modal=False;self.query=''
         target=m.windows.active();m.origin=target.get_xid() if target else None
         area=m.area(target);height=min(650,max(360,240+110*len(self.saved.store.groups)),area[3]-40)
         self.win,self.box=m.shell('Saved groups',min(860,area[2]-40),height,area)
+        self.win.get_style_context().add_class('z11-saved-layouts')
         self.win.connect('destroy',lambda *_:self.saved.cancel())
         self.render();self.win.show_all();self.win.present()
 
@@ -24,6 +25,10 @@ class SavedGroupsView:
         head.pack_end(button('Close',lambda:self.m.close()),False,False,0);self.box.pack_start(head,False,False,0)
         intro=label('Reopen your apps together, with their saved layout.','z11-muted');self.box.pack_start(intro,False,False,0)
         hint=label('Documents, browser tabs and terminal sessions follow each app’s own restore settings.','z11-small');hint.set_line_wrap(True);self.box.pack_start(hint,False,False,0)
+        self.search=Gtk.SearchEntry(placeholder_text='Search saved layouts and apps')
+        self.search.get_accessible().set_name('Search saved layouts and apps');self.search.set_text(self.query)
+        self.search.connect('changed',lambda entry:self.filter_rows(entry.get_text()))
+        self.box.pack_start(self.search,False,False,0);self.rows=[]
         scroll=Gtk.ScrolledWindow();scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.AUTOMATIC);self.box.pack_start(scroll,True,True,0)
         content=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=12);scroll.add(content);self.controls=content
         apps=catalog()
@@ -32,17 +37,30 @@ class SavedGroupsView:
             canvas=Gtk.DrawingArea();canvas.set_size_request(124,78);canvas.connect('draw',self.draw,recipe);row.pack_start(canvas,False,False,0)
             details=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8);row.pack_start(details,True,True,0)
             name=Gtk.Entry();name.set_text(recipe['name']);name.set_max_length(80);name.set_width_chars(18)
-            name.get_accessible().set_name('Rename saved group '+recipe['name']);details.pack_start(name,False,False,0)
+            name.recipe_id=recipe['id'];name.get_accessible().set_name('Rename saved group '+recipe['name']);details.pack_start(name,False,False,0)
             name.connect('focus-in-event',lambda *_:setattr(self,'editing',True))
-            def rename(entry,*_,ident=recipe['id']):
+            def rename(entry,*_,ident=recipe['id'],card=row):
                 self.editing=False
                 current=next((g for g in self.saved.store.groups if g['id']==ident),None)
                 if not self.alive() or not current or current['name']==entry.get_text().strip():return
-                try:self.saved.store.rename(ident,entry.get_text())
+                try:
+                    self.saved.store.rename(ident,entry.get_text())
+                    self.rows=[(r,(entry.get_text()+' '+card.search_apps).casefold() if r is card else terms) for r,terms in self.rows]
+                    self.filter_rows(self.query)
                 except (OSError,ValueError) as error:self.notice(str(error))
             name.connect('activate',rename);name.connect('focus-out-event',lambda entry,event,f=rename:(f(entry),False)[1])
             names=[apps[r['app']].get_display_name() if r['app'] in apps else (r['app']+' (not installed)' if r['app'] else r['class']+' (must be open)') for r in recipe['members']]
+            row.search_apps=' '.join(names)
+            self.rows.append((row,(recipe['name']+' '+' '.join(names)).casefold()))
             text=label(' · '.join(names),'z11-small');text.set_ellipsize(Pango.EllipsizeMode.END);text.set_max_width_chars(38);text.set_tooltip_text(' · '.join(names));details.pack_start(text,False,False,0)
+            if recipe.get('kind')=='layout':
+                startup=Gtk.CheckButton(label='Restore automatically when I sign in')
+                startup.set_active(self.saved.store.data.get('startup_layout')==recipe['id'])
+                startup.set_tooltip_text('Restore this layout once after sign-in. Only one layout can be selected. Apps may open; documents follow each app’s settings.')
+                def toggle(widget,ident=recipe['id']):
+                    try:self.saved.store.set_startup(ident if widget.get_active() else '');self.render()
+                    except (OSError,ValueError) as error:self.notice(str(error))
+                startup.connect('toggled',toggle);details.pack_start(startup,False,False,0)
             actions=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8);row.pack_end(actions,False,False,0)
             restore=button('Restore layout' if recipe.get('kind')=='layout' else 'Reopen group',lambda ident=recipe['id']:self.restore(ident),'z11-primary');restore.get_accessible().set_name('Reopen saved group '+recipe['name']);actions.pack_start(restore,False,False,0)
             remove=button('Remove',lambda ident=recipe['id']:self.remove(ident));remove.get_accessible().set_name('Remove saved group '+recipe['name']);actions.pack_start(remove,False,False,0)
@@ -52,10 +70,31 @@ class SavedGroupsView:
             row.pack_end(button('Choose apps and save…',lambda g=group:self.save_dialog(g)),False,False,0);content.pack_start(row,False,False,0)
         if not self.saved.store.groups:
             empty=label('Use Save current layout to remember your open windows.\nSnap Assist groups also appear here.','z11-muted');empty.set_line_wrap(True);content.pack_start(empty,False,False,8)
+        self.no_matches=label('No saved layouts match your search.','z11-muted');content.pack_start(self.no_matches,False,False,8)
         self.status=label(self.saved.store.error or self.saved.last_error,'z11-muted');self.status.set_line_wrap(True);self.status.set_max_width_chars(85);self.box.pack_start(self.status,False,False,0)
         self.cancel_button=button('Cancel restore',self.cancel);self.cancel_button.set_no_show_all(True)
         self.box.pack_end(self.cancel_button,False,False,0)
-        self.box.show_all();self.cancel_button.hide()
+        self.box.show_all();self.cancel_button.hide();self.filter_rows(self.query)
+
+    def filter_rows(self,text):
+        self.query=text
+        if not hasattr(self,'no_matches'):return
+        query=text.strip().casefold();count=0
+        for row,terms in self.rows:
+            matched=all(term in terms for term in query.split());row.set_visible(matched);count+=int(matched)
+        self.no_matches.set_visible(bool(query) and not count)
+
+    def key(self,event):
+        if self.modal:return False
+        if event.keyval in (Gdk.KEY_f,Gdk.KEY_F) and event.state & Gdk.ModifierType.CONTROL_MASK:
+            self.search.grab_focus();self.search.select_region(0,-1);return True
+        if event.keyval!=Gdk.KEY_Escape:return False
+        focus=self.win.get_focus();ident=getattr(focus,'recipe_id',None)
+        recipe=next((g for g in self.saved.store.groups if g['id']==ident),None)
+        if recipe and focus.get_text()!=recipe['name']:
+            focus.set_text(recipe['name']);self.editing=False;self.search.grab_focus();return True
+        if self.query:self.search.set_text('');self.search.grab_focus();return True
+        return False
 
     def notice(self,text):
         if self.alive():self.status.set_text(text)
@@ -64,7 +103,7 @@ class SavedGroupsView:
         self.editing=False
         def status(text,finished):
             if not self.alive():return
-            self.notice(text);self.controls.set_sensitive(finished);self.capture_button.set_sensitive(finished);self.cancel_button.set_visible(not finished)
+            self.notice(text);self.controls.set_sensitive(finished);self.capture_button.set_sensitive(finished);self.search.set_sensitive(finished);self.cancel_button.set_visible(not finished)
             if finished:
                 if text=='Layout restored.':
                     self.m.close(False)
@@ -75,7 +114,7 @@ class SavedGroupsView:
         except (ValueError,OSError) as error:self.notice(str(error))
 
     def cancel(self):
-        self.saved.cancel();self.controls.set_sensitive(True);self.capture_button.set_sensitive(True);self.cancel_button.hide();self.notice('Restore cancelled. Apps already opened stay open.')
+        self.saved.cancel();self.controls.set_sensitive(True);self.capture_button.set_sensitive(True);self.search.set_sensitive(True);self.cancel_button.hide();self.notice('Restore cancelled. Apps already opened stay open.')
 
     def remove(self,ident):
         try:self.saved.store.remove(ident);self.render()
@@ -90,7 +129,17 @@ class SavedGroupsView:
         dialog.add_buttons('Cancel',Gtk.ResponseType.CANCEL,'Save layout',Gtk.ResponseType.OK)
         box=dialog.get_content_area();box.set_border_width(20);box.set_spacing(12)
         count=len(snapshot[0]);screens=len({r['monitor']['index'] for r in snapshot[0]})
-        box.pack_start(label(f'{count} windows across {screens} displays on this desktop.'),False,False,0)
+        summary=label(f'{count} windows across {screens} displays on this desktop.');box.pack_start(summary,False,False,0)
+        scope=Gtk.ComboBoxText();scope.get_accessible().set_name('Displays to save')
+        scope.append('all','All displays on this desktop')
+        outputs={r['monitor']['index']:r['monitor'] for r in snapshot[0]}
+        for index,monitor in sorted(outputs.items()):
+            scope.append(str(index),f"Display {index+1}: {monitor['model']} only")
+        scope.set_active_id('all');box.pack_start(scope,False,False,0)
+        def selected():
+            ident=scope.get_active_id()
+            return snapshot if ident=='all' else ([r for r in snapshot[0] if r['monitor']['index']==int(ident)],snapshot[1])
+        scope.connect('changed',lambda *_:summary.set_text(f'{len(selected()[0])} windows will be saved.'))
         name=Gtk.Entry(text='My desktop layout',activates_default=True);name.get_accessible().set_name('Layout name')
         box.pack_start(name,False,False,0)
         note=label('Saves positions and window states. Documents and tabs follow each app’s restore settings.');note.set_line_wrap(True);note.set_max_width_chars(55);box.pack_start(note,False,False,0)
@@ -99,7 +148,7 @@ class SavedGroupsView:
             if response==Gtk.ResponseType.OK:
                 try:
                     if not name.get_text().strip():raise ValueError('Enter a layout name.')
-                    self.saved.save_current(name.get_text(),snapshot)
+                    self.saved.save_current(name.get_text(),selected(),display_only=scope.get_active_id()!='all')
                 except (ValueError,OSError) as problem:error.set_text(str(problem));return
             self.modal=False;widget.destroy()
             if self.alive():self.render();self.win.present()

@@ -21,18 +21,20 @@ def encode(rect,outputs):
     return dict(monitor=monitor,rect=[(a-x)/w,(b-y)/h,c/w,d/h])
 
 
-def decode(member,outputs):
+def resolve_monitor(member,outputs):
     saved=member['monitor']
     matching=[m for m in outputs if m['model'] and (m['model'],m['manufacturer'])==(saved['model'],saved['manufacturer'])]
     monitor=next((m for m in matching if m['index']==saved['index']),matching[0] if matching else None)
-    missing=monitor is None
-    if missing:monitor=next((m for m in outputs if m['primary']),outputs[0])
+    return monitor
+
+
+def decode(member,outputs):
+    monitor=resolve_monitor(member,outputs)
+    if monitor is None:monitor=next((m for m in outputs if m['primary']),outputs[0])
     x,y,w,h=monitor['area'];a,b,c,d=member['rect']
     width=max(1,round(c*w));height=max(1,round(d*h));left=x+round(a*w);top=y+round(b*h)
-    if missing:
-        width=min(width,w);height=min(height,h)
-        left=max(x,min(left,x+w-width));top=max(y,min(top,y+h-height))
-    else:
-        # Keep a usable title-bar portion reachable, including spanning windows.
-        left=max(x-width+80,min(left,x+w-80));top=max(y,min(top,y+h-40))
+    # Restored windows must fit the target work area, even when it is present.
+    # Otherwise a larger external-screen frame can spill onto a laptop neighbour.
+    width=min(width,w);height=min(height,h)
+    left=max(x,min(left,x+w-width));top=max(y,min(top,y+h-height))
     return left,top,width,height

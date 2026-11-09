@@ -658,6 +658,49 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - The live Wayland fixture uses three disposable native apps across both monitors. It verifies native desktop IDs despite changed class strings, reuse without duplicate launches, unaffected unrelated windows, save/move/restore geometry and maximized/fullscreen restoration. It also runs against the installed runtime. No real documents are opened or modified by this fixture.
 - OneDrive sync and protected Explorer/frontend files are checked separately. Sign-out, suspend/resume and reboot tests remain deferred. Reopening specific documents after logout is outside this feature’s scope.
 
+## Optional sign-in layout restore (2026-10-29)
+
+- Added one persisted opt-in selection on saved layout cards, cleared when the chosen layout is removed. Session-manager identity and a private runtime marker prevent repeated restoration on companion restart, including when the feature was disabled at the beginning of the login.
+- Four focused tests verify selection persistence/deletion, atomic once-per-session claiming, delayed scheduling, locked/busy behavior and disabling. The isolated GTK fixture toggles the actual checkbox both ways. A live fixture invokes the startup controller against disposable Wayland windows, with real placement and completion notification routing; the delay is bypassed only in that fixture.
+- Actual sign-out/sign-in and sleep tests remain deferred. Existing Explorer windows are not interrupted for reloading installed Python helpers. OneDrive startup configuration and executable remain unchanged.
+
+## Desktop icon Rename (2026-10-29)
+
+- Zorin deliberately suppresses Rename on trusted desktop launchers. The per-user adapter now exposes that action and F2, with a dedicated displayed-name editor that preserves launch command, icon and executable mode. Blank/slash/newline names and symlinks are rejected; writes use an etag to detect intervening changes. Localized Name fields are updated too. Vendor files and OneDrive remain untouched.
+- The isolated GTK menu test covers trusted/special icon eligibility, styled Rename action routing, the real dialog, persisted labels/localizations, invalid input and command/icon/mode preservation. Existing desktop menu tests pass. The installed icon process was reloaded without restarting GNOME, Explorer or OneDrive.
+- The broader disposable-GNOME lifecycle test passed its initial render/menu/icon checks but timed out in the existing missing-adapter-links recovery section (line 197). That fallback lifecycle check is not reported as passing. No sign-out or sleep was performed.
+
+## Glass-style desktop menus (2026-10-29)
+
+- Desktop and icon context menus now use an Explorer-inspired charcoal tint, restrained gradient, soft rim/shadow, rounded hover highlights and muted separators. GTK3 does not support CSS backdrop blur; this is a glass-style finish, not a compositor blur effect.
+- Existing GTK action/rename tests pass with the new stylesheet. Rendered preview inspected; theme-provided separator borders explicitly suppressed. Applied by reloading only the desktop icon process; Explorer and OneDrive untouched.
+
+## Saved layout keyboard and visual polish (2026-10-29)
+
+- Saved groups now filters by layout/app name, supports Ctrl+F, and treats Escape as cancel-name-edit → clear-search → close. Canceling an edited name before focus-out prevents unintended persistence. Successful renames refresh the search terms immediately. Cards use the restrained glass-style palette with explicit keyboard focus outlines.
+- Extended GTK fixture passed against source and installed runtime: search/no results, actual manager key routing, cancel then focus-out preservation, rename/search refresh, startup toggle and save dialog. CSS loaded successfully and a rendered preview was inspected. Reloaded the companion only after verifying no visible companion windows; opened Saved groups locally.
+- OneDrive reports synced and its executable plus Explorer/frontend hashes are unchanged. Sign-out, sleep and reboot testing remain deferred.
+
+## Display-only layouts and static window appearance (2026-10-30)
+
+- Save dialog now offers individual displays. Display-only restore filters same-app candidates to that screen, matches nearby positions first, and reports a disconnected target display instead of moving laptop windows. All restored normal frames are clamped to the target work area.
+- GTK save-dialog test covers selecting and persisting display scope. Model tests cover present/missing-monitor containment, and a restore test verifies a laptop browser is not borrowed for an external-screen recipe. The live native Wayland fixture checks display-only restoration with other-display windows unchanged. One initial legacy placement attempt was constrained by the compositor; the diagnostic rerun passed.
+- Diagnosed a real oversized Brave frame beginning 17 pixels above the laptop work area; fitted only that frame to the laptop, leaving the four external-screen YouTube windows unchanged. Disabled the separately installed global Window Glass extension (90% active/85% inactive) and saved 100%/100%, no-blur settings; no app code was replaced.
+- Sign-out and sleep testing remain deferred.
+
+## GNOME Files Copy full path (2026-10-30)
+
+- Independent Nautilus 4 MenuProvider adds selected-file and folder-background copy-path actions, preserving plain local paths and remote URIs. No file contents or sync operations are accessed. GNOME installer and selective backup include the new extension.
+- Isolated GTK4/Nautilus fixture activates real menu items and reads the clipboard back, covering multiple files, spaces, Unicode, background folders and remote URIs. Installed locally and gracefully restarted Files, reopening its prior folder. The CloudDrive extension and OneDrive executable hashes are unchanged; OneDrive reports synced.
+
+## Session reliability audit (2026-10-30)
+
+- Found that the installed 2026-10-20 logout cleanup helper/service were absent from the repository installer. Added the helper and service generation, enablement and removal to GNOME installation. Added an active-session guard so maintenance stops cannot close apps. Current OneDrive daemon remains excluded.
+- Three tests cover real disposable exact-executable cleanup, unrelated-process preservation, active/unknown-session skipping, logout states and unit/sync-daemon constraints. Installed helper skips safely during the current active session. Existing cleanup service remains active; no apps were terminated during local installation.
+- Existing logs show s2idle exit at 15:10:36, NetworkManager wake at 15:10:37, policy auto-activation at 15:10:47 and successful Wi-Fi activation at 15:10:48. This is evidence of automatic Wi-Fi recovery for that one cycle, not universal suspend reliability.
+- Current read-only snapshot: Wayland session, two logical monitors, NVIDIA query succeeds, network connected/full, OneDrive mounted/up_to_date with zero pending/upload/download counts. Snapshot stored locally under ~/.local/state/zorin11-audit/2026-10-30.
+- Only a two-window layout named test is saved, with automatic restoration disabled. Actual sign-out/sign-in cleanup and visible dual-monitor wake behavior still require user testing; no new suspend or sign-out was triggered.
+
 ## Window glass (2026-10-29)
 
 - New GNOME Shell extension `zorin11-glass@zorin-os-fixes` (`gnome-glass-extension/`) gives app windows a slight acrylic look. A `Shell.BlurEffect` background actor sits under each window, and the window's surfaces drop to 90% opacity when focused and 85% when not. Fullscreen windows, skip-taskbar companion surfaces, popups and Axentra Terminal (which has its own acrylic) stay solid.

@@ -45,4 +45,4 @@ All changes should remain reproducible through this package and reversible throu
 
 ### Whole-desktop saved layouts (GNOME/Wayland)
 
-Task View → Saved groups → Save current layout captures visible application windows across connected monitors, with named restore cards and maximized/fullscreen states. Missing displays fall back to the primary display. Restoring document contents or automatic login sessions is not implemented; each app controls those. See README for matching and supported-window limits.
+Task View → Saved groups → Save current layout captures visible application windows across connected monitors, with named restore cards and maximized/fullscreen states. Missing displays fall back to the primary display. An optional checkbox restores one selected layout after GNOME sign-in. Document contents remain controlled by each app. Saved layouts have name/app search, Ctrl+F, cancelable name edits and glass-style cards. See README for matching and supported-window limits.

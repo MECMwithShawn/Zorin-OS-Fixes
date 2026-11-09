@@ -39,3 +39,20 @@
 .z11-switcher button.z11-window-card:focus, .z11-switcher button.z11-switch-selected { border-color: #60cdff; background: #34383c; outline: none; }
 
 .z11-saved-card { background: #303030; border: 1px solid #454545; border-radius: 9px; }
+
+/* Saved layouts share the restrained desktop-menu glass palette. */
+.z11-multitask.z11-saved-layouts {
+    background-color: rgba(32,36,43,.97);
+    background-image: linear-gradient(145deg, rgba(132,160,184,.10), rgba(12,16,23,.06));
+    border-color: rgba(217,234,249,.20);
+    box-shadow: inset 0 1px rgba(255,255,255,.07);
+}
+.z11-saved-layouts .z11-saved-card {
+    background: rgba(153,184,209,.045);
+    border-color: rgba(217,234,249,.13);
+    border-radius: 10px;
+}
+.z11-saved-layouts entry { background: rgba(16,20,27,.65); border-color: #56616e; }
+.z11-saved-layouts entry:focus { border-color: #60cdff; }
+.z11-saved-layouts checkbutton { color: #d6e4f0; padding: 5px 0; }
+.z11-saved-layouts checkbutton:focus { outline: 1px solid #60cdff; outline-offset: 2px; }
