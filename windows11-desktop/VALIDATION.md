@@ -700,3 +700,17 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - Existing logs show s2idle exit at 15:10:36, NetworkManager wake at 15:10:37, policy auto-activation at 15:10:47 and successful Wi-Fi activation at 15:10:48. This is evidence of automatic Wi-Fi recovery for that one cycle, not universal suspend reliability.
 - Current read-only snapshot: Wayland session, two logical monitors, NVIDIA query succeeds, network connected/full, OneDrive mounted/up_to_date with zero pending/upload/download counts. Snapshot stored locally under ~/.local/state/zorin11-audit/2026-10-30.
 - Only a two-window layout named test is saved, with automatic restoration disabled. Actual sign-out/sign-in cleanup and visible dual-monitor wake behavior still require user testing; no new suspend or sign-out was triggered.
+
+## YubiKey touch in GNOME's keyring prompt (2026-11-11)
+
+- At the 2026-11-11 sign-in an app reached the keyring before the YubiKey unlock, so GNOME showed its own "Default keyring" password prompt, which couldn't take the key. The YubiKey went in about 45 s after sign-in, and the unlock script's own dialog appeared about 25 s late while the session bus was busy.
+- The zorin11 extension now attaches to every keyring prompt as GNOME builds it (`Shell.KeyringPrompt.set_password_actor`; the prompter's `prompting` change comes before the prompt exists). For a keyring set up for YubiKey unlock, it shows a touch hint and runs `keyring_unlock.py password`. A touch fills the password and completes the prompt. The sign-in `unlock` now opens the same GNOME prompt through the Secret Service. It falls back to its own dialogs when the extension doesn't answer the `yubikey-prompt` bridge call.
+- `tests/yubikey_prompt_live.py` runs a private headless GNOME 46 Shell with a private gnome-keyring-daemon and a stand-in key. It covers these cases:
+  - An app's prompt filled after a touch, with the second keyring opened too.
+  - A keyring that isn't set up left to typing.
+  - A stale saved password tried once, with no loop.
+  - Closing the prompt while waiting for the key stops the helper.
+  - The sign-in unlock: one prompt, one touch, both keyrings open.
+- The test fails without the extension hook. `tests/test_yubikey.py` (17 tests) covers prompt-to-keyring mapping and the helper's output. gnome-keyring-daemon 46 aborts (`perform_next_unlock: assertion failed`) when Unlock follows Lock immediately, so the test pauses after locking. The real sign-in never locks first.
+- A real sign-in with the YubiKey is still to be checked after the sign-out that loads the extension change.
+

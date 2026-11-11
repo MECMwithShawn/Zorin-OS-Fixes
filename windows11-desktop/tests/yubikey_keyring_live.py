@@ -61,7 +61,8 @@ try:
     ku.save_config({'version': 1, 'rp': ku.RP, 'credential': ku.b64(b'id'), 'salt': ku.b64(b's' * 32),
                     'keyrings': {p: {'label': l, **ku.seal(key, p, pw)} for p, (l, pw) in found.items()}})
     ku.fido.devices = lambda: [b'/dev/fake']
-    ku.with_touch = lambda path, text, action: key
+    ku.with_touch = lambda path, text, action, stop=None: key
+    ku.desktop_prompt_ready = lambda: False  # no desktop extension here: our own dialogs
     ku.notify = lambda text: print('notify:', text)
     for p in found:
         lock(p)
@@ -72,7 +73,7 @@ try:
 
     # Another key's secret unlocks nothing and says so.
     lock(one)
-    ku.with_touch = lambda path, text, action: os.urandom(32)
+    ku.with_touch = lambda path, text, action, stop=None: os.urandom(32)
     assert ku.unlock(None) == 1 and k.locked(one)
     k.close()
     print('PASS')

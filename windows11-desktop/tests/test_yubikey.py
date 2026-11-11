@@ -1,5 +1,8 @@
 """YubiKey sign-in pieces: the PAM line edits, sealing keyring passwords, and the keyring D-Bus
 calls against a private gnome-keyring-daemon (never the user's own keyrings)."""
+import contextlib
+import io
+import json
 import os
 import shutil
 import subprocess
@@ -131,6 +134,149 @@ class PrivateKeyring(unittest.TestCase):
                                env=env, capture_output=True, text=True, timeout=60)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertIn('PASS', r.stdout)
+
+
+class WaitForUnlock(unittest.TestCase):
+    """`wait` holds login apps back until the keyrings open or this sign-in's attempt is over."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.dir)
+        self.saved = (keyring_unlock.load_config, keyring_unlock.Keyring, keyring_unlock.done_marker,
+                      keyring_unlock.session_started, keyring_unlock.time.sleep)
+        self.addCleanup(self.restore)
+        self.marker = Path(self.dir) / 'done'
+        self.locked = {'/c/default': True}
+        test = self
+
+        class FakeKeyring:
+            def collections(self):
+                return list(test.locked)
+
+            def locked(self, path):
+                return test.locked[path]
+
+        keyring_unlock.load_config = lambda: {'keyrings': {'/c/default': {}}}
+        keyring_unlock.Keyring = FakeKeyring
+        keyring_unlock.done_marker = lambda: self.marker
+        keyring_unlock.session_started = lambda: None
+        self.ticks = 0
+
+        def sleep(_):
+            self.ticks += 1
+            if self.ticks == 3 and self.on_third_tick:
+                self.on_third_tick()
+        keyring_unlock.time.sleep = sleep
+        self.on_third_tick = None
+
+    def restore(self):
+        (keyring_unlock.load_config, keyring_unlock.Keyring, keyring_unlock.done_marker,
+         keyring_unlock.session_started, keyring_unlock.time.sleep) = self.saved
+
+    def run_wait(self, timeout=30):
+        return keyring_unlock.main(['wait', '--timeout', str(timeout)])
+
+    def test_returns_when_the_keyring_opens(self):
+        self.on_third_tick = lambda: self.locked.update({'/c/default': False})
+        self.assertEqual(self.run_wait(), 0)
+        self.assertEqual(self.ticks, 3)
+
+    def test_returns_when_this_sign_ins_attempt_is_over(self):
+        self.on_third_tick = self.marker.touch
+        self.assertEqual(self.run_wait(), 0)
+        self.assertEqual(self.ticks, 3)
+
+    def test_a_marker_from_an_earlier_sign_in_is_ignored(self):
+        self.marker.touch()
+        old = time.time() - 3600
+        os.utime(self.marker, (old, old))
+        keyring_unlock.session_started = lambda: time.time() - 60
+        self.on_third_tick = lambda: self.locked.update({'/c/default': False})
+        self.run_wait()
+        self.assertEqual(self.ticks, 3)
+
+    def test_gives_up_after_the_timeout(self):
+        self.assertEqual(self.run_wait(timeout=0.2), 0)
+
+    def test_not_set_up_means_no_wait(self):
+        keyring_unlock.load_config = lambda: None
+        self.assertEqual(self.run_wait(), 0)
+        self.assertEqual(self.ticks, 0)
+
+    def test_unlock_always_leaves_the_marker(self):
+        keyring_unlock.load_config = lambda: None
+        keyring_unlock.main(['unlock'])
+        self.assertTrue(self.marker.exists())
+
+
+
+class PromptAnswer(unittest.TestCase):
+    """`password` answers GNOME's keyring prompt: which keyring, the touch, the printed password."""
+
+    CONFIG = {'rp': 'zorin-keyring', 'credential': 'aWQ=', 'salt': 'c2FsdA==', 'keyrings': {
+        '/org/freedesktop/secrets/collection/login': {'label': 'Login'},
+        '/org/freedesktop/secrets/collection/Default_5fkeyring': {'label': 'Default keyring'}}}
+
+    def test_the_prompt_names_the_keyring(self):
+        which = keyring_unlock.prompt_collection
+        self.assertEqual(which(self.CONFIG, 'An application wants access to the keyring “Default keyring”, but it is locked'),
+                         '/org/freedesktop/secrets/collection/Default_5fkeyring')
+        self.assertEqual(which(self.CONFIG, 'The login keyring did not get unlocked when you logged into your computer.'),
+                         '/org/freedesktop/secrets/collection/login')
+        self.assertIsNone(which(self.CONFIG, 'An application wants access to the keyring “Work”, but it is locked'))
+        self.assertIsNone(which(self.CONFIG, 'Enter the password for the certificate'))
+        self.assertIsNone(which(None, 'An application wants access to the keyring “Login”, but it is locked'))
+
+    def answer(self, description, key, devices=('/dev/fake',)):
+        saved = (keyring_unlock.load_config, keyring_unlock.fido.devices, keyring_unlock.with_touch,
+                 keyring_unlock.Keyring, keyring_unlock.signal.signal)
+        self.addCleanup(lambda: (setattr(keyring_unlock, 'load_config', saved[0]),
+                                 setattr(keyring_unlock.fido, 'devices', saved[1]),
+                                 setattr(keyring_unlock, 'with_touch', saved[2]),
+                                 setattr(keyring_unlock, 'Keyring', saved[3]),
+                                 setattr(keyring_unlock.signal, 'signal', saved[4])))
+        right = os.urandom(32)
+        config = json.loads(json.dumps(self.CONFIG))
+        for path, record in config['keyrings'].items():
+            record.update(keyring_unlock.seal(right, path, b'pw:' + record['label'].encode()))
+        unlocked = []
+
+        class FakeKeyring:
+            def collections(self):
+                return list(config['keyrings'])
+
+            def locked(self, path):
+                return path not in unlocked
+
+            def unlock(self, path, password):
+                unlocked.append((path, password))
+                return True
+
+            def close(self):
+                pass
+        keyring_unlock.load_config = lambda: config
+        keyring_unlock.fido.devices = lambda: list(devices)
+        keyring_unlock.with_touch = lambda path, text, action, stop=None: right if key == 'right' else os.urandom(32)
+        keyring_unlock.Keyring = FakeKeyring
+        keyring_unlock.signal.signal = lambda *a: None
+        out = io.BytesIO()
+        stdout = io.TextIOWrapper(out, write_through=True)
+        with contextlib.redirect_stdout(stdout):
+            code = keyring_unlock.main(['password', '--prompt', description, '--wait', '0.1'])
+        stdout.flush()
+        printed = out.getvalue()
+        stdout.detach()
+        return code, printed, unlocked
+
+    def test_a_touch_prints_the_password_and_opens_the_other_keyring(self):
+        code, out, unlocked = self.answer('An application wants access to the keyring “Default keyring”, but it is locked', 'right')
+        self.assertEqual((code, out), (0, b'pw:Default keyring'))
+        self.assertEqual(unlocked, [('/org/freedesktop/secrets/collection/login', b'pw:Login')])
+
+    def test_another_keyring_or_key_prints_nothing(self):
+        self.assertEqual(self.answer('An application wants access to the keyring “Work”, but it is locked', 'right')[:2], (3, b''))
+        self.assertEqual(self.answer('The login keyring did not get unlocked when you logged into your computer.', 'other')[:2], (1, b''))
+        self.assertEqual(self.answer('The login keyring did not get unlocked when you logged into your computer.', 'right', devices=())[:2], (1, b''))
 
 
 if __name__ == '__main__':
