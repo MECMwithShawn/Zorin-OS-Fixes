@@ -39,3 +39,7 @@ sudo apt install libpam-u2f pamu2fcfg
 Tests: `python3 -m unittest tests.test_yubikey` (the keyring part runs against a private
 gnome-keyring-daemon in its own D-Bus session) and `python3 tests/yubikey_prompt_live.py` (GNOME's
 real prompt in a private headless Shell, private keyring daemon, stand-in key).
+
+## Sign in with a touch
+
+`./setup.sh login` (after the main set-up) adds the touch to the login screen and the lock screen, and turns GDM auto-login off so the login screen shows. Pick your name and touch the key when it blinks. Without the key, the password box comes straight away; with the key in but no touch, it comes after about 30 s. The keyrings still need a second touch after sign-in, in GNOME's keyring prompt. `./setup.sh login off` goes back to password sign-in, and to auto-login if it was on.

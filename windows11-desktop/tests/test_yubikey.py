@@ -41,6 +41,82 @@ session       required   pam_env.so readenv=1 envfile=/etc/default/locale user_r
 MAPPING = 'shawn:AbC+/=,dGVzdA==,es256,+presence\n'
 
 
+GDM_PASSWORD = """#%PAM-1.0
+auth    requisite       pam_nologin.so
+auth	required	pam_succeed_if.so user != root quiet_success
+@include common-auth
+auth    optional        pam_gnome_keyring.so
+@include common-account
+"""
+GDM_CONF = """# GDM configuration storage
+[daemon]
+AutomaticLoginEnable=true
+AutomaticLogin=shawn
+
+[security]
+"""
+
+
+class LoginScreen(unittest.TestCase):
+    def files(self, d, conf=GDM_CONF):
+        gdm, custom, mapping = d / 'gdm-password', d / 'custom.conf', d / 'u2f_mappings'
+        gdm.write_text(GDM_PASSWORD)
+        custom.write_text(conf)
+        mapping.write_text(MAPPING)
+        return dict(gdm=gdm, conf=custom, mapping=mapping, backups=d / 'b')
+
+    def test_on_adds_the_touch_and_turns_auto_login_off_then_off_restores_both(self):
+        with tempfile.TemporaryDirectory() as d:
+            kw = self.files(Path(d))
+            pam_install.login_on(check_module=False, **kw)
+            lines = kw['gdm'].read_text().splitlines()
+            i = lines.index('@include common-auth')
+            self.assertTrue(lines[i - 1].startswith('auth\tsufficient\tpam_u2f.so '))
+            self.assertLess(lines.index('auth\trequired\tpam_succeed_if.so user != root quiet_success'), i,
+                            'root is still refused before the touch')
+            conf = kw['conf'].read_text()
+            self.assertIn('AutomaticLoginEnable=false', conf)
+            self.assertNotIn('AutomaticLoginEnable=true', conf)
+            pam_install.login_on(check_module=False, **kw)  # again: nothing doubled
+            self.assertEqual(kw['gdm'].read_text().count('pam_u2f'), 1)
+            self.assertEqual(kw['conf'].read_text(), conf)
+            del kw['mapping']
+            pam_install.login_off(**kw)
+            self.assertEqual(kw['gdm'].read_text(), GDM_PASSWORD)
+            self.assertEqual(kw['conf'].read_text(), GDM_CONF)
+
+    def test_auto_login_that_was_off_stays_off(self):
+        off = GDM_CONF.replace('AutomaticLoginEnable=true', 'AutomaticLoginEnable=false')
+        with tempfile.TemporaryDirectory() as d:
+            kw = self.files(Path(d), off)
+            pam_install.login_on(check_module=False, **kw)
+            self.assertEqual(kw['conf'].read_text(), off)
+            del kw['mapping']
+            pam_install.login_off(**kw)
+            self.assertEqual(kw['conf'].read_text(), off)
+            self.assertIsNone(pam_install.login_off(**kw), 'off twice changes nothing')
+
+    def test_no_key_set_up_changes_nothing(self):
+        with tempfile.TemporaryDirectory() as d:
+            kw = self.files(Path(d))
+            kw['mapping'].unlink()
+            with self.assertRaises(SystemExit):
+                pam_install.login_on(check_module=False, **kw)
+            self.assertEqual(kw['gdm'].read_text(), GDM_PASSWORD)
+            self.assertEqual(kw['conf'].read_text(), GDM_CONF)
+
+    def test_uninstall_takes_the_login_screen_back_too(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            kw = self.files(d)
+            (d / 'sudo').write_text(SUDO)
+            (d / 'vendor').write_text(POLKIT)
+            pam_install.login_on(check_module=False, **kw)
+            pam_install.uninstall(sudo=d / 'sudo', polkit=d / 'polkit', polkit_vendor=d / 'vendor', **kw)
+            self.assertEqual(kw['gdm'].read_text(), GDM_PASSWORD)
+            self.assertEqual(kw['conf'].read_text(), GDM_CONF)
+
+
 class PamLines(unittest.TestCase):
     def test_line_goes_right_above_common_auth_once(self):
         text = pam_install.add_line(SUDO, pam_install.auth_line())

@@ -714,3 +714,10 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - The test fails without the extension hook. `tests/test_yubikey.py` (17 tests) covers prompt-to-keyring mapping and the helper's output. gnome-keyring-daemon 46 aborts (`perform_next_unlock: assertion failed`) when Unlock follows Lock immediately, so the test pauses after locking. The real sign-in never locks first.
 - A real sign-in with the YubiKey is still to be checked after the sign-out that loads the extension change.
 
+
+## YubiKey touch at the login and lock screens (2026-11-12)
+
+- `pam_install.py login on` puts the same `auth sufficient pam_u2f.so` line above `@include common-auth` in /etc/pam.d/gdm-password. That file serves the login screen and the lock screen. It also turns GDM auto-login off, with a marker so `login off` turns it back on only if it was on before. `uninstall` undoes this too.
+- Dry run on copies of the real gdm-password and custom.conf: the diff is the two marked lines in each, and `login off` restores both byte for byte. `tests/test_yubikey.py` is 21 tests.
+- The patched gdm-password stack, run as the user with `pam_start_confdir` and the real YubiKey plugged in (no touch): GDM gets "Please touch the device." at 0.2 s; after about 29 s with no touch it asks "Password:", so the password still works. A touch on the same line is what sudo uses. A real touch at the login screen is still to be checked after the sudo step and a sign-out.
+- Sign-in by touch gives gnome-keyring no password, so the keyrings still open with a second touch in GNOME's prompt (2026-11-11 entry).

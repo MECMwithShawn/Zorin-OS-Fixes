@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """Let a YubiKey touch answer sudo and the GNOME admin pop-ups (polkit), via pam_u2f.
 
-Run as root: `pam_install.py install --mapping FILE` or `pam_install.py uninstall`.
+Run as root: `pam_install.py install --mapping FILE`, `pam_install.py login on|off` or
+`pam_install.py uninstall`.
+
+- `login on`: the same line in /etc/pam.d/gdm-password, so a touch signs in at the login screen
+  and unlocks the lock screen, and GDM's auto-login is turned off (it skips the login screen).
+  `login off` puts both back; auto-login only comes back if it was on before.
 
 - One `auth sufficient pam_u2f.so …` line goes above `@include common-auth`, so a touch is
   enough and the password still works when the key is missing or the touch times out.
@@ -24,6 +29,9 @@ MAPPING = Path('/etc/Yubico/u2f_mappings')
 SUDO = Path('/etc/pam.d/sudo')
 POLKIT = Path('/etc/pam.d/polkit-1')
 POLKIT_VENDOR = Path('/usr/lib/pam.d/polkit-1')
+GDM = Path('/etc/pam.d/gdm-password')
+GDM_CONF = Path('/etc/gdm3/custom.conf')
+AUTOLOGIN_MARK = f'{MARK}: auto-login was on; YubiKey sign-in turned it off'
 MODULE_DIRS = [Path('/usr/lib/x86_64-linux-gnu/security'), Path('/lib/x86_64-linux-gnu/security'),
                Path('/usr/lib/security'), Path('/lib/security')]
 BACKUPS = Path('/var/backups/zorin11-yubikey')
@@ -95,6 +103,59 @@ def backup(paths, backups=BACKUPS):
     return folder
 
 
+def autologin_off(text):
+    """custom.conf with AutomaticLoginEnable=false, marked if it was on, so `login off` can restore it."""
+    if AUTOLOGIN_MARK in text:
+        return text
+    lines = text.splitlines(keepends=True)
+    for i, line in enumerate(lines):
+        if re.fullmatch(r'\s*AutomaticLoginEnable\s*=\s*(true|1)\s*', line.strip('\n'), re.I):
+            lines[i:i + 1] = [AUTOLOGIN_MARK + '\n', 'AutomaticLoginEnable=false\n']
+            return ''.join(lines)
+    return text  # auto-login isn't on: nothing to turn off
+
+
+def autologin_restore(text):
+    """custom.conf with auto-login back on, only where autologin_off turned it off."""
+    lines, out, restore = text.splitlines(keepends=True), [], False
+    for line in lines:
+        if line.startswith(AUTOLOGIN_MARK):
+            restore = True
+            continue
+        if restore and re.match(r'\s*AutomaticLoginEnable\s*=', line):
+            line = 'AutomaticLoginEnable=true\n'
+        restore = False
+        out.append(line)
+    return ''.join(out)
+
+
+def login_on(gdm=GDM, conf=GDM_CONF, mapping=MAPPING, backups=BACKUPS, check_module=True):
+    if check_module and not module_present():
+        raise SystemExit('pam_u2f.so is missing: run `sudo apt install libpam-u2f pamu2fcfg` first.')
+    if not mapping.exists():
+        raise SystemExit(f'{mapping} is missing: run setup.sh (sudo set-up) first.')
+    new_gdm = add_line(gdm.read_text(), auth_line(mapping))
+    new_conf = autologin_off(conf.read_text()) if conf.exists() else None
+    saved = backup([gdm, conf], backups)
+    write_atomic(gdm, new_gdm)
+    if new_conf is not None:
+        write_atomic(conf, new_conf)
+    return saved
+
+
+def login_off(gdm=GDM, conf=GDM_CONF, backups=BACKUPS):
+    gdm_text = gdm.read_text() if gdm.exists() else ''
+    conf_text = conf.read_text() if conf.exists() else ''
+    if MARK not in gdm_text and AUTOLOGIN_MARK not in conf_text:
+        return None
+    saved = backup([gdm, conf], backups)
+    if MARK in gdm_text:
+        write_atomic(gdm, remove_line(gdm_text))
+    if AUTOLOGIN_MARK in conf_text:
+        write_atomic(conf, autologin_restore(conf_text))
+    return saved
+
+
 def module_present():
     return any((d / 'pam_u2f.so').exists() for d in MODULE_DIRS)
 
@@ -118,7 +179,9 @@ def install(mapping_file, user, sudo=SUDO, polkit=POLKIT, polkit_vendor=POLKIT_V
     return saved
 
 
-def uninstall(sudo=SUDO, polkit=POLKIT, polkit_vendor=POLKIT_VENDOR, mapping=MAPPING, backups=BACKUPS):
+def uninstall(sudo=SUDO, polkit=POLKIT, polkit_vendor=POLKIT_VENDOR, mapping=MAPPING, backups=BACKUPS,
+              gdm=GDM, conf=GDM_CONF):
+    login_off(gdm, conf, backups)  # the login screen first: it needs the mapping
     saved = backup([sudo, polkit, mapping], backups)
     if MARK in sudo.read_text():
         write_atomic(sudo, remove_line(sudo.read_text()))
@@ -139,6 +202,8 @@ def main(argv=None):
     i = sub.add_parser('install')
     i.add_argument('--mapping', required=True, help='pamu2fcfg output for the user')
     i.add_argument('--user', default=os.environ.get('SUDO_USER'))
+    l = sub.add_parser('login', help='YubiKey touch at the login and lock screens (auto-login off)')
+    l.add_argument('state', choices=['on', 'off'])
     sub.add_parser('uninstall')
     args = parser.parse_args(argv)
     if os.geteuid() != 0:
@@ -148,9 +213,17 @@ def main(argv=None):
             raise SystemExit('Pass --user.')
         saved = install(args.mapping, args.user)
         print(f'YubiKey touch added to sudo and admin pop-ups. Previous files: {saved}')
+    elif args.command == 'login':
+        if args.state == 'on':
+            saved = login_on()
+            print(f'YubiKey touch added to the login and lock screens; auto-login is off. Previous files: {saved}')
+        else:
+            saved = login_off()
+            print('YubiKey sign-in removed from the login and lock screens'
+                  + (f'. Previous files: {saved}' if saved else ' (it was not on).'))
     else:
         saved = uninstall()
-        print(f'YubiKey touch removed from sudo and admin pop-ups. Previous files: {saved}')
+        print(f'YubiKey touch removed from sudo, admin pop-ups and the login screen. Previous files: {saved}')
     return 0
 
 

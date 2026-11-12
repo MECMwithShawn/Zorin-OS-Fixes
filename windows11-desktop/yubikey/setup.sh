@@ -3,6 +3,8 @@
 #   ./setup.sh            set everything up (three touches, keyring password once, sudo password once)
 #   ./setup.sh uninstall  undo it
 #   ./setup.sh waits      only make the login apps wait for the YubiKey unlock
+#   ./setup.sh login      also sign in with a touch at the login and lock screens (turns auto-login off)
+#   ./setup.sh login off  back to password sign-in (and auto-login, if it was on)
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 dest="$HOME/.local/share/zorin11-hub/yubikey"
@@ -56,6 +58,14 @@ fi
 if [ "${1:-}" = waits ]; then  # just (re)install the login-app waits
     install -m 0755 "$here/keyring_unlock.py" "$dest/"
     install_waits
+    exit 0
+fi
+
+if [ "${1:-}" = login ]; then
+    mkdir -p "$dest"
+    install -m 0644 "$here/pam_install.py" "$dest/"
+    sudo python3 "$dest/pam_install.py" login "${2:-on}"
+    [ "${2:-on}" = on ] && echo "Sign out to try it: pick your name, touch the key when it blinks. The password still works without the key."
     exit 0
 fi
 
