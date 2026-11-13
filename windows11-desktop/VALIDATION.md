@@ -713,3 +713,8 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - Existing logs show s2idle exit at 15:10:36, NetworkManager wake at 15:10:37, policy auto-activation at 15:10:47 and successful Wi-Fi activation at 15:10:48. This is evidence of automatic Wi-Fi recovery for that one cycle, not universal suspend reliability.
 - Current read-only snapshot: Wayland session, two logical monitors, NVIDIA query succeeds, network connected/full, OneDrive mounted/up_to_date with zero pending/upload/download counts. Snapshot stored locally under ~/.local/state/zorin11-audit/2026-10-30.
 - Only a two-window layout named test is saved, with automatic restoration disabled. Actual sign-out/sign-in cleanup and visible dual-monitor wake behavior still require user testing; no new suspend or sign-out was triggered.
+
+## Taskbar on all displays (2026-11-02)
+
+- Settings › Personalization (under Taskbar) and Settings › Display gain **Show my taskbar on all displays** and **Show my taskbar apps on** (All taskbars / Taskbar where window is open), as in Windows 11. They write Zorin Taskbar's own `multi-monitors` and `isolate-monitors` keys, which it applies live by rebuilding its panels; the zorin11 extension already re-adds its buttons on `panels-created`. Hidden when Zorin Taskbar's schema is missing.
+- Checked: a server render of both pages shows the rows with the right switch and select states and hides them without the schema; `Hub.taskbar_settings()` read and wrote the keys under the memory GSettings backend; a rebuild of master's sources reproduced the committed `dist/main.js` first.
