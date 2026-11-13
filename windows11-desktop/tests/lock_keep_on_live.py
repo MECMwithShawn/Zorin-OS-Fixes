@@ -11,6 +11,7 @@ from gnome_live import until, systemd_fixture
 ROOT = Path(__file__).resolve().parents[1]
 UUID = 'zorin11-lock-test@zorin-os-fixes'
 OTHER = 'earlier-test@zorin-os-fixes'
+SLOW = 'slow-test@zorin-os-fixes'
 WRAPPER = r'''
 import Base from './lockscreen.js';
 import Gio from 'gi://Gio';
@@ -24,7 +25,7 @@ export default class Test extends Base {
   if(p.minutes)this.minutes=p.minutes;
   this.hook();
   if(p.unlock)Main.screenShield.deactivate(false);
-  return JSON.stringify({active:Main.screenShield.active,locked:Main.screenShield.locked,black:Main.screenShield._shortLightbox.visible});}
+  return JSON.stringify({active:Main.screenShield.active,locked:Main.screenShield.locked,black:Main.screenShield._shortLightbox.visible,slow:Main.extensionManager.lookup('slow-test@zorin-os-fixes')?.state,self:Main.extensionManager.lookup('zorin11-lock-test@zorin-os-fixes')?.state});}
 }
 '''
 
@@ -46,7 +47,14 @@ def session(temp):
     (other/'metadata.json').write_text(json.dumps({'uuid': OTHER, 'name': 'Other', 'description': 'Other',
                                                    'shell-version': ['46'], 'session-modes': ['user']}))
     (other/'extension.js').write_text('export default class { enable() {} disable() {} }\n')
-    shell.set_strv('enabled-extensions', [OTHER, UUID])
+    # A desktop-only extension whose enable() takes a while, like the taskbar's.
+    slow = temp/'data/gnome-shell/extensions'/SLOW
+    slow.mkdir()
+    (slow/'metadata.json').write_text(json.dumps({'uuid': SLOW, 'name': 'Slow', 'description': 'Slow',
+                                                  'shell-version': ['46'], 'session-modes': ['user']}))
+    (slow/'extension.js').write_text("import GLib from 'gi://GLib';\n"
+        "export default class { async enable() { await new Promise(r => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 800, () => (r(), GLib.SOURCE_REMOVE))); } disable() {} }\n")
+    shell.set_strv('enabled-extensions', [OTHER, UUID, SLOW])
     shell.set_string('welcome-dialog-last-shown-version', '46.0')
     Gio.Settings.sync()
     log = (temp/'shell.log').open('w'); children = []
@@ -96,6 +104,24 @@ def session(temp):
         assert signals == [True] and call()['black'], (signals, call())
         print('PASS an idle lock tells the power service at once', flush=True)
         assert 'Exception in callback' not in (temp/'shell.log').read_text()
+        # GNOME skips an extension that is still switching on when the screen locks,
+        # so it finishes and stays on the lock screen. Closing the lid a moment after
+        # unlocking does this to the taskbar. The guard switches it off again.
+        call(unlock=True); until(lambda: (pump(.1), not call()['active'])[1], seconds=5); pump(1.5)
+        assert call()['slow'] == 1, call()
+        call(idle=0); lock(); pump(1)
+        assert call()['slow'] == 2, call()
+        call(unlock=True); until(lambda: (pump(.05), not call()['active'])[1], seconds=5)
+        lock()
+        until(lambda: (pump(.1), call()['slow'] == 1)[1], seconds=3)
+        print('PASS reproduced: a slow desktop extension is left running on the lock screen', flush=True)
+        until(lambda: (pump(.2), call()['slow'] == 2)[1], seconds=9)
+        state = call()
+        assert state['active'] and state['self'] == 1, state
+        call(unlock=True); until(lambda: (pump(.1), not call()['active'])[1], seconds=5); pump(1.5)
+        assert call()['slow'] == 1, call()
+        assert 'Exception in callback' not in (temp/'shell.log').read_text()
+        print('PASS it is switched off while locked, and returns after unlock', flush=True)
     finally:
         for p in reversed(children):
             p.terminate()
@@ -116,7 +142,7 @@ with tempfile.TemporaryDirectory(prefix='zorin11-lock-') as directory:
                XDG_CURRENT_DESKTOP='GNOME', XDG_SESSION_TYPE='wayland', GNOME_SHELL_SESSION_MODE='user',
                WAYLAND_DISPLAY='lock-test', GIO_USE_VFS='local', GTK_USE_PORTAL='0')
     result = subprocess.run(['dbus-run-session', '--', sys.executable, __file__, '--session', str(temp)],
-                            env=env, capture_output=True, text=True, timeout=100)
+                            env=env, capture_output=True, text=True, timeout=150)
     print(result.stdout, end='')
     if result.returncode:
         print(result.stderr[-2500:])
