@@ -239,6 +239,8 @@ gsettings --schemadir ~/.local/share/gnome-shell/extensions/zorin11@zorin-os-fix
 
 Focus the window and press **Win+Ctrl+T** to toggle **Always on Top**. Press it again to unpin. This uses GNOME/Mutter directly and works with native Wayland and XWayland windows, including Brave. Alternatively press **Alt+Space → Always on Top**; the checkmark shows its current state. Brave’s tab-strip right-click menu is its own menu and does not expose this native action. Pinning lasts for that window’s lifetime; it does not pin a browser tab or automatically reopen the window after login.
 
+Picture-in-picture videos from Brave, Chrome, Edge, Firefox and other browsers (including installed web apps such as YouTube) are pinned automatically when they open. On X11 a browser asks for that itself, but Wayland gives it no way to ask, so the companion extension recognises the video window by its title and pins it once. Win+Ctrl+T still unpins it, and it stays unpinned after the lock screen.
+
 ## Shortcuts
 
 | Shortcut | Action |
@@ -303,6 +305,9 @@ python3 companion/test_start_more_layouts_live.py
 python3 companion/test_start_appearance_live.py
 # Headless GNOME Shell with the real extension and Zorin taskbar; never touches the signed-in session.
 python3 tests/start_button_live.py
+# Browser picture-in-picture windows open pinned; stand-in GTK windows in a private headless Shell.
+node tests/test_pip_state.mjs
+python3 tests/pip_on_top_live.py
 # Power/radio/device services are isolated; this does not change host hardware.
 python3 companion/test_quick_hardware_live.py
 python3 companion/test_bluetooth_pairing_live.py
