@@ -713,3 +713,13 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - Existing logs show s2idle exit at 15:10:36, NetworkManager wake at 15:10:37, policy auto-activation at 15:10:47 and successful Wi-Fi activation at 15:10:48. This is evidence of automatic Wi-Fi recovery for that one cycle, not universal suspend reliability.
 - Current read-only snapshot: Wayland session, two logical monitors, NVIDIA query succeeds, network connected/full, OneDrive mounted/up_to_date with zero pending/upload/download counts. Snapshot stored locally under ~/.local/state/zorin11-audit/2026-10-30.
 - Only a two-window layout named test is saved, with automatic restoration disabled. Actual sign-out/sign-in cleanup and visible dual-monitor wake behavior still require user testing; no new suspend or sign-out was triggered.
+
+## Window glass (2026-10-29)
+
+- New GNOME Shell extension `zorin11-glass@zorin-os-fixes` (`gnome-glass-extension/`) gives app windows a slight acrylic look. A `Shell.BlurEffect` background actor sits under each window, and the window's surfaces drop to 90% opacity when focused and 85% when not. Fullscreen windows, skip-taskbar companion surfaces, popups and Axentra Terminal (which has its own acrylic) stay solid.
+- Settings live in `~/.config/zorin11-hub/glass.json` (`enabled`, `active`, `inactive`, `blur`). Changes apply live; values are clamped to 60–100% and 0–80 px, and a bad file falls back to the defaults.
+- **Tests.**
+  - `tests/test_glass.mjs` covers config clamping and window rules.
+  - `tests/glass_live.py` runs on a private headless GNOME 46 Wayland session with two native GTK windows. It checks the blur actor size, focused and inactive opacity, fullscreen staying solid, live config changes, the bad-config fallback and that disable restores every window. Screenshots were reviewed.
+- Installed for the user; it loads at the next sign-in. Performance with many windows on the Intel iGPU is not measured.
+- **Settings sliders.** Settings › Personalization › Window glass has an on/off switch, sliders for the focused window, background windows and blur, and Reset to defaults. Sliders write `glass.json` while dragging (throttled to about 11 writes a second), so open windows preview the change. `companion/test_window_glass.py` covers the Python side's clamping, merging and bad-file recovery; the page was checked in the browser pane against a stub companion (slider send, switch hiding the sliders, reset).
