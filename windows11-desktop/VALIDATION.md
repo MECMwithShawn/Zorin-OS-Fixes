@@ -1,3 +1,11 @@
+## Taskbar left on the lock screen — 2026-11-13
+
+- Seen on the real desktop on 2026-11-13: the taskbar was drawn over the lock screen after the lid was opened. The journal shows the session unlocking at 23:09:29.28 the night before and the lid closing 0.09 s later.
+- Cause, from GNOME Shell 46's `extensionSystem.js`: after an unlock, extensions are switched on one at a time. `_callExtensionDisable` returns early for an extension whose state is not yet ACTIVE, so one that is still switching on when the screen locks is skipped, finishes, and stays on. The taskbar's `enable()` is asynchronous.
+- `gnome-lockscreen-extension/stray-guard.js` switches such extensions off while the screen is locked, 0.3 s, 2 s and 6 s after the mode changes and after any extension changes state. It never switches anything on; GNOME does that at the next unlock.
+- `tests/test_stray_guard.mjs` covers which extensions count as strays, the settle delay, a late arrival, unlocking mid-sweep, a failing extension and teardown. `tests/lock_keep_on_live.py` reproduces the fault on a private GNOME session with a desktop-only extension whose `enable()` takes 0.8 s, then checks that it is switched off while locked and back on after unlock.
+- Not yet seen on the real desktop: the installed extension loads only after a sign-out.
+
 ## Lock screen stays visible — 2026-11-04
 
 - A D-Bus trace of a real lock showed gsd-power setting PowerSaveMode to off 2 ms after the screen saver's ActiveChanged signal. Holding that signal back was not enough: traced locks then sent no off command at all, yet still went dark, because GNOME Shell fades a manual lock to a black lightbox and waits for input. After a manual lock (input within the last 5 seconds) the add-on now skips that fade and holds the signal back for 10 minutes. Unlocking drops it; idle locks fade and sleep as before. Both stay in place while GNOME cycles extensions during a lock.
