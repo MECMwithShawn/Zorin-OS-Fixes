@@ -713,3 +713,10 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - Existing logs show s2idle exit at 15:10:36, NetworkManager wake at 15:10:37, policy auto-activation at 15:10:47 and successful Wi-Fi activation at 15:10:48. This is evidence of automatic Wi-Fi recovery for that one cycle, not universal suspend reliability.
 - Current read-only snapshot: Wayland session, two logical monitors, NVIDIA query succeeds, network connected/full, OneDrive mounted/up_to_date with zero pending/upload/download counts. Snapshot stored locally under ~/.local/state/zorin11-audit/2026-10-30.
 - Only a two-window layout named test is saved, with automatic restoration disabled. Actual sign-out/sign-in cleanup and visible dual-monitor wake behavior still require user testing; no new suspend or sign-out was triggered.
+
+## Desktop icons on top of windows after unlock (2026-11-14)
+
+- After an unlock, the desktop icons covered the open windows for a few seconds. The journal showed three "Launching DING process" lines per unlock, and the lock-screen extension's temporary `[stack]` trace showed an untracked "Desktop Icons" window above every app.
+- Cause: GNOME switches Zorin Desktop Icons and the desktop menu adapter off at lock and on at unlock. Zorin starts its desktop a moment after switching on, once it owns its bus name. The adapter restarted the desktop before that, so Zorin's own start replaced the restarted one without stopping it. That left two desktops, and the one Zorin no longer tracked was drawn as a normal window on top.
+- Fix: the adapter restarts the desktop only when one is already running. Otherwise Zorin's own start goes through the adapter's hook.
+- `tests/gnome_desktop_menu_live.py` now locks and unlocks twice through org.gnome.ScreenSaver and checks one launch, one desktop process, started from the adapter. It failed before the fix (3 launches) and passed 3 runs out of 3 after it. It also fixes a race in the test's "incomplete adapter" step, which failed on master too.

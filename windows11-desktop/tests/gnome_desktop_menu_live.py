@@ -35,7 +35,7 @@ if '--session' not in sys.argv:
                    GIO_USE_VFS='local', GIO_USE_VOLUME_MONITOR='unix', GTK_USE_PORTAL='0',
                    PULSE_SERVER='unix:'+str(root/'no-pulse'))
         result = subprocess.run(['dbus-run-session', '--', sys.executable, __file__, '--session', str(root)],
-                                env=env, capture_output=True, text=True, timeout=80)
+                                env=env, capture_output=True, text=True, timeout=140)
         print(result.stdout)
         if result.returncode:
             print(result.stderr[-3000:])
@@ -82,8 +82,24 @@ export default class Test extends Base {
  disable(){this._bus?.unexport();if(this._owner)Gio.bus_unown_name(this._owner);super.disable();}
 }
 """)
+# Test-only: unlocks the screen. It stays on while locked, unlike the desktop extensions.
+unlocker = extensions/'unlock-test@zorin-os-fixes'
+unlocker.mkdir()
+(unlocker/'metadata.json').write_text(json.dumps({'uuid': unlocker.name, 'name': 'Unlock test', 'description': 'test',
+                                                  'shell-version': ['46'], 'session-modes': ['user', 'unlock-dialog']}))
+(unlocker/'extension.js').write_text("""
+import Gio from 'gi://Gio';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+const XML=`<node><interface name="local.zorin11.UnlockTest"><method name="Unlock"><arg type="s" direction="out"/></method></interface></node>`;
+export default class Unlock {
+ enable(){this._bus=Gio.DBusExportedObject.wrapJSObject(XML,this);this._bus.export(Gio.DBus.session,'/local/zorin11/UnlockTest');
+ this._owner=Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.UnlockTest',Gio.BusNameOwnerFlags.NONE,null,null);}
+ Unlock(){const was=Main.sessionMode.currentMode;if(Main.screenShield.locked)Main.screenShield.deactivate(false);return was;}
+ disable(){this._bus?.unexport();if(this._owner)Gio.bus_unown_name(this._owner);}
+}
+""")
 shell_settings = Gio.Settings.new('org.gnome.shell')
-shell_settings.set_strv('enabled-extensions', [VENDOR.name, UUID])
+shell_settings.set_strv('enabled-extensions', [VENDOR.name, UUID, unlocker.name])
 shell_settings.set_string('welcome-dialog-last-shown-version', '46.0')
 icons = Gio.Settings.new('org.gnome.shell.extensions.zorin-desktop-icons')
 for key in ('show-home', 'show-trash', 'show-volumes', 'show-network-volumes'):
@@ -185,6 +201,28 @@ try:
     until(lambda: state().get('hooked') and state().get('pid') != initial['pid'])
     hooked = settled()
     until(lambda: rendered()['files'] == 1)
+    # Lock and unlock: GNOME switches both desktop extensions off and on again. Zorin's desktop
+    # must start once, through the menu adapter. A restart before Zorin's own launch left two
+    # desktops, and the one Zorin no longer tracked showed on top of the windows after unlock.
+    def unlock():
+        return bus.call_sync('local.zorin11.UnlockTest', '/local/zorin11/UnlockTest', 'local.zorin11.UnlockTest',
+            'Unlock', None, None, Gio.DBusCallFlags.NONE, 2000, None).unpack()[0]
+    for cycle in (1, 2):
+        before = (root/'shell.log').read_text().count('Launching DING process')
+        bus.call_sync('org.gnome.ScreenSaver', '/org/gnome/ScreenSaver', 'org.gnome.ScreenSaver', 'Lock',
+                      None, None, Gio.DBusCallFlags.NONE, 5000, None)
+        until(lambda: not desktops(extension/'app/ding.js') and not desktops(vendor/'app/ding.js'))
+        assert unlock() == 'unlock-dialog'
+        until(lambda: state().get('hooked'))
+        unlocked = settled()
+        time.sleep(2)
+        launches = (root/'shell.log').read_text().count('Launching DING process') - before
+        running = desktops(extension/'app/ding.js') + desktops(vendor/'app/ding.js')
+        assert launches == 1 and running == [unlocked['pid']], (cycle, launches, running, unlocked)
+        assert launched_from(unlocked['pid']) == str(extension/'app/ding.js'), unlocked
+        until(lambda: rendered()['files'] == 1 and rendered()['pid'] == unlocked['pid'])
+    print('PASS lock and unlock start one desktop, through the menu adapter (twice)')
+    hooked = unlocked
     # Links removed while the adapter is loaded: the next relaunch must use Zorin's desktop.
     remove_vendor_links()
     os.kill(int(hooked['pid']), signal.SIGTERM)
@@ -192,7 +230,12 @@ try:
     assert launched_from(fallback['pid']) == str(vendor/'app/ding.js'), fallback
     # Login with an incomplete adapter must leave the running Zorin desktop alone.
     assert extension_action('DisableExtension')
-    original = until(lambda: desktops(vendor/'app/ding.js'))
+    # Disabling restarts Zorin's desktop: wait for the new one, not the one being replaced.
+    def steady():
+        first = desktops(vendor/'app/ding.js')
+        time.sleep(1.5)
+        return first if first and desktops(vendor/'app/ding.js') == first else None
+    original = until(steady)
     assert extension_action('EnableExtension')
     until(state)
     time.sleep(1.5)  # a killed desktop would have been replaced by now
