@@ -702,18 +702,25 @@ class Hub(Gtk.Application):
             return str(CUSTOM_START_BUTTON) if CUSTOM_START_BUTTON.is_file() else ''
         return '' if button == 'windows11' else str(BASE/'start-buttons'/f'{button}.svg')
 
-    def apply_start_button(self):
-        """Point the GNOME extension at the chosen Start button image; '' keeps its default."""
+    @staticmethod
+    def extension_settings(key):
+        """The zorin11 GNOME extension's settings, if its installed schema has key."""
         if not is_gnome():
-            return
+            return None
         try:
             source = Gio.SettingsSchemaSource.new_from_directory(str(EXTENSION_SCHEMAS), Gio.SettingsSchemaSource.get_default(), False)
         except GLib.Error:
-            return
+            return None
         schema = source.lookup('org.gnome.shell.extensions.zorin11', False)
-        if schema is None or not schema.has_key('start-button'):
+        if schema is None or not schema.has_key(key):
+            return None
+        return Gio.Settings.new_full(schema, None, None)
+
+    def apply_start_button(self):
+        """Point the GNOME extension at the chosen Start button image; '' keeps its default."""
+        settings = self.extension_settings('start-button')
+        if settings is None:
             return
-        settings = Gio.Settings.new_full(schema, None, None)
         if settings.get_string('start-button') != self.start_button_file():
             settings.set_string('start-button', self.start_button_file())
             Gio.Settings.sync()
@@ -1426,6 +1433,8 @@ class Hub(Gtk.Application):
         result=settings_backend.snapshot()
         result.update(facts=settings_backend.facts(),wallpaper=wallpaper.status(),updates=settings_backend.update_status(),loading=False)
         result.update(startPreferences=self.start_preferences.snapshot(), recentHistoryAllowed=self.recent_history_allowed())
+        tray = self.extension_settings('tray-drawer')
+        result.update(trayDrawer=None if tray is None else tray.get_boolean('tray-drawer'))
         return result
 
     def update_settings_surface(self):
@@ -1530,6 +1539,10 @@ class Hub(Gtk.Application):
         elif action=='settings-launch':self.launch(message.get('id'))
         elif action=='settings-groups':
             self.store.state['groups_visible']=bool(message['value']);self.store.save();self.sync_groups();self.update_settings_surface()
+        elif action=='settings-tray-drawer':
+            tray=self.extension_settings('tray-drawer')
+            if tray is not None:tray.set_boolean('tray-drawer',bool(message.get('value')));Gio.Settings.sync()
+            self.update_settings_surface()
         elif action=='settings-start':self.show_start()
         elif action=='settings-wallpaper-config':
             self.settings_change(lambda:wallpaper.configure(message.get('key'),message.get('value')))
