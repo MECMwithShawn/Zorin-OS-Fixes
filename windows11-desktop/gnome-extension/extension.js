@@ -13,6 +13,8 @@ import {TaskbarProgress} from './taskbar-progress.js';
 import {TaskbarCentering} from './taskbar-centering.js';
 import {MaximizeHover} from './maximize-hover.js';
 import {SnapSuggestions} from './snap-suggestions.js';
+import {DragSnapGroups} from './drag-snap-groups.js';
+import {TaskbarSnapGroups} from './taskbar-snap-groups.js';
 
 const XML = `<node><interface name="local.zorin11.Gnome">
 <method name="Call"><arg direction="in" type="s"/><arg direction="out" type="s"/></method>
@@ -68,6 +70,8 @@ export default class Zorin11 extends Extension {
         this._taskbarCentering=new TaskbarCentering(this._settings);
         this._maximizeHover=new MaximizeHover(this._settings);
         this._snapSuggestions = new SnapSuggestions();
+        this._dragSnapGroups = new DragSnapGroups(() => this._taskbarSnapGroups?.refresh());
+        this._taskbarSnapGroups = new TaskbarSnapGroups(this._dragSnapGroups);
     }
     _syncMenu() {
         const menu=Main.extensionManager.lookup('zorin-menu@zorinos.com')?.stateObj;
@@ -276,6 +280,10 @@ export default class Zorin11 extends Extension {
         return JSON.stringify(result);
     }
     disable() {
+        this._taskbarSnapGroups?.destroy();
+        this._taskbarSnapGroups = null;
+        this._dragSnapGroups?.destroy();
+        this._dragSnapGroups = null;
         this._snapSuggestions?.destroy();
         this._snapSuggestions = null;
         this._maximizeHover?.destroy();this._maximizeHover=null;

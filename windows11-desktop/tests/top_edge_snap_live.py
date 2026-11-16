@@ -3,6 +3,8 @@
 
 Requires GNOME Shell 46, Zorin Tiling Shell, and GTK4. Set
 ZORIN11_TEST_FRACTIONAL=1 to test both 125% and 150% virtual displays.
+Set ZORIN11_TEST_DRAG_GROUPS=1 to test restoring real Snap Group cards
+with Zorin Taskbar enabled.
 """
 
 import json
@@ -19,6 +21,7 @@ from gnome_live import COMPANION, ROOT, UUID, configure_fractional_displays, sys
 
 FIXTURE = 'snap-drag-pointer@test'
 TILING_UUID = 'zorin-tiling-shell@zorinos.com'
+TASKBAR_UUID = 'zorin-taskbar@zorinos.com'
 SERVICE = 'local.zorin11.SnapDragTest'
 OBJECT_PATH = '/local/zorin11/SnapDragTest'
 DISPLAY = 'zorin11-snap-drag-test'
@@ -29,7 +32,7 @@ import gi
 gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk
 
-app = Gtk.Application()
+app = Gtk.Application(application_id=sys.argv[2] if len(sys.argv) > 2 else None)
 
 def activate(app):
     window = Gtk.ApplicationWindow(application=app, title=sys.argv[1])
@@ -137,6 +140,24 @@ export default class extends Extension {
             return [red, green, blue];
         };
         const tiling = Main.extensionManager.lookup('zorin-tiling-shell@zorinos.com').stateObj;
+        const dragGroups = Main.extensionManager.lookup('zorin11@zorin-os-fixes')?.stateObj?._dragSnapGroups;
+        const group = window && dragGroups?.forWindow(window);
+        const taskbar = global.zorinTaskbar?.panels?.map(panel => {
+            const preview = panel.taskbar?.previewMenu;
+            const icon = panel.taskbar?._getAppIcons().find(icon =>
+                icon.window === window || icon.app.get_windows().includes(window));
+            const frame = actor => [...actor.get_transformed_position(), ...actor.get_transformed_size()];
+            const cards = preview?.opened ? preview._box.get_children() : [];
+            return {
+                monitor: panel.monitor.index,
+                icon: icon?.mapped ? frame(icon) : null,
+                open: !!preview?.opened,
+                opacity: preview?.menu.opacity,
+                nativePreviews: cards.filter(card => card.window?.get_stable_sequence() === id).length,
+                groups: cards.filter(card => card.mapped && card.has_style_class_name('zorin11-snap-group-card'))
+                    .map(card => ({rect: frame(card), label: card.accessible_name})),
+            };
+        });
         const monitors = Main.layoutManager.monitors.map(monitor => {
             const manager = tiling?._tilingManagers?.find(manager => manager._monitor.index === monitor.index);
             const content = manager?._snapAssist?._content;
@@ -178,11 +199,14 @@ export default class extends Extension {
             enabled: this.tilingSettings.get_boolean('enable-snap-assist'),
             suggestionsEnabled: this.tilingSettings.get_boolean('enable-snap-assistant-windows-suggestions'),
             monitors,
+            taskbar,
+            group: group?.members?.map(member => ({id: member.window.get_stable_sequence(), rect: rect(member.rect)})),
             pointer: global.get_pointer().slice(0, 2),
             window: window ? {
                 rect: rect(window.get_frame_rect()),
                 monitor: window.get_monitor(),
                 focused: window === global.display.focusWindow,
+                minimized: window.minimized,
                 visible: window.get_compositor_private()?.visible,
                 opacity: window.get_compositor_private()?.opacity,
                 scale: window.get_compositor_private()?.get_scale(),
@@ -237,10 +261,25 @@ def run_session(temp):
     (temp / 'hub/multitasking.json').write_text(json.dumps({'assist': False}))
 
     shell_settings = Gio.Settings.new('org.gnome.shell')
-    shell_settings.set_strv('enabled-extensions', [TILING_UUID, UUID, FIXTURE])
+    test_groups = os.environ.get('ZORIN11_TEST_DRAG_GROUPS') == '1'
+    enabled = [TILING_UUID, UUID, FIXTURE]
+    if test_groups:
+        enabled.insert(1, TASKBAR_UUID)
+        taskbar = Gio.Settings.new('org.gnome.shell.extensions.zorin-taskbar')
+        taskbar.set_boolean('show-running-apps', True)
+        taskbar.set_boolean('show-window-previews', True)
+        taskbar.set_boolean('multi-monitors', True)
+        taskbar.set_boolean('isolate-monitors', False)
+        taskbar.set_string('panel-position', 'BOTTOM')
+        apps = temp / 'data/applications'
+        apps.mkdir()
+        for name in ('Primary', 'First', 'Second', 'Unrelated', 'Manual'):
+            (apps / f'org.zorin11.snaptest.{name}.desktop').write_text(
+                f'[Desktop Entry]\nType=Application\nName=Snap Test {name}\nExec=/usr/bin/true\n')
+    shell_settings.set_strv('enabled-extensions', enabled)
     shell_settings.set_strv('disabled-extensions',
                             [path.name for path in Path('/usr/share/gnome-shell/extensions').iterdir()
-                             if path.is_dir() and path.name != TILING_UUID])
+                             if path.is_dir() and path.name not in enabled])
     shell_settings.set_string('welcome-dialog-last-shown-version', '46.0')
     Gio.Settings.new('org.gnome.desktop.session').set_uint('idle-delay', 0)
     Gio.Settings.new('org.gnome.desktop.interface').set_boolean('enable-animations', True)
@@ -253,6 +292,8 @@ def run_session(temp):
         mutter.set_boolean('workspaces-only-on-primary', False)
     tiling_settings = Gio.Settings.new('org.gnome.shell.extensions.zorin-tiling-shell')
     tiling_settings.set_boolean('enable-snap-assist', True)
+    if test_groups:
+        tiling_settings.set_boolean('active-screen-edges', True)
     suggestions_key = 'enable-snap-assistant-windows-suggestions'
     if fractional:
         assert tiling_settings.get_user_value(suggestions_key) is None
@@ -267,6 +308,12 @@ def run_session(temp):
             child = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
             children.append(child)
             return child
+
+        def start_window(title, role):
+            args = [sys.executable, '-c', WINDOW, title]
+            if test_groups:
+                args.append(f'org.zorin11.snaptest.{role}')
+            return start(args)
 
         try:
             start([sys.executable, __file__, '--systemd-fixture'])
@@ -296,21 +343,28 @@ def run_session(temp):
             until(lambda: all(row['strip'] is not None for row in state(0)['monitors']), seconds=15)
             if fractional:
                 configure_fractional_displays()
-            app = start([sys.executable, '-c', WINDOW, 'Snap drag test window'])
+            app = start_window('Snap drag test window', 'Primary')
             win_id = until(lambda: window(app.pid))['id']
             invoke('HideOverview')
             time.sleep(.65)
 
-            def begin_drag(area):
+            def begin_drag(area, ident=win_id):
                 ax, ay, _aw, _ah = area
                 initial = [ax + 180, ay + 190, 520, 350]
-                call('window', id=win_id, action='move', rect=initial)
-                call('window', id=win_id, action='activate')
+                call('window', id=ident, action='move', rect=initial)
+
+                def positioned_and_focused():
+                    row = state(ident)['window']
+                    if not row or row['rect'] != initial:
+                        return False
+                    if not row['focused']:
+                        call('window', id=ident, action='activate')
+                    return row['focused']
+
                 try:
-                    until(lambda: (row := state(win_id)['window']) and row['focused']
-                          and row['rect'] == initial, seconds=4)
+                    until(positioned_and_focused, seconds=4)
                 except AssertionError as error:
-                    raise AssertionError(f'Could not place {window(app.pid)} at {initial}: {state(win_id)}') from error
+                    raise AssertionError(f'Could not place window {ident} at {initial}: {state(ident)}') from error
                 x = initial[0] + initial[2] // 2
                 y = initial[1] + 23
                 point(x, y)
@@ -322,12 +376,12 @@ def run_session(temp):
                     point(x, y - 19)
                     def moving():
                         grab = state(win_id)['grab']
-                        return grab and grab['id'] == win_id and grab['op'] & ~1024 == 1
+                        return grab and grab['id'] == ident and grab['op'] & ~1024 == 1
                     until(moving, seconds=4)
                     return initial
                 except AssertionError as error:
                     button(False)
-                    raise AssertionError(f'Titlebar drag failed: {state(win_id)}') from error
+                    raise AssertionError(f'Titlebar drag failed: {state(ident)}') from error
 
             def monitor_state(index):
                 return next(row for row in state(win_id)['monitors'] if row['index'] == index)
@@ -360,7 +414,7 @@ def run_session(temp):
                 edge = (ax + aw // 2, ay + 18)
                 candidates = {}
                 for offset, name in enumerate(('First', 'Second')):
-                    candidate = start([sys.executable, '-c', WINDOW, f'{name} suggested window'])
+                    candidate = start_window(f'{name} suggested window', name)
                     ident = until(lambda: window(candidate.pid))['id']
                     rect = [ax + aw // 2 + 25 * offset, ay + 150 + 25 * offset, 520, 350]
                     step(lambda: state(ident)['window']['rect'][2:] == rect[2:], 'Candidate size did not settle')
@@ -382,9 +436,9 @@ def run_session(temp):
                                    if row['index'] != index)
                     assert strip['color'] == [34, 41, 48], strip
 
-                def select_left_zone(layout_number, fraction):
+                def select_zone(layout_number, fraction, slot=0):
                     def placed_zone():
-                        zone = monitor_state(index)['strip']['tiles'][layout_number - 1]['zones'][0]
+                        zone = monitor_state(index)['strip']['tiles'][layout_number - 1]['zones'][slot]
                         rect = zone['rect']
                         return zone if None not in rect and rect[1] >= ay else None
 
@@ -395,15 +449,15 @@ def run_session(temp):
                     current = step(lambda: (row := monitor_state(index))['preview'] and row,
                                    'Tile hover did not show a preview')
                     assert current['selectedLayout'] == f'Layout {layout_number}', current
-                    assert current['strip']['tiles'][layout_number - 1]['zones'][0]['color'] == [21, 83, 117], current
+                    assert current['strip']['tiles'][layout_number - 1]['zones'][slot]['color'] == [21, 83, 117], current
                     x, y, w, h = current['preview']
-                    assert abs(x - ax) <= 8 and abs(y - ay) <= 8, current
+                    assert abs(x - (ax + aw * fraction * slot)) <= 8 and abs(y - ay) <= 8, current
                     assert abs(w - aw * fraction) <= 12 and abs(h - ah) <= 16, current
                     return current['preview']
 
                 initial = begin_drag(area)
                 reveal()
-                select_left_zone(1, .5)
+                select_zone(1, .5)
                 point(ax + aw // 2, ay + 170)
                 step(lambda: not (row := monitor_state(index))['strip']['enlarged'] and not row['preview'],
                      'Leaving the strip retained the selected zone')
@@ -420,7 +474,7 @@ def run_session(temp):
 
                 begin_drag(area)
                 reveal()
-                expected = select_left_zone(1, .5)
+                expected = select_zone(1, .5)
                 release()
                 step(lambda: window(app.pid)['rect'] == expected, 'Drop did not place the dragged window')
                 assert state(win_id)['window']['monitor'] == index
@@ -433,7 +487,7 @@ def run_session(temp):
                 def drag_into_thirds(before_release=None):
                     begin_drag(area)
                     reveal()
-                    expected = select_left_zone(4, 1 / 3)
+                    expected = select_zone(4, 1 / 3)
                     if before_release:
                         before_release()
                     release()
@@ -481,6 +535,7 @@ def run_session(temp):
 
                 initial_zone = drag_into_thirds()
                 remaining = set(candidates)
+                snapped = {win_id: initial_zone}
                 for position, ident in enumerate(candidates, start=1):
                     zone, cards = suggestions(remaining)
                     assert abs(zone[0] - (ax + aw * position / 3)) <= 8, zone
@@ -493,17 +548,133 @@ def run_session(temp):
                     step(lambda: state(ident)['window']['rect'] == zone,
                          'The suggestion click did not fill the vacant zone')
                     assert state(ident)['window']['monitor'] == index
+                    snapped[ident] = zone
                     remaining.remove(ident)
                     assert all(state(other)['window']['rect'] == candidates[other] for other in remaining)
                 step(lambda: monitor_state(index)['suggestions'] is None, 'Suggestions stayed open after the last zone')
                 assert window(app.pid)['rect'] == initial_zone
                 print(f'Open-window suggestions, early/normal Escape and two real preview clicks fill adjacent thirds on '
                       f'logical monitor {monitor["bounds"]}: passed', flush=True)
+
+                if test_groups:
+                    def membership(ident):
+                        return {row['id']: row['rect'] for row in state(ident).get('group') or []}
+
+                    def panel_state(ident):
+                        return next((row for row in state(ident).get('taskbar', [])
+                                     if row['monitor'] == index), None)
+
+                    def center(rect):
+                        x, y, w, h = rect
+                        return round(x + w / 2), round(y + h / 2)
+
+                    def restore_card(frames, preferred):
+                        for ident in frames:
+                            call('window', id=ident, action='minimize')
+                        step(lambda: all(state(ident)['window']['minimized'] for ident in frames),
+                             'Could not minimize Snap Group members')
+                        icon = step(lambda: (row := panel_state(preferred)) and row['icon'],
+                                    'Zorin Taskbar did not provide a member app icon')
+                        point(*center(icon))
+
+                        def group_card():
+                            row = panel_state(preferred)
+                            if not row or row['opacity'] != 255 or not row['groups'] or not row['nativePreviews']:
+                                return None
+                            assert len(row['groups']) == 1, row
+                            card = row['groups'][0]
+                            if None in card['rect'] or min(card['rect'][2:]) <= 0:
+                                return None
+                            assert 'Restore snap group' in card['label'] and f'{len(frames)} windows' in card['label'], card
+                            return card
+
+                        card = step(group_card,
+                                    'Real taskbar hover did not show a Snap Group alongside the window preview')
+                        point(*center(card['rect']))
+                        button(True)
+                        button(False)
+                        step(lambda: all(not (row := state(ident)['window'])['minimized'] and row['rect'] == rect
+                                         for ident, rect in frames.items()),
+                             'Taskbar Snap Group card did not restore the minimized members')
+                        step(lambda: state(preferred)['window']['focused'],
+                             'The taskbar card did not focus its preferred group member')
+                        point(ax + 32, ay + ah // 2)
+                        step(lambda: not panel_state(preferred)['open'], 'Taskbar preview did not close')
+
+                    step(lambda: all(membership(ident) == snapped for ident in snapped),
+                         'Native snap membership or geometry did not settle for every member')
+                    unrelated = start_window('Unrelated Snap Group background window', 'Unrelated')
+                    other_id = until(lambda: window(unrelated.pid))['id']
+                    other_rect = [ax + 135, ay + 125, 520, 350]
+                    step(lambda: state(other_id)['window']['rect'][2:] == other_rect[2:],
+                         'Unrelated test window size did not settle')
+                    call('window', id=other_id, action='move', rect=other_rect)
+                    step(lambda: state(other_id)['window']['rect'] == other_rect,
+                         'Unrelated test window placement did not settle')
+
+                    assert not membership(other_id)
+                    restore_card(snapped, next(iter(candidates)))
+                    assert state(other_id)['window']['rect'] == other_rect
+                    assert not state(other_id)['window']['minimized']
+                    icon = step(lambda: (row := panel_state(other_id)) and row['icon'],
+                                'Zorin Taskbar did not provide an unrelated app icon')
+                    point(*center(icon))
+                    step(lambda: panel_state(other_id)['nativePreviews'],
+                         'Real taskbar hover did not show the unrelated window preview')
+                    assert not panel_state(other_id)['groups'], 'Unrelated taskbar preview displayed a Snap Group'
+                    point(ax + 32, ay + ah // 2)
+                    call('window', id=other_id, action='close')
+                    step(lambda: state(other_id)['window'] is None, 'Unrelated test window did not close')
+                    print(f'Real Zorin Taskbar hover and card click restore three minimized members on '
+                          f'logical monitor {monitor["bounds"]}: passed', flush=True)
+
                 apply_setting('snapSuggestions', False)
                 step(lambda: not state(win_id)['suggestionsEnabled'], 'Shell did not observe suggestions turning off')
                 for ident in candidates:
                     call('window', id=ident, action='close')
                     step(lambda: state(ident)['window'] is None, 'Test candidate did not close')
+                if test_groups:
+                    step(lambda: not membership(win_id), 'Closing members left a stale Snap Group')
+                    manual = start_window('Manually dragged group member', 'Manual')
+                    manual_id = until(lambda: window(manual.pid))['id']
+                    step(lambda: state(manual_id)['window']['rect'][2:] == [520, 350],
+                         'Manual test window size did not settle')
+                    manual_group = {}
+                    for slot, ident in enumerate((win_id, manual_id)):
+                        begin_drag(area, ident)
+                        reveal()
+                        expected = select_zone(1, .5, slot)
+                        release()
+                        step(lambda: state(ident)['window']['rect'] == expected,
+                             'Manual drag did not place the window')
+                        manual_group[ident] = expected
+                    step(lambda: all(membership(ident) == manual_group for ident in manual_group),
+                         'Two manual drags into the same layout did not make a group')
+                    if not fractional:
+                        edge_group = {}
+                        for slot, ident in enumerate((win_id, manual_id)):
+                            begin_drag(area, ident)
+                            point(ax + 1 if slot == 0 else ax + aw - 2, ay + ah // 2)
+                            expected = step(lambda: monitor_state(index)['preview'],
+                                            'Direct edge drag did not show a zone')
+                            assert abs(expected[0] - (ax + aw / 2 * slot)) <= 8, expected
+                            assert abs(expected[2] - aw / 2) <= 12, expected
+                            release()
+                            outer = [ax + aw // 2 * slot, ay, aw // 2, ah]
+                            placed = step(lambda: (row := state(ident)['window']) and
+                                          row['rect'] in (expected, outer) and row,
+                                          'Direct edge drop did not place the window')
+                            edge_group[ident] = placed['rect']
+                        step(lambda: all(membership(ident) == edge_group for ident in edge_group),
+                             'Direct left and right edge drops did not make a group')
+                        restore_card(edge_group, manual_id)
+                        print('Direct left and right edge drops form a group restored by its taskbar card: passed',
+                              flush=True)
+                    call('window', id=manual_id, action='close')
+                    step(lambda: state(manual_id)['window'] is None and not membership(win_id),
+                         'Closing a manually snapped group member left a stale group')
+                    print('Separate drags into both halves make a group; closing either member retires it: passed',
+                          flush=True)
 
             apply_setting('topEdgeSnap', False)
             step(lambda: not state(win_id)['enabled'], 'Shell did not observe the Settings toggle')
@@ -535,6 +706,9 @@ if __name__ == '__main__':
     else:
         if not (Path('/usr/share/gnome-shell/extensions') / TILING_UUID / 'metadata.json').is_file():
             raise SystemExit('Install Zorin Tiling Shell to run this private Wayland test.')
+        if (os.environ.get('ZORIN11_TEST_DRAG_GROUPS') == '1'
+                and not (Path('/usr/share/gnome-shell/extensions') / TASKBAR_UUID / 'metadata.json').is_file()):
+            raise SystemExit('Install Zorin Taskbar to test drag-snap group cards.')
         with tempfile.TemporaryDirectory(prefix='zorin11-snap-drag-') as directory:
             temp = Path(directory)
             for name in ('home', 'data', 'config', 'cache', 'runtime'):

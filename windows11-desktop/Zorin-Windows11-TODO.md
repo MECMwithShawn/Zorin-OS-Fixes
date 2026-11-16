@@ -33,6 +33,7 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Persist Snap Group app/layout recipes across restarts; on-demand relaunch, rename/remove and monitor scaling.
 - [x] Style the native top-edge snap bar on Zorin GNOME, with a toggle in Settings → System → Multitasking.
 - [x] Suggest open windows for the remaining zones after a top-edge drag snap.
+- [x] Restore live drag-created Snap Groups from a native Zorin taskbar preview card.
 - [ ] Assess free-form zone editing in the companion's Win+Z picker.
 - [x] Task View: workspace thumbnails plus create, rename and remove desktop actions. Verified 2026-10-18.
 - [x] Task View/Snap Layouts keyboard polish: Escape cancels a desktop rename before focus-out saves it, clears search before closing, Ctrl+F selects search, explicit search accessibility label, enabled-zone number shortcuts and outline cleanup. Native Wayland-session fixtures passed against source and installed runtime 2026-10-21.
