@@ -19,6 +19,7 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, WebKit2
 from model import Store
 from platform_ui import panel_button, desktop_status
 import explorer
+import accessible_appearance
 import file_preview
 import file_thumbnails
 import unified_search
@@ -104,6 +105,7 @@ class Surface(Gtk.ApplicationWindow):
             geometry.min_width, geometry.min_height = 260, 44
             self.set_geometry_hints(None, geometry, Gdk.WindowHints.MIN_SIZE)
         manager = WebKit2.UserContentManager()
+        accessible_appearance.configure_web(self, manager)
         manager.register_script_message_handler('desktop')
         manager.connect('script-message-received::desktop', self.on_message)
         self.web = WebKit2.WebView(web_context=hub.context, user_content_manager=manager)
@@ -1431,26 +1433,24 @@ class Hub(Gtk.Application):
     def update_settings_surface(self):
         surface=self.surfaces.get('settings')
         if surface:
-            display=Gdk.Display.get_default()
-            self.settings_data['monitors']=[{'name':display.get_monitor(i).get_model() or 'Display',
-                'x':display.get_monitor(i).get_geometry().x,
-                'y':display.get_monitor(i).get_geometry().y,
-                'width':display.get_monitor(i).get_geometry().width,
-                'height':display.get_monitor(i).get_geometry().height,
-                'scale':display.get_monitor(i).get_scale_factor(),
-                'refresh':round(display.get_monitor(i).get_refresh_rate()/1000,2)} for i in range(display.get_n_monitors())]
+            monitors = []
             if is_gnome():
                 try:
                     import display_details
                     bus=Gio.bus_get_sync(Gio.BusType.SESSION,None)
                     state=bus.call_sync(display_details.SERVICE,display_details.PATH,display_details.SERVICE,'GetCurrentState',None,None,0,1000,None).unpack()
-                    rows=display_details.parse_state(state)
-                    for monitor in self.settings_data['monitors']:
-                        match=next((r for r in rows if r['connector']==monitor['name']),None)
-                        if match and match['resolution']:
-                            monitor.update(nativeWidth=match['resolution'][0],nativeHeight=match['resolution'][1],actualScale=match['scale'])
+                    monitors = display_details.layout_rows(state)
                 except GLib.Error:
                     pass
+            if not monitors:
+                display = Gdk.Display.get_default()
+                for index in range(display.get_n_monitors()):
+                    monitor = display.get_monitor(index)
+                    geometry = monitor.get_geometry()
+                    monitors.append(dict(name=monitor.get_model() or 'Display', x=geometry.x, y=geometry.y,
+                                         width=geometry.width, height=geometry.height, scale=monitor.get_scale_factor(),
+                                         refresh=round(monitor.get_refresh_rate() / 1000, 2)))
+            self.settings_data['monitors'] = monitors
             from effects import wm_name
             self.settings_data['wobble']=('zorin-window-move-effect@zorinos.com' in Gio.Settings.new('org.gnome.shell').get_strv('enabled-extensions')) if is_gnome() else 'compiz' in wm_name()
             surface.update()

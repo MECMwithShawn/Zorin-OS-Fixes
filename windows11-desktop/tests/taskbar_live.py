@@ -57,13 +57,21 @@ export default class Fixture extends Extension {
   }
   const focus=global.stage.get_key_focus();
   const focusedControl=controls.find(([,actor])=>focus&&actor.contains(focus));
+  const colorChannels=color=>color?[color.red,color.green,color.blue,color.alpha]:null;
+  const focusTheme=focusedControl?.[1].get_theme_node();
   const popup=Main.ctrlAltTabManager._popup;
   const selected=popup?._items[popup._selectedIndex]?.root;
   return {focused:focusedControl?.[0]?.slice(8)??null,
    focusName:focus?.toString(),
    insidePanel:!!focus&&panel.contains(focus),
    focusVisible:!!focus?.has_style_pseudo_class?.('focus'),
-   focusRing:!!focusedControl?.[1].get_theme_node().get_box_shadow(),
+   focusRing:colorChannels(focusTheme?.get_box_shadow()?.color),
+   contrastColors:focusTheme&&[colorChannels(focusTheme.get_background_color()),colorChannels(focusTheme.get_foreground_color())],
+   contrastRoles:controls.filter(([,actor])=>actor.has_style_class_name('zorin11-taskbar-high-contrast')).map(([role])=>role.slice(8)),
+   icons:Object.fromEntries(controls.map(([role,actor])=>{
+    const icon=actor.get_first_child().gicon;
+    return [role.slice(8),icon instanceof Gio.ThemedIcon?icon.get_names()[0]:icon.to_string()];
+   })),
    pickerOpen:!!popup?._haveModal,
    pickerOnPanel:selected===panel||selected===panel.panel,
    overviewVisible:Main.overview.visible,
@@ -95,7 +103,7 @@ export default class Fixture extends Extension {
 }
 '''
 
-def check_keyboard(test_call):
+def check_keyboard(test_call, contrast):
     labels={'start':'Start','search':'Search','tasks':'Task View','quick':'Quick Settings',
             'notifications':'Notifications and calendar'}
     expected=[]
@@ -113,10 +121,7 @@ def check_keyboard(test_call):
         until(lambda:len(snapshot()['launched'])>=len(expected),seconds=2)
         assert snapshot()['launched']==expected,snapshot()
 
-    test_call('keys-observe')
-    try:
-        until(lambda:not snapshot()['overviewVisible'],seconds=3)
-        assert snapshot()['names']==labels,snapshot()
+    def enter_panel():
         test_call('keys-picker')
         try:
             until(lambda:snapshot()['pickerOpen'],seconds=3)
@@ -128,6 +133,30 @@ def check_keyboard(test_call):
         finally:
             test_call('keys-picker-done')
         focus('start')
+
+    test_call('keys-observe')
+    try:
+        until(lambda:not snapshot()['overviewVisible'],seconds=3)
+        assert snapshot()['names']==labels,snapshot()
+        enter_panel()
+        original_icons=snapshot()['icons']
+        try:
+            contrast.set_boolean('high-contrast',True)
+            until(lambda:set(snapshot()['contrastRoles'])==set(labels),seconds=3)
+            # GNOME can reset keyboard focus when applying a new system stylesheet.
+            enter_panel()
+            state=snapshot()
+            assert state['focusRing']==[255,255,255,255],state
+            assert state['contrastColors']==[[0,0,0,255],[255,255,255,255]],state
+            assert {k:state['icons'][k] for k in ('start','search','tasks')}=={
+                'start':'view-app-grid-symbolic','search':'system-search-symbolic',
+                'tasks':'focus-windows-symbolic'},state
+        finally:
+            contrast.set_boolean('high-contrast',False)
+        until(lambda:not snapshot()['contrastRoles'],seconds=3)
+        enter_panel()
+        assert snapshot()['icons']==original_icons,snapshot()
+        print('Taskbar high contrast: native setting, monochrome icons and focus ring switch live',flush=True)
         launch('start','keys-press:Return')
         test_call('keys-press:Tab');focus('search')
         launch('search','keys-press:space')
@@ -209,7 +238,7 @@ def session(temp,output):
         until(lambda:any(w['title']=='Taskbar progress fixture' for w in call('snapshot')['windows']))
         test_call('overview-close')
         until(lambda:[r for r in call('taskbar-status') if r['app']==APP])
-        check_keyboard(test_call)
+        check_keyboard(test_call,Gio.Settings.new('org.gnome.desktop.a11y.interface'))
         bus=dbus.SessionBus(private=True)
         def update(**values):
             from dbus.lowlevel import SignalMessage

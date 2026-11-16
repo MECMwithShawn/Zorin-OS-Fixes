@@ -2,3 +2,17 @@
     background-color: rgba(99, 190, 255, 0.20);
     box-shadow: inset 0 0 0 2px #a5dcff;
 }
+
+#panel .panel-button.zorin11-taskbar-high-contrast {
+    background-color: #000;
+    color: #fff;
+}
+
+#panel .panel-button.zorin11-taskbar-high-contrast:hover {
+    background-color: #262626;
+}
+
+#panel .panel-button.zorin11-taskbar-high-contrast:focus {
+    background-color: #000;
+    box-shadow: inset 0 0 0 2px #fff;
+}

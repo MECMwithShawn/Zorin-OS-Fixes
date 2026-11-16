@@ -29,9 +29,17 @@ This agent manages APT packages. Flatpak, app stores and firmware continue using
 
 ## Fractional scaling on hybrid graphics
 
+**Settings → System → Display** shows each active monitor’s native resolution and actual Wayland scale. The display layout uses Mutter’s logical monitor positions and sizes. Open **Arrange displays** to change the layout or scale.
+
 On the tested Intel/NVIDIA laptop, GNOME X11 at laptop 125% / external 100% produces a cropped external display even though the reported native modes and screenshot look correct. Do not use a successful settings readback alone to confirm scaling: check all four edges on the physical screens. This matches the [X11 PRIME transform issue documented by NVIDIA](https://forums.developer.nvidia.com/t/450-75-with-reverse-prime-xrandr-scale-2x2-does-not-work-renders-only-1-4-of-screen-problem-with-nvidia-settings/142424).
 
 Test **Zorin Desktop on Wayland** from the login-screen session selector for independent scaling. Save work before signing out. This is a different session, not a theme reinstall; the package does not switch sessions automatically. The user confirmed improved scaling in Wayland; native window snapping, previews and Snipping Tool capture/recording have also passed local checks. Broader mixed-DPI and suspend/resume coverage remains pending. Both screens at 100% is the fallback if staying on the current X11 session.
+
+## Accessibility on GNOME
+
+GNOME’s **High Contrast** preference updates the companion surfaces and the custom taskbar buttons as soon as you change it. The taskbar uses monochrome icons and a white focus ring. Start, Explorer, Settings, flyouts, fences and the multitasking panels use opaque backgrounds, clearer borders and visible keyboard focus.
+
+Turning off GNOME animations also stops companion transitions and Taskbar Motion. The installed Taskbar Motion extension pauses Zorin’s window wobble until animations are enabled again.
 
 ## Device Manager (GNOME)
 
