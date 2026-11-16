@@ -31,7 +31,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Assess caption controls in other apps. Win+Z is available across window types.
 - [x] Companion Snap Layouts: native GNOME caption targeting, duplicate-title handling, right-click and Down/Shift+F10 access on Maximize. Live Wayland/WebKit fixtures and installed runtime passed 2026-10-21; arbitrary desktop keyboard injection remains unverified.
 - [x] Persist Snap Group app/layout recipes across restarts; on-demand relaunch, rename/remove and monitor scaling.
-- [ ] Investigate top-edge snap bar and custom free-form zones without breaking native tiling.
+- [x] Style the native top-edge snap bar on Zorin GNOME, with a toggle in Settings → System → Multitasking.
+- [ ] Assess free-form zone editing in the companion's Win+Z picker.
 - [x] Task View: workspace thumbnails plus create, rename and remove desktop actions. Verified 2026-10-18.
 - [x] Task View/Snap Layouts keyboard polish: Escape cancels a desktop rename before focus-out saves it, clears search before closing, Ctrl+F selects search, explicit search accessibility label, enabled-zone number shortcuts and outline cleanup. Native Wayland-session fixtures passed against source and installed runtime 2026-10-21.
 - [x] Task View/Snap Assist: bounded live refresh of visible cards, native Wayland frame updates, hidden/minimized filtering and stale-result rejection across rebuild/close. Installed runtime verified 2026-10-21; compositor-throttled applications retain their latest frame.
