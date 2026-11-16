@@ -2,10 +2,25 @@
 import json
 import os
 import time
+from pathlib import Path
 from gi.repository import Gio, GLib
 
 def active():
     return 'GNOME' in os.environ.get('XDG_CURRENT_DESKTOP','').upper().split(':')
+
+
+def maximize_hover_settings():
+    if not active():
+        return None
+    directory = Path(GLib.get_user_data_dir()) / 'gnome-shell/extensions/zorin11@zorin-os-fixes/schemas'
+    if not (directory / 'gschemas.compiled').is_file():
+        return None
+    source = Gio.SettingsSchemaSource.new_from_directory(
+        str(directory), Gio.SettingsSchemaSource.get_default(), False)
+    schema = source.lookup('org.gnome.shell.extensions.zorin11', True)
+    if schema and schema.has_key('maximize-hover'):
+        return Gio.Settings.new_full(schema, None, None)
+    return None
 
 def call(op, **values):
     bus=Gio.bus_get_sync(Gio.BusType.SESSION,None)
