@@ -119,7 +119,7 @@
     "network": "wifi wi-fi vpn ethernet airplane radio",
     "apps": "installed default startup applications",
     "display": "monitor resolution scale",
-    "multitasking": "desktop switching animation speed virtual desktops snap layouts drag to top edge",
+    "multitasking": "desktop switching animation speed virtual desktops snap layouts drag to top edge suggest windows fill zones",
     "accounts": "user profile login password sign in",
     "time": "date clock language timezone keyboard",
     "storage": "disk drive capacity space",
