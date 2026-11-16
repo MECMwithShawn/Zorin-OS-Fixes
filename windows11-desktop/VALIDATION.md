@@ -1,3 +1,8 @@
+## Keyboard controls for the Wayland taskbar — 2026-11-15
+
+- The private GNOME 46 test opens the real **Ctrl+Alt+Tab** picker and uses **Tab** and **Shift+Tab** to reach the five custom controls. It checks accessible names, the focus ring from the actor’s theme, activation with Enter, keypad Enter and Space, one activation while holding Space, Escape out of the panel, and one pointer activation. It observes which commands the controls dispatch. The separate GNOME integration test covers the opened companion surfaces.
+- Private tests also passed for taskbar centering, desktop peek, launcher progress, Start icon changes and fallback, and Shell extension disable/enable. The installed code and stylesheet load at the next normal GNOME sign-in. The local deployment preserved independent Shell integrations, and the OneDrive process stayed active.
+
 ## Wayland reliability audit — 2026-11-15
 
 - Saved layouts for **All displays** and a **specific display** keep separate identities and startup choices. A display-only restore first uses windows already on the target display (or remembered windows from that recipe). If it launches a missing app on the primary display, it can move a single newly appearing matching window to its saved display without borrowing an existing unrelated window. Ambiguous new matches wait; app identity and launch timing cannot distinguish a concurrent independent launch of the same app. The new regressions cover saved scope and off-display matching. Saved Groups cards show their scope and can be searched by display; the native GTK fixture passed against the installed runtime. A private two-monitor GNOME session also verified normal layout restore and window isolation. It did not verify physical outputs or real sign-in.

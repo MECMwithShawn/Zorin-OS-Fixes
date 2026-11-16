@@ -1,3 +1,4 @@
+import Atk from 'gi://Atk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
@@ -94,27 +95,54 @@ export default class Zorin11 extends Extension {
         const destroyed=button.connect('destroy',()=>this._hidden.delete(button));
         this._hidden.set(button,{id,destroyed,visible});button.hide();
     }
+    _taskbarButton(action, label, icon) {
+        const button = new PanelMenu.Button(0.5, label, true);
+        button.accessible_role = Atk.Role.PUSH_BUTTON;
+        button.add_style_class_name('zorin11-taskbar-button');
+        button.add_child(icon);
+        button.connect('button-press-event', () => {
+            this._launch(action);
+            return Clutter.EVENT_STOP;
+        });
+        button.connect('key-press-event', (_actor, event) => {
+            const key = event.get_key_symbol();
+            if (key === Clutter.KEY_Escape) {
+                global.stage.set_key_focus(null);
+                global.display.focus_default_window(event.get_time());
+                return Clutter.EVENT_STOP;
+            }
+            if (key !== Clutter.KEY_Return && key !== Clutter.KEY_KP_Enter && key !== Clutter.KEY_space)
+                return Clutter.EVENT_PROPAGATE;
+            if (!(event.get_flags() & Clutter.EventFlags.FLAG_REPEATED))
+                this._launch(action);
+            return Clutter.EVENT_STOP;
+        });
+        this._buttons.push(button);
+        return button;
+    }
     _panels() {
         for(const b of this._buttons)b.destroy();this._buttons=[];
         const panels=global.zorinTaskbar?.panels?.map(p=>p.panel) || [Main.panel];
         for(const panel of panels) {
             const old=panel.statusArea['zorin-menu'];
             if(old)this._hideMenu(old);
-            for(const [i,action] of ['start','search','tasks'].entries()) {
-                const b=new PanelMenu.Button(0.5,action,true);
-                const name={start:'start.svg',search:'search.svg',tasks:'taskview.svg'}[action];
+            for (const [i, [action, label, name]] of [
+                ['start', 'Start', 'start.svg'],
+                ['search', 'Search', 'search.svg'],
+                ['tasks', 'Task View', 'taskview.svg'],
+            ].entries()) {
                 // Start can use the image chosen in Search & Start settings when it still exists.
                 const custom=action==='start'?this._settings.get_string('start-button'):'';
                 const file=custom&&GLib.file_test(custom,GLib.FileTest.IS_REGULAR)?custom:`${this.path}/${name}`;
-                b.add_child(new St.Icon({gicon:Gio.icon_new_for_string(file),icon_size:24}));
-                b.connect('button-press-event',()=>{this._launch(action);return Clutter.EVENT_STOP;});
-                panel.addToStatusArea(`zorin11-${action}`,b,i,'left');this._buttons.push(b);
+                const icon = new St.Icon({gicon:Gio.icon_new_for_string(file),icon_size:24});
+                panel.addToStatusArea(`zorin11-${action}`, this._taskbarButton(action, label, icon), i, 'left');
             }
-            for(const [i,action] of ['quick','notifications'].entries()) {
-                const b=new PanelMenu.Button(0.5,action,true);
-                b.add_child(new St.Icon({icon_name:action==='quick'?'preferences-system-symbolic':'preferences-system-notifications-symbolic',icon_size:18}));
-                b.connect('button-press-event',()=>{this._launch(action);return Clutter.EVENT_STOP;});
-                panel.addToStatusArea(`zorin11-${action}`,b,i,'right');this._buttons.push(b);
+            for (const [i, [action, label, iconName]] of [
+                ['quick', 'Quick Settings', 'preferences-system-symbolic'],
+                ['notifications', 'Notifications and calendar', 'preferences-system-notifications-symbolic'],
+            ].entries()) {
+                const icon = new St.Icon({icon_name:iconName, icon_size:18});
+                panel.addToStatusArea(`zorin11-${action}`, this._taskbarButton(action, label, icon), i, 'right');
             }
         }
     }
