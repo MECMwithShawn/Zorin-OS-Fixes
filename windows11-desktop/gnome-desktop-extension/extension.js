@@ -48,8 +48,14 @@ export default class DesktopMenu extends Extension {
                 else delete this.path;
             }
         });
-        ding.killCurrentProcess();
-        ding.doRelaunch(100);
+        // Restart only a desktop that is already running. Right after Zorin's extension switches
+        // on (login, unlock) its desktop isn't started yet and will start through the hook above;
+        // a restart then would leave two desktops, and the one Zorin no longer tracks shows on
+        // top of every window.
+        if (ding.data.currentProcess?.subprocess) {
+            ding.killCurrentProcess();
+            ding.doRelaunch(100);
+        }
     }
     _overlayReady() {
         // file_test follows the installer's links, so removed or dangling ones fail.
