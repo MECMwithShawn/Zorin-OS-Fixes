@@ -25,8 +25,8 @@ class SavedGroupsView:
         head.pack_end(button('Close',lambda:self.m.close()),False,False,0);self.box.pack_start(head,False,False,0)
         intro=label('Reopen your apps together, with their saved layout.','z11-muted');self.box.pack_start(intro,False,False,0)
         hint=label('Documents, browser tabs and terminal sessions follow each app’s own restore settings.','z11-small');hint.set_line_wrap(True);self.box.pack_start(hint,False,False,0)
-        self.search=Gtk.SearchEntry(placeholder_text='Search saved layouts and apps')
-        self.search.get_accessible().set_name('Search saved layouts and apps');self.search.set_text(self.query)
+        self.search=Gtk.SearchEntry(placeholder_text='Search layouts, apps and displays')
+        self.search.get_accessible().set_name('Search layouts, apps and displays');self.search.set_text(self.query)
         self.search.connect('changed',lambda entry:self.filter_rows(entry.get_text()))
         self.box.pack_start(self.search,False,False,0);self.rows=[]
         scroll=Gtk.ScrolledWindow();scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.AUTOMATIC);self.box.pack_start(scroll,True,True,0)
@@ -45,13 +45,25 @@ class SavedGroupsView:
                 if not self.alive() or not current or current['name']==entry.get_text().strip():return
                 try:
                     self.saved.store.rename(ident,entry.get_text())
-                    self.rows=[(r,(entry.get_text()+' '+card.search_apps).casefold() if r is card else terms) for r,terms in self.rows]
+                    self.rows=[(r,(entry.get_text()+' '+card.search_details).casefold() if r is card else terms) for r,terms in self.rows]
                     self.filter_rows(self.query)
                 except (OSError,ValueError) as error:self.notice(str(error))
             name.connect('activate',rename);name.connect('focus-out-event',lambda entry,event,f=rename:(f(entry),False)[1])
             names=[apps[r['app']].get_display_name() if r['app'] in apps else (r['app']+' (not installed)' if r['app'] else r['class']+' (must be open)') for r in recipe['members']]
-            row.search_apps=' '.join(names)
-            self.rows.append((row,(recipe['name']+' '+' '.join(names)).casefold()))
+            scope=''
+            if recipe.get('kind')=='layout':
+                scope='All displays'
+                if recipe.get('display_only'):
+                    monitor=recipe['members'][0]['monitor']
+                    monitor_name=monitor['model'] or f"Display {monitor['index']+1}"
+                    scope=f'{monitor_name} only'
+                scope_label=label(scope,'z11-muted')
+                scope_label.set_ellipsize(Pango.EllipsizeMode.END)
+                scope_label.set_max_width_chars(38)
+                scope_label.set_tooltip_text(scope)
+                details.pack_start(scope_label,False,False,0)
+            row.search_details=' '.join([scope,*names])
+            self.rows.append((row,(recipe['name']+' '+row.search_details).casefold()))
             text=label(' · '.join(names),'z11-small');text.set_ellipsize(Pango.EllipsizeMode.END);text.set_max_width_chars(38);text.set_tooltip_text(' · '.join(names));details.pack_start(text,False,False,0)
             if recipe.get('kind')=='layout':
                 startup=Gtk.CheckButton(label='Restore automatically when I sign in')

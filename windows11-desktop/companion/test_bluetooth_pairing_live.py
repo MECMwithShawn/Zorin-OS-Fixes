@@ -1,4 +1,9 @@
 """Real GTK picker and pairing agent against BlueZ fixtures on a private bus."""
+
+if __name__ != '__main__':
+    import unittest
+    raise unittest.SkipTest('Run this GUI integration fixture directly.')
+
 import os,sys,subprocess,tempfile,json,time
 from pathlib import Path
 if '--private' not in sys.argv:

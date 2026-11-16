@@ -15,21 +15,28 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 const XML='<node><interface name="local.zorin11.TaskbarTest"><method name="Call"><arg direction="in" type="s"/><arg direction="out" type="s"/></method><method name="Capture"><arg direction="out" type="s"/></method></interface></node>';
 export default class Fixture extends Extension {
- enable(){this.pointer=Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);this.bus=Gio.DBusExportedObject.wrapJSObject(XML,this);this.bus.export(Gio.DBus.session,'/local/zorin11/TaskbarTest');this.owner=Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.TaskbarTest',0,null,null);}
+ enable(){const seat=Clutter.get_default_backend().get_default_seat();this.pointer=seat.create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);this.keyboard=seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);this.bus=Gio.DBusExportedObject.wrapJSObject(XML,this);this.bus.export(Gio.DBus.session,'/local/zorin11/TaskbarTest');this.owner=Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.TaskbarTest',0,null,null);}
  Call(action){
   const panel=global.zorinTaskbar.panels[0],button=panel._showDesktopButton;
   if(action==='desktop'){this.pointer.notify_button(GLib.get_monotonic_time(),1,Clutter.ButtonState.PRESSED);this.pointer.notify_button(GLib.get_monotonic_time(),1,Clutter.ButtonState.RELEASED);}
   if(action==='enter'){const [x,y]=button.get_transformed_position(),[w,h]=button.get_transformed_size();this.pointer.notify_absolute_motion(GLib.get_monotonic_time(),x+w/2,y+h/2);}
   if(action==='leave')this.pointer.notify_absolute_motion(GLib.get_monotonic_time(),500,200);
   if(action==='overview-close')Main.overview.hide();
+  if(action==='pin'){
+   const keys=[Clutter.KEY_Super_L,Clutter.KEY_Control_L,Clutter.KEY_t];
+   for(const key of keys)this.keyboard.notify_keyval(GLib.get_monotonic_time(),key,Clutter.KeyState.PRESSED);
+   for(const key of keys.reverse())this.keyboard.notify_keyval(GLib.get_monotonic_time(),key,Clutter.KeyState.RELEASED);
+  }
+  const extension=Main.extensionManager.lookup('zorin11@zorin-os-fixes')?.stateObj;
   return JSON.stringify({style:button.get_style(),icon:button.icon.get_parent()===button,visible:button.visible,
-   windows:global.get_window_actors().map(a=>({title:a.meta_window.get_title(),visible:a.visible,minimized:a.meta_window.minimized}))});
+   windowHooks:extension?._signals.filter(([object])=>object.get_stable_sequence).length,
+   windows:global.get_window_actors().map(a=>({title:a.meta_window.get_title(),visible:a.visible,minimized:a.meta_window.minimized,above:a.meta_window.is_above()}))});
  }
  async CaptureAsync(_args,invocation){try{
   const stream=Gio.MemoryOutputStream.new_resizable();await new Shell.Screenshot().screenshot(false,stream);stream.close(null);
   invocation.return_value(new GLib.Variant('(s)',[GLib.base64_encode(stream.steal_as_bytes().get_data())]));
  }catch(e){invocation.return_dbus_error('local.zorin11.Error',String(e));}}
- disable(){this.pointer=null;this.bus.unexport();Gio.bus_unown_name(this.owner);}
+ disable(){this.pointer=null;this.keyboard=null;this.bus.unexport();Gio.bus_unown_name(this.owner);}
 }
 '''
 
@@ -54,6 +61,7 @@ def session(temp,output):
     shellsettings.set_strv('disabled-extensions',[p.name for p in Path('/usr/share/gnome-shell/extensions').iterdir() if p.is_dir() and p.name!='zorin-taskbar@zorinos.com'])
     shellsettings.set_strv('favorite-apps',[APP]);shellsettings.set_string('welcome-dialog-last-shown-version','46.0')
     Gio.Settings.new('org.gnome.mutter').set_boolean('dynamic-workspaces',False)
+    Gio.Settings.new('org.gnome.desktop.wm.keybindings').set_strv('always-on-top',['<Super><Control>t'])
     Gio.Settings.sync()
     children=[]
     def start(args,env=None):
@@ -123,6 +131,37 @@ def session(temp,output):
         test_call('desktop')
         until(lambda:all(not w['minimized'] for w in call('snapshot')['windows'] if w['title'].endswith('fixture')))
         print('Narrow desktop strip: real enter/leave and click handlers peek, restore and toggle windows passed',flush=True)
+        x11_title='Taskbar focus fixture'
+        native_title='Native Wayland pin fixture'
+        native=start(['/usr/bin/python3','-c',code.replace('Taskbar progress fixture',native_title)],dict(env,GDK_BACKEND='wayland'))
+        def window(title):return next(w for w in call('snapshot')['windows'] if w['title']==title)
+        def above(title):return next(w for w in test_call('snapshot')['windows'] if w['title']==title)['above']
+        until(lambda:window(native_title))
+        for title in (native_title,x11_title):
+            call('window',id=window(title)['id'],action='activate')
+            until(lambda:window(title)['focused'] and not above(title))
+            test_call('pin');until(lambda:above(title))
+            test_call('pin');until(lambda:not above(title))
+        native.terminate();native.wait(timeout=5)
+        print('Win+Ctrl+T pins and unpins native Wayland and XWayland windows',flush=True)
+
+        # Re-showing a companion window should keep the user's new position.
+        menu_code=code.replace('Taskbar progress fixture','Quick settings')
+        menu=start(['/usr/bin/python3','-c',menu_code],env)
+        try:
+            until(lambda:above('Quick settings'),seconds=4)
+        except AssertionError as exc:
+            raise AssertionError((window('Quick settings'),test_call('snapshot'))) from exc
+        ident=window('Quick settings')['id']
+        call('window',id=ident,action='move',rect=[60,70,500,300])
+        until(lambda:window('Quick settings')['rect'][:2]==[60,70])
+        call('window',id=ident,action='minimize');until(lambda:window('Quick settings')['minimized'])
+        call('window',id=ident,action='unminimize')
+        until(lambda:any(w['title']=='Quick settings' and w['visible'] for w in test_call('snapshot')['windows']))
+        assert window('Quick settings')['rect'][:2]==[60,70]
+        menu.terminate();menu.wait(timeout=5)
+        assert test_call('snapshot')['windowHooks']==0
+        print('Initial companion placement is released after mapping and does not repeat on re-show',flush=True)
         # Disable/enable tears down and reattaches overlays without touching the taskbar.
         enabled=shellsettings.get_strv('enabled-extensions')
         shellsettings.set_strv('enabled-extensions',[u for u in enabled if u!=UUID]);Gio.Settings.sync()

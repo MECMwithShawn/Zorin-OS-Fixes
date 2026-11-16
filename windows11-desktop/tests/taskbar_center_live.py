@@ -26,10 +26,14 @@ export default class Test extends Extension {
    for(const panel of panels){const add=(box,width)=>{const a=new St.Widget({width,height:32});box.add_child(a);this.actors.push(a);};
     if(p.layout.apps)add(panel.taskbar._box,p.layout.apps);
     for(let i=0;i<p.layout.tray;i++)add(panel._rightBox??panel.panel._rightBox,100);}}
+  if(p.translations){for(const panel of panels){
+   panel.taskbar.actor.translation_x=p.translations.app;
+   (panel._rightBox??panel.panel._rightBox).translation_x=p.translations.tray;}}
   if(p.enabled!==undefined)this.settings.set_boolean('adaptive-taskbar-center',p.enabled);
   return JSON.stringify({mode:this.centering._panelSettings?.getPanelElementPositions(this.taskbar,0)?.find(e=>e.element==='taskbar')?.position,positions:this.taskbar.get_string('panel-element-positions'),rows:panels.map(panel=>{
    const t=panel.taskbar.actor,adj=panel.taskbar._scrollView.hadjustment,tray=panel._rightBox??panel.panel._rightBox;
    return {appX:t.get_transformed_position()[0],appWidth:t.width,trayX:tray.get_transformed_position()[0],
+    appTranslation:t.translation_x,trayTranslation:tray.translation_x,
     panelX:panel.panel.get_transformed_position()[0],panelWidth:panel.panel.width,overflow:adj.upper-adj.page_size};})});}
  disable(){this.centering.destroy();for(const a of this.actors)a.destroy();this.bus.unexport();Gio.bus_unown_name(this.owner);}
 }
@@ -100,6 +104,15 @@ def session(temp):
         call(enabled=False); call(layout=dict(apps=500, tray=2)); time.sleep(4)
         assert mode() == 'centerMonitor'
         print('PASS adaptive-taskbar-center=false leaves the taskbar setting unchanged', flush=True)
+        call(enabled=True)
+        until(lambda: mode() == 'centered', seconds=10)
+        call(translations=dict(app=11, tray=7))
+        until(lambda: (r if (r := call()['rows'][0])['appTranslation'] != 11 else None), seconds=5)
+        assert call()['rows'][0]['trayTranslation'] == 7
+        call(enabled=False)
+        row = until(lambda: (r if (r := call()['rows'][0])['appTranslation'] == 11 else None), seconds=5)
+        assert row['trayTranslation'] == 7, row
+        print('PASS adaptive centering preserves translations owned by other extensions', flush=True)
         assert 'JS ERROR' not in (temp/'shell.log').read_text()
     finally:
         for p in reversed(children):

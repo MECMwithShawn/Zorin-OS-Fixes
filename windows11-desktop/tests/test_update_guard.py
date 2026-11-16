@@ -125,6 +125,42 @@ class GuardTests(unittest.TestCase):
         with patch.object(Path,'stat',return_value=info), patch.object(Path,'read_text',return_value=''):
             self.assertFalse(guard.package_busy())
 
+    def test_capture_profile_skips_obsolete_keys_and_repairs_always_on_top(self):
+        script = '''
+import json,tempfile
+from pathlib import Path
+from gi.repository import Gio
+import update_guard as g
+with tempfile.TemporaryDirectory() as directory:
+    g.HOME = Path(directory)
+    key = 'always-on-top'
+    schema = 'org.gnome.desktop.wm.keybindings'
+    settings = Gio.Settings.new(schema)
+    original = settings.get_value(key).print_(True)
+    shortcut = ['<Super><Control>t']
+    assert settings.set_strv(key, shortcut)
+
+    journal = g.HOME / '.config/zorin11-gnome/integration-backup.json'
+    journal.parent.mkdir(parents=True)
+    obsolete_schema = 'org.example.RemovedSchema'
+    g.SCALARS[obsolete_schema] = {'removed'}
+    journal.write_text(json.dumps([
+        dict(schema=obsolete_schema, key='removed', old="''"),
+        dict(schema='org.gnome.shell.extensions.zorin-taskbar', key='obsolete-key', old="''"),
+        dict(schema=schema, key=key, old=original),
+    ]))
+
+    profile = g.capture_profile()
+    assert [(r['schema'], r['key']) for r in profile['settings']] == [(schema, key)]
+    settings.reset(key)
+    repaired, skipped = g.settings_repair(profile)
+    assert repaired == [schema + ' ' + key] and not skipped
+    assert settings.get_strv(key) == shortcut
+'''
+        result = subprocess.run([sys.executable, '-c', script], text=True, capture_output=True,
+            env=dict(os.environ,GSETTINGS_BACKEND='memory',PYTHONPATH=str(Path(guard.__file__).parent)))
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_settings_reset_repaired_but_customization_retained(self):
         # A subprocess selects the memory backend before importing Gio.
         script = """

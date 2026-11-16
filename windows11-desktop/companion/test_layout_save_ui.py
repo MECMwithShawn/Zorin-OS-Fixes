@@ -64,6 +64,13 @@ with tempfile.TemporaryDirectory() as folder:
         name.set_text('Office');name.emit('activate')
         view.search.set_text('office');assert view.rows[0][0].get_visible()
         view.search.set_text('Both displays');assert not view.rows[0][0].get_visible()
+        m.saved_groups.save_current('Whole desktop',snapshot)
+        view.search.set_text('')
+        view.render()
+        scopes={w.get_text() for w in descendants(view.win) if isinstance(w,Gtk.Label)}
+        assert {'All displays','Dell only'} <= scopes,scopes
+        view.search.set_text('Dell')
+        assert [row.get_visible() for row,_ in view.rows]==[False,True]
         provider=Gtk.CssProvider();provider.load_from_path(str(Path(os.environ.get('ZORIN11_TEST_RUNTIME',Path(__file__).parent))/'multitasking.css'))
         if os.environ.get('ZORIN11_LAYOUT_PREVIEW'):
             view.search.set_text('');view.win.get_style_context().add_class('z11-multitask')
@@ -75,4 +82,4 @@ with tempfile.TemporaryDirectory() as folder:
             image=Gdk.pixbuf_get_from_window(view.win.get_window(),0,0,w,h)
             image.savev(os.environ['ZORIN11_LAYOUT_PREVIEW'],'png',[],[])
         view.win.destroy()
-print('PASS: Save layout, startup toggle, search, Ctrl+F, Escape rename cancellation, search updates after rename, CSS')
+print('PASS: Save layout, display scope labels and search, startup toggle, Ctrl+F, Escape rename cancellation, search updates after rename, CSS')

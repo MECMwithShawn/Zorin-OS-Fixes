@@ -1,4 +1,9 @@
 """Real WebKit + Xfce log round trip in a private Xephyr/D-Bus/cache session."""
+
+if __name__ != '__main__':
+    import unittest
+    raise unittest.SkipTest('Run this GUI integration fixture directly.')
+
 import json,os,shutil,subprocess,sys,tempfile,time
 from pathlib import Path
 BASE=Path(__file__).resolve().parent
