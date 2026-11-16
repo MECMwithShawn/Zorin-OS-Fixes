@@ -153,6 +153,8 @@ w.destroy()
         subprocess.run(['/usr/bin/python3','-c',css_test],env=env,check=True)
         panels=call('panels');assert panels and all(p['windowsStartVisible'] and not p['zorinStartVisible'] for p in panels),panels
         print('Single Start button and transparent desktop theme: passed',flush=True)
+        subprocess.run(['/usr/bin/python3', str(COMPANION / 'test_native.py')], env=env, check=True)
+        print('Companion desktop entries and settings tools can open native Wayland apps: passed', flush=True)
         app_log=(temp/'app.log').open('w')
         app=start(['/usr/bin/python3',str(COMPANION/'app.py'),'--settings','display' if fractional else 'background'],env,app_log)
         def command(*args):

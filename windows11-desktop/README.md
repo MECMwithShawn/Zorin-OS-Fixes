@@ -35,6 +35,8 @@ On the tested Intel/NVIDIA laptop, GNOME X11 at laptop 125% / external 100% prod
 
 Test **Zorin Desktop on Wayland** from the login-screen session selector for independent scaling. Save work before signing out. This is a different session, not a theme reinstall; the package does not switch sessions automatically. The user confirmed improved scaling in Wayland; native window snapping, previews and Snipping Tool capture/recording have also passed local checks. Broader mixed-DPI and suspend/resume coverage remains pending. Both screens at 100% is the fallback if staying on the current X11 session.
 
+On the physical laptop at 125% and 150%, native Wayland GTK/WebKit rendered the test text at twice the logical resolution. The XWayland sample rendered at the logical resolution and looked softer. Apps launched from the companion now choose their usual backend. The companion still uses XWayland for desktop placement on GNOME 46.
+
 ## Accessibility on GNOME
 
 GNOME’s **High Contrast** preference updates the companion surfaces and the custom taskbar buttons as soon as you change it. The taskbar uses monochrome icons and a white focus ring. Start, Explorer, Settings, flyouts, fences and the multitasking panels use opaque backgrounds, clearer borders and visible keyboard focus.

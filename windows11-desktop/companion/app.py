@@ -20,6 +20,7 @@ from model import Store
 from platform_ui import panel_button, desktop_status
 import explorer
 import accessible_appearance
+from app_launch import child_environment, launch_context
 import file_preview
 import file_thumbnails
 import unified_search
@@ -985,8 +986,7 @@ class Hub(Gtk.Application):
         elif app_id=='zorin11-settings.desktop':
             self.open_settings()
         else:
-            context = Gdk.Display.get_default().get_app_launch_context()
-            context.set_timestamp(Gdk.CURRENT_TIME)
+            context = launch_context(Gdk.CURRENT_TIME)
             if not self.apps[app_id].launch([], context):
                 raise RuntimeError('The application could not be started.')
         self.store.used(app_id)
@@ -997,8 +997,7 @@ class Hub(Gtk.Application):
         app = self.apps.get(app_id)
         if not app or not hasattr(app, 'list_actions') or action not in app.list_actions():
             raise ValueError('This application shortcut is no longer available.')
-        context = Gdk.Display.get_default().get_app_launch_context()
-        context.set_timestamp(Gdk.CURRENT_TIME)
+        context = launch_context(Gdk.CURRENT_TIME)
         app.launch_action(action, context)
         self.store.used(app_id)
         self.start.hide()
@@ -1043,7 +1042,7 @@ class Hub(Gtk.Application):
             if preferences != self.start_preferences.snapshot() or not self.recent_history_allowed(): return
             try:
                 if location: self.open_explorer(str(Path(item['path']).parent))
-                else: Gio.AppInfo.launch_default_for_uri(ident, Gdk.Display.get_default().get_app_launch_context())
+                else: Gio.AppInfo.launch_default_for_uri(ident, launch_context())
                 self.start.hide()
             except Exception as error:
                 self.start.send(dict(type='error',message=str(error)))
@@ -1066,9 +1065,9 @@ class Hub(Gtk.Application):
             launcher = Gio.DesktopAppInfo.new_from_filename(path)
             if not launcher or not fences.launcher_trusted(path):
                 raise ValueError('Right-click this launcher on the desktop and choose Allow Launching first.')
-            launcher.launch([], Gdk.Display.get_default().get_app_launch_context())
+            launcher.launch([], launch_context())
         else:
-            Gio.AppInfo.launch_default_for_uri(Path(path).as_uri(), Gdk.Display.get_default().get_app_launch_context())
+            Gio.AppInfo.launch_default_for_uri(Path(path).as_uri(), launch_context())
         self.start.hide()
 
     def spectrum_tick(self):
@@ -1524,7 +1523,7 @@ class Hub(Gtk.Application):
             self.settings_change(lambda:settings_backend.hardware_controls.connect_bluetooth(message.get('id'),message.get('connected')))
         elif action=='settings-refresh':self.refresh_settings()
         elif action=='settings-effects':
-            if is_gnome():subprocess.Popen(['gnome-extensions','prefs','zorin-window-move-effect@zorinos.com'])
+            if is_gnome():subprocess.Popen(['gnome-extensions','prefs','zorin-window-move-effect@zorinos.com'],env=child_environment())
             else:subprocess.Popen(['/usr/bin/python3',str(BASE/'effects.py')])
         elif action=='settings-explorer':self.open_explorer('::computer')
         elif action=='settings-launch':self.launch(message.get('id'))
@@ -1563,7 +1562,7 @@ class Hub(Gtk.Application):
             location='::computer'
         parsed=urlparse(location)
         if parsed.scheme and (parsed.scheme!='file' or parsed.netloc not in ('','localhost')):
-            subprocess.Popen(['nautilus' if is_gnome() else 'thunar',location]);return
+            subprocess.Popen(['nautilus' if is_gnome() else 'thunar',location],env=child_environment());return
         if location.startswith('file://'):
             location = unquote(urlparse(location).path)
         self.start.hide()
@@ -1660,7 +1659,7 @@ class Hub(Gtk.Application):
                     if not path.exists() or path.is_symlink():raise ValueError('This search result is no longer available.')
                     if action=='search-location':self.open_explorer(str(path.parent))
                     elif path.is_dir():self.open_explorer(str(path))
-                    else:Gio.AppInfo.launch_default_for_uri(path.as_uri(),Gdk.Display.get_default().get_app_launch_context())
+                    else:Gio.AppInfo.launch_default_for_uri(path.as_uri(),launch_context())
                     self.start.hide()
             else:raise ValueError('Unknown search action.')
 
@@ -1728,7 +1727,7 @@ class Hub(Gtk.Application):
             if path.is_dir():
                 self.load_folder(surface,str(path),bool(message.get('hidden')))
             else:
-                Gio.AppInfo.launch_default_for_uri(path.as_uri(),Gdk.Display.get_default().get_app_launch_context())
+                Gio.AppInfo.launch_default_for_uri(path.as_uri(),launch_context())
         elif action == 'file-open-with':
             self.modal=True
             dialog=Gtk.AppChooserDialog.new(surface,Gtk.DialogFlags.MODAL,Gio.File.new_for_path(message['path']))
@@ -1736,13 +1735,15 @@ class Hub(Gtk.Application):
             if dialog.run()==Gtk.ResponseType.OK:
                 app=dialog.get_app_info()
                 if app:
-                    app.launch([Gio.File.new_for_path(message['path'])],Gdk.Display.get_default().get_app_launch_context())
+                    app.launch([Gio.File.new_for_path(message['path'])],launch_context())
             dialog.destroy()
             self.modal=False
         elif action in ('file-network','file-trash-view'):
-            subprocess.Popen(['nautilus' if is_gnome() else 'thunar','network:///' if action=='file-network' else 'trash:///'])
+            subprocess.Popen(['nautilus' if is_gnome() else 'thunar','network:///' if action=='file-network' else 'trash:///'],
+                             env=child_environment())
         elif action == 'file-native':
-            subprocess.Popen(['nautilus' if is_gnome() else 'thunar',surface.location if not surface.location.startswith('::') else str(Path.home())])
+            subprocess.Popen(['nautilus' if is_gnome() else 'thunar',surface.location if not surface.location.startswith('::') else str(Path.home())],
+                             env=child_environment())
         elif action in ('file-minimize','file-maximize','file-move','file-resize'):
             if action=='file-minimize':surface.iconify()
             elif action=='file-maximize':

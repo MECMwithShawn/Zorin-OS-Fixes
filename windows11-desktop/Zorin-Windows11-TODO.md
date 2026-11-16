@@ -110,4 +110,5 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] During a planned sign-out: test opted-in layout restore once, legacy player cleanup, OneDrive survival and the latest lock screen. Exercise rapid lock/unlock when multiple extensions are still starting in the private Shell before revising the guard.
 - [x] Add keyboard activation, accessible names and visible focus to the custom GNOME taskbar buttons.
 - [x] Apply High Contrast and Reduced Motion across companion and taskbar surfaces. Verify 125% and 150% display readout and Wayland window geometry on virtual displays.
-- [ ] Check visual sharpness at 125% and 150% on the physical displays, especially XWayland apps. Assess third-party caption snap entry points alongside the existing Win+Z shortcut.
+- [x] Compare native Wayland and XWayland at 125% and 150% on the physical laptop. Preserve app backend selection through the companion’s launch paths.
+- [ ] Compare rendering on the physical Dell and assess third-party caption snap entry points alongside the existing Win+Z shortcut.
