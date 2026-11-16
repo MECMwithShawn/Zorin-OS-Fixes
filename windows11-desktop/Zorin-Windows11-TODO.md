@@ -26,7 +26,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Perform Windows 11 screenshot-based visual comparisons at matched scale for taskbar, Start, flyouts and window chrome.
 
 ## P1 — Window management and Explorer
-- [ ] Expand maximize-hover Snap Layouts to compatible third-party windows; keep Win+Z fallback.
+- [x] Add maximize-hover Snap Layouts for Brave on Wayland through its accessibility controls.
+- [ ] Assess exact caption detection for other third-party apps. Win+Z is available across window types.
 - [x] Companion Snap Layouts: native GNOME caption targeting, duplicate-title handling, right-click and Down/Shift+F10 access on Maximize. Live Wayland/WebKit fixtures and installed runtime passed 2026-10-21; arbitrary desktop keyboard injection remains unverified.
 - [x] Persist Snap Group app/layout recipes across restarts; on-demand relaunch, rename/remove and monitor scaling.
 - [ ] Investigate top-edge snap bar and custom free-form zones without breaking native tiling.
@@ -111,4 +112,4 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Add keyboard activation, accessible names and visible focus to the custom GNOME taskbar buttons.
 - [x] Apply High Contrast and Reduced Motion across companion and taskbar surfaces. Verify 125% and 150% display readout and Wayland window geometry on virtual displays.
 - [x] Compare native Wayland and XWayland at 125% and 150% on the physical laptop. Preserve app backend selection through the companion’s launch paths.
-- [ ] Compare rendering on the physical Dell and assess third-party caption snap entry points alongside the existing Win+Z shortcut.
+- [ ] Compare rendering on the physical Dell and verify Brave’s opt-in launcher on the next normal sign-in.

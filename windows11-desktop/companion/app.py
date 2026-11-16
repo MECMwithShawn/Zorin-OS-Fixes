@@ -443,6 +443,14 @@ class Hub(Gtk.Application):
             self.multitasking.switcher.show('--switch-previous' in args)
         elif '--snap-layouts' in args:
             self.multitasking.show_snap()
+        elif '--hover-snap' in args:
+            index = args.index('--hover-snap')
+            if len(args) != index + 6 or not is_gnome():
+                return 1
+            xid, *anchor = map(int, args[index + 1:])
+            if xid < 1 or any(abs(value) > 100000 for value in anchor) or not all(0 < n <= 256 for n in anchor[2:]):
+                return 1
+            self.multitasking.show_hover_snap(xid, tuple(anchor))
         elif '--saved-groups' in args:
             self.multitasking.show_saved_groups()
         elif '--task-view' in args:
