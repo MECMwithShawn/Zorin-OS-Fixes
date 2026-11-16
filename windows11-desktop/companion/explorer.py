@@ -266,6 +266,21 @@ def paste(sources, destination, cut=False):
     return results
 
 
+def content_type(path):
+    info=Gio.File.new_for_path(str(path)).query_info('standard::content-type',Gio.FileQueryInfoFlags.NONE,None)
+    return info.get_content_type()
+
+
+def always_label(path):
+    suffix=Path(path).suffix.lower()
+    kind=f'{suffix} files' if suffix else f'{Gio.content_type_get_description(content_type(path))} files'
+    return f'Always use this app for {kind}'
+
+
+def make_default(app,path):
+    app.set_as_default_for_type(content_type(path))
+
+
 def trash(paths):
     for path in paths:
         Gio.File.new_for_path(path).trash(None)

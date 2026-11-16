@@ -1733,9 +1733,13 @@ class Hub(Gtk.Application):
             self.modal=True
             dialog=Gtk.AppChooserDialog.new(surface,Gtk.DialogFlags.MODAL,Gio.File.new_for_path(message['path']))
             dialog.get_widget().set_show_all(True)
+            always=Gtk.CheckButton(label=explorer.always_label(message['path']),margin=12)
+            dialog.get_content_area().pack_end(always,False,False,0)
+            always.show()
             if dialog.run()==Gtk.ResponseType.OK:
                 app=dialog.get_app_info()
                 if app:
+                    if always.get_active():explorer.make_default(app,message['path'])
                     app.launch([Gio.File.new_for_path(message['path'])],Gdk.Display.get_default().get_app_launch_context())
             dialog.destroy()
             self.modal=False
