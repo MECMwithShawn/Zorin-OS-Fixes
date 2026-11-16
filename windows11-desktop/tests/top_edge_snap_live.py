@@ -160,6 +160,10 @@ def run_session(temp):
             or os.environ.get('GSETTINGS_BACKEND') != 'keyfile'):
         raise RuntimeError('This test requires private runtime and settings directories')
 
+    # Keep the nested Shell from monitoring the physical desktop's logind session.
+    os.environ['DBUS_SYSTEM_BUS_ADDRESS'] = os.environ['DBUS_SESSION_BUS_ADDRESS']
+    os.environ['XDG_SESSION_ID'] = 'zorin11-snap-test'
+
     from gi.repository import Gio, GLib
 
     sys.path.insert(0, str(COMPANION))
@@ -188,6 +192,7 @@ def run_session(temp):
                             [path.name for path in Path('/usr/share/gnome-shell/extensions').iterdir()
                              if path.is_dir() and path.name != TILING_UUID])
     shell_settings.set_string('welcome-dialog-last-shown-version', '46.0')
+    Gio.Settings.new('org.gnome.desktop.session').set_uint('idle-delay', 0)
     fractional = os.environ.get('ZORIN11_TEST_FRACTIONAL') == '1'
     monitor_args = ['--virtual-monitor', '1280x800']
     if fractional:
