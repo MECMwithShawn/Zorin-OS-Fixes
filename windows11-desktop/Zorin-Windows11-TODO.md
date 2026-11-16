@@ -108,4 +108,5 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [x] Verify Wi-Fi reconnection in two more recorded sleep/wake cycles (about 11–12 seconds). No new suspend or logout was triggered.
 - [ ] On physical laptop + Dell: verify mixed scaling, pointer boundaries, taskbar on both displays, saved display-only layout, and monitor wake after sleep.
 - [ ] During a planned sign-out: test opted-in layout restore once, legacy player cleanup, OneDrive survival and the latest lock screen. Exercise rapid lock/unlock when multiple extensions are still starting in the private Shell before revising the guard.
-- [ ] Improve keyboard activation on the custom GNOME taskbar buttons and verify high contrast, reduced motion and 125%/150% rendering. Assess third-party caption snap entry points separately from the existing Win+Z shortcut.
+- [x] Add keyboard activation, accessible names and visible focus to the custom GNOME taskbar buttons.
+- [ ] Verify high contrast, reduced motion and 125%/150% rendering. Assess third-party caption snap entry points separately from the existing Win+Z shortcut.

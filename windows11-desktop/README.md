@@ -241,8 +241,11 @@ Focus the window and press **Win+Ctrl+T** to toggle **Always on Top**. Press it 
 
 ## Shortcuts
 
+On GNOME, hold **Ctrl+Alt** and tap **Tab** until the taskbar's **Top Bar** entry is selected, then release the modifiers. Use **Tab** and **Shift+Tab** to move focus. Press **Enter** or **Space** to open the highlighted control. Press **Esc** from a custom taskbar button to return focus to your window.
+
 | Shortcut | Action |
 |---|---|
+| Ctrl+Alt+Tab | Choose a GNOME focus group, including the taskbar |
 | Super / Ctrl+Esc | Start |
 | Win+S | Search |
 | Win+Ctrl+T | Toggle Always on Top for the focused window |

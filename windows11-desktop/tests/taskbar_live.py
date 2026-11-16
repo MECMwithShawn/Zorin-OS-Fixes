@@ -16,8 +16,64 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 const XML='<node><interface name="local.zorin11.TaskbarTest"><method name="Call"><arg direction="in" type="s"/><arg direction="out" type="s"/></method><method name="Capture"><arg direction="out" type="s"/></method></interface></node>';
 export default class Fixture extends Extension {
  enable(){const seat=Clutter.get_default_backend().get_default_seat();this.pointer=seat.create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);this.keyboard=seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);this.bus=Gio.DBusExportedObject.wrapJSObject(XML,this);this.bus.export(Gio.DBus.session,'/local/zorin11/TaskbarTest');this.owner=Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.TaskbarTest',0,null,null);}
+ key(symbol, state){this.keyboard.notify_keyval(GLib.get_monotonic_time(),symbol,state);}
+ press(symbol){
+  this.key(symbol,Clutter.KeyState.PRESSED);
+  this.key(symbol,Clutter.KeyState.RELEASED);
+ }
+ pointAt(actor){
+  const [x,y]=actor.get_transformed_position(),[width,height]=actor.get_transformed_size();
+  this.pointer.notify_absolute_motion(GLib.get_monotonic_time(),x+width/2,y+height/2);
+ }
+ keyboardProbe(action,panel,extension){
+  const controls=Object.entries(panel.panel.statusArea).filter(([role])=>role.startsWith('zorin11-'));
+  if(action==='keys-observe'){
+   this.launched=[];
+   this.originalLaunch=extension._launch;
+   extension._launch=name=>this.launched.push(name);
+  }
+  if(action==='keys-stop')extension._launch=this.originalLaunch;
+  if(action==='keys-picker'){
+   this.key(Clutter.KEY_Control_L,Clutter.KeyState.PRESSED);
+   this.key(Clutter.KEY_Alt_L,Clutter.KeyState.PRESSED);
+   this.press(Clutter.KEY_Tab);
+  }
+  if(action==='keys-picker-done'){
+   this.key(Clutter.KEY_Alt_L,Clutter.KeyState.RELEASED);
+   this.key(Clutter.KEY_Control_L,Clutter.KeyState.RELEASED);
+  }
+  if(action==='keys-back-tab'){
+   this.key(Clutter.KEY_Shift_L,Clutter.KeyState.PRESSED);
+   this.press(Clutter.KEY_Tab);
+   this.key(Clutter.KEY_Shift_L,Clutter.KeyState.RELEASED);
+  }
+  if(action.startsWith('keys-press:'))this.press(Clutter['KEY_'+action.slice(11)]);
+  if(action==='keys-hold-space')this.key(Clutter.KEY_space,Clutter.KeyState.PRESSED);
+  if(action==='keys-release-space')this.key(Clutter.KEY_space,Clutter.KeyState.RELEASED);
+  if(action.startsWith('keys-point:'))this.pointAt(panel.panel.statusArea['zorin11-'+action.slice(11)]);
+  if(action==='keys-click'){
+   this.pointer.notify_button(GLib.get_monotonic_time(),1,Clutter.ButtonState.PRESSED);
+   this.pointer.notify_button(GLib.get_monotonic_time(),1,Clutter.ButtonState.RELEASED);
+  }
+  const focus=global.stage.get_key_focus();
+  const focusedControl=controls.find(([,actor])=>focus&&actor.contains(focus));
+  const popup=Main.ctrlAltTabManager._popup;
+  const selected=popup?._items[popup._selectedIndex]?.root;
+  return {focused:focusedControl?.[0]?.slice(8)??null,
+   focusName:focus?.toString(),
+   insidePanel:!!focus&&panel.contains(focus),
+   focusVisible:!!focus?.has_style_pseudo_class?.('focus'),
+   focusRing:!!focusedControl?.[1].get_theme_node().get_box_shadow(),
+   pickerOpen:!!popup?._haveModal,
+   pickerOnPanel:selected===panel||selected===panel.panel,
+   overviewVisible:Main.overview.visible,
+   names:Object.fromEntries(controls.map(([role,actor])=>[role.slice(8),actor.get_accessible_name()])),
+   launched:this.launched};
+ }
  Call(action){
   const panel=global.zorinTaskbar.panels[0],button=panel._showDesktopButton;
+  const extension=Main.extensionManager.lookup('zorin11@zorin-os-fixes')?.stateObj;
+  if(action.startsWith('keys-'))return JSON.stringify(this.keyboardProbe(action,panel,extension));
   if(action==='desktop'){this.pointer.notify_button(GLib.get_monotonic_time(),1,Clutter.ButtonState.PRESSED);this.pointer.notify_button(GLib.get_monotonic_time(),1,Clutter.ButtonState.RELEASED);}
   if(action==='enter'){const [x,y]=button.get_transformed_position(),[w,h]=button.get_transformed_size();this.pointer.notify_absolute_motion(GLib.get_monotonic_time(),x+w/2,y+h/2);}
   if(action==='leave')this.pointer.notify_absolute_motion(GLib.get_monotonic_time(),500,200);
@@ -27,7 +83,6 @@ export default class Fixture extends Extension {
    for(const key of keys)this.keyboard.notify_keyval(GLib.get_monotonic_time(),key,Clutter.KeyState.PRESSED);
    for(const key of keys.reverse())this.keyboard.notify_keyval(GLib.get_monotonic_time(),key,Clutter.KeyState.RELEASED);
   }
-  const extension=Main.extensionManager.lookup('zorin11@zorin-os-fixes')?.stateObj;
   return JSON.stringify({style:button.get_style(),icon:button.icon.get_parent()===button,visible:button.visible,
    windowHooks:extension?._signals.filter(([object])=>object.get_stable_sequence).length,
    windows:global.get_window_actors().map(a=>({title:a.meta_window.get_title(),visible:a.visible,minimized:a.meta_window.minimized,above:a.meta_window.is_above()}))});
@@ -39,6 +94,74 @@ export default class Fixture extends Extension {
  disable(){this.pointer=null;this.keyboard=null;this.bus.unexport();Gio.bus_unown_name(this.owner);}
 }
 '''
+
+def check_keyboard(test_call):
+    labels={'start':'Start','search':'Search','tasks':'Task View','quick':'Quick Settings',
+            'notifications':'Notifications and calendar'}
+    expected=[]
+    def snapshot():return test_call('keys-snapshot')
+    def focus(role):
+        try:
+            until(lambda:snapshot()['focused']==role,seconds=2)
+        except AssertionError as exc:
+            raise AssertionError(f'Expected keyboard focus on {role}: {snapshot()}') from exc
+        state=snapshot()
+        assert state['focusVisible'] and state['focusRing'],state
+    def launch(role,command):
+        test_call(command)
+        expected.append(role)
+        until(lambda:len(snapshot()['launched'])>=len(expected),seconds=2)
+        assert snapshot()['launched']==expected,snapshot()
+
+    test_call('keys-observe')
+    try:
+        until(lambda:not snapshot()['overviewVisible'],seconds=3)
+        assert snapshot()['names']==labels,snapshot()
+        test_call('keys-picker')
+        try:
+            until(lambda:snapshot()['pickerOpen'],seconds=3)
+            for _ in range(8):
+                if snapshot()['pickerOnPanel']:break
+                test_call('keys-press:Right')
+                time.sleep(.1)
+            assert snapshot()['pickerOnPanel'],snapshot()
+        finally:
+            test_call('keys-picker-done')
+        focus('start')
+        launch('start','keys-press:Return')
+        test_call('keys-press:Tab');focus('search')
+        launch('search','keys-press:space')
+        test_call('keys-press:Tab');focus('tasks')
+        launch('tasks','keys-press:KP_Enter')
+        test_call('keys-back-tab');focus('search')
+
+        found=set()
+        for _ in range(30):
+            test_call('keys-press:Tab')
+            time.sleep(.1)
+            role=snapshot()['focused']
+            if role in ('quick','notifications') and role not in found:
+                launch(role,'keys-press:Return')
+                found.add(role)
+            if found=={'quick','notifications'}:break
+        assert found=={'quick','notifications'},snapshot()
+        launch(role,'keys-hold-space')
+        try:
+            time.sleep(1)
+            assert snapshot()['launched']==expected,snapshot()
+        finally:
+            test_call('keys-release-space')
+        test_call('keys-press:Escape')
+        until(lambda:not snapshot()['insidePanel'],seconds=2)
+        assert snapshot()['launched']==expected,snapshot()
+
+        test_call('keys-point:start');time.sleep(.2)
+        launch('start','keys-click')
+        time.sleep(.15)
+        assert snapshot()['launched']==expected,snapshot()
+    finally:
+        test_call('keys-stop')
+    print('Taskbar keyboard controls: native panel focus, Tab/Shift+Tab navigation, accessible names, single activation, Escape and pointer passed',flush=True)
 
 def session(temp,output):
     import base64,dbus
@@ -86,6 +209,7 @@ def session(temp,output):
         until(lambda:any(w['title']=='Taskbar progress fixture' for w in call('snapshot')['windows']))
         test_call('overview-close')
         until(lambda:[r for r in call('taskbar-status') if r['app']==APP])
+        check_keyboard(test_call)
         bus=dbus.SessionBus(private=True)
         def update(**values):
             from dbus.lowlevel import SignalMessage
