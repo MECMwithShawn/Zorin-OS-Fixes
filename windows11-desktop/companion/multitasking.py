@@ -146,14 +146,15 @@ class Multitasking:
         overlay.get_window().input_shape_combine_region(cairo.Region(),0,0)
         if self.window and self.window.get_window():self.window.get_window().raise_()
 
-    def show_snap(self,xid=None):
+    def show_snap(self,xid=None,anchor=None):
         if self.window and self.window.get_title()=='Snap layouts' and xid is None:self.close();return
         target=self.windows.get(xid) if xid else self.windows.active()
         if not target:return
         self.origin=target.get_xid();area=self.area(target)
         if not self.windows.can_snap(target):return
         tx,ty,tw,th=target.get_geometry()
-        win,box=self.shell('Snap layouts',456,340,area,(tx+tw-456,ty+36))
+        position = (anchor[0] + anchor[2] - 456, anchor[1] + anchor[3] + 4) if anchor else (tx+tw-456,ty+36)
+        win,box=self.shell('Snap layouts',456,340,area,position)
         head=Gtk.Box(spacing=12);head.pack_start(label('Snap layouts','z11-heading'),True,True,0)
         head.pack_end(label('Win + Z','z11-muted'),False,False,0);box.pack_start(head,False,False,0)
         subtitle=label(target.get_name(),'z11-muted');subtitle.set_ellipsize(Pango.EllipsizeMode.END)
@@ -188,6 +189,53 @@ class Multitasking:
         box.pack_start(foot,False,False,0);win.show_all();win.present()
         # Do not draw a preview until the user actually hovers or navigates.
         (restore if restore.get_sensitive() else customize).grab_focus();self.clear_preview()
+        return win
+
+    def show_hover_snap(self, xid, anchor):
+        from gnome_bridge import call
+        self.windows.screen.force_update()
+        focused = self.windows.screen.get_active_window()
+        if not focused or focused.get_xid() != xid or focused.is_fullscreen():
+            return
+        if self.hub.modal or self.window is not None:
+            return
+        win = self.show_snap(xid, anchor)
+        if win is None:
+            return
+        away = None
+        keyboard = False
+
+        def use_keyboard(*_):
+            nonlocal keyboard
+            keyboard = True
+            return False
+
+        def contains(rect, x, y, margin=0):
+            left, top, width, height = rect
+            return (left-margin <= x < left+width+margin
+                    and top-margin <= y < top+height+margin)
+
+        def watch():
+            nonlocal away
+            if self.window is not win or keyboard:
+                return GLib.SOURCE_REMOVE
+            try:
+                x, y = call('pointer')
+            except GLib.Error:
+                self.close(win.is_active())
+                return GLib.SOURCE_REMOVE
+            popup = (*win.get_position(), *win.get_size())
+            if contains(anchor, x, y, 4) or contains(popup, x, y, 4):
+                away = None
+            elif away is None:
+                away = GLib.get_monotonic_time()
+            elif GLib.get_monotonic_time() - away >= 300000:
+                self.close(win.is_active())
+                return GLib.SOURCE_REMOVE
+            return GLib.SOURCE_CONTINUE
+
+        win.connect('key-press-event', use_keyboard)
+        GLib.timeout_add(100, watch)
 
     def restore(self,xid):
         self.snap_groups.forget({xid})

@@ -11,6 +11,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import {TaskbarProgress} from './taskbar-progress.js';
 import {TaskbarCentering} from './taskbar-centering.js';
+import {MaximizeHover} from './maximize-hover.js';
 
 const XML = `<node><interface name="local.zorin11.Gnome">
 <method name="Call"><arg direction="in" type="s"/><arg direction="out" type="s"/></method>
@@ -64,6 +65,7 @@ export default class Zorin11 extends Extension {
         this._panels();
         this._taskbarProgress=new TaskbarProgress();
         this._taskbarCentering=new TaskbarCentering(this._settings);
+        this._maximizeHover=new MaximizeHover(this._settings);
     }
     _syncMenu() {
         const menu=Main.extensionManager.lookup('zorin-menu@zorinos.com')?.stateObj;
@@ -264,12 +266,14 @@ export default class Zorin11 extends Extension {
             }break;
         }
         case 'modifiers':result=global.get_pointer()[2];break;
+        case 'pointer':result=global.get_pointer().slice(0,2);break;
         case 'overview':Main.overview.toggle();break;
         default:throw Error('Unknown operation');
         }
         return JSON.stringify(result);
     }
     disable() {
+        this._maximizeHover?.destroy();this._maximizeHover=null;
         this._taskbarProgress?.destroy();this._taskbarProgress=null;
         this._taskbarCentering?.destroy();this._taskbarCentering=null;
         this._injections?.clear();

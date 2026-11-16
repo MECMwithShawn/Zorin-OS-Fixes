@@ -41,6 +41,14 @@ def display_details_entry():
             'StartupWMClass=Zorin11-display-details\nOnlyShowIn=GNOME;\n').encode()
 
 
+def brave_snap_entry():
+    return ('[Desktop Entry]\nType=Application\nName=Brave with Snap Layouts\n'
+            'Comment=Expose Brave’s maximize button for the Snap Layouts picker\n'
+            f'Exec=/usr/bin/python3 "{DEST / "brave_snap.py"}" %U\n'
+            'TryExec=brave-browser\nIcon=brave-browser\nTerminal=false\n'
+            'Categories=Network;WebBrowser;\nStartupWMClass=brave-browser\nOnlyShowIn=GNOME;\n').encode()
+
+
 def explorer_favorites(favorites):
     replacements={'org.gnome.Nautilus.desktop':'zorin11-explorer.desktop',
                   'org.gnome.SystemMonitor.desktop':'io.missioncenter.MissionCenter.desktop'}
@@ -117,6 +125,7 @@ def install():
         files[DEST/helper]=(ROOT/'companion'/helper).read_bytes()
     apps=HOME/'.local/share/applications'
     files[apps/'zorin11-display-details.desktop']=display_details_entry()
+    files[apps/'zorin11-brave-snap.desktop']=brave_snap_entry()
     for ident,name,args,icon,wm in [
         ('start','Start','--toggle-start',str(DEST/'start.svg'),'Zorin11-hub'),
         ('explorer','File Explorer','--explorer %U',str(DEST/'explorer.svg'),'Zorin11-explorer'),

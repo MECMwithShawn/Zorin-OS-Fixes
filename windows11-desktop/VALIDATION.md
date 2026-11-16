@@ -1,3 +1,11 @@
+## Maximize-hover Snap Layouts in Brave on Wayland — 2026-11-15
+
+- Private GNOME Wayland sessions used real Brave with disposable profiles at 100%, 125%, and 150%. The test moved the real compositor pointer over Maximize and Restore, verified dismissal after leaving and pressing Escape, and clicked a layout zone. Only Brave moved. Hovering Minimize and leaving Maximize before the delay kept the picker closed. The mixed-scale fixtures allow Brave’s bounds to settle after maximizing before moving the pointer.
+- The detector uses Chromium’s native caption accessibility IDs and verifies the focused window, its buffer size and the exact control rectangle before opening. It skips web content and rejects stale or ambiguous windows. The resolver tests passed against the installed helper. The usual private GNOME and isolated companion suites also passed.
+- The installed **Brave with Snap Layouts** launcher enables accessibility for Brave only. It uses the normal profile and requires a fresh Brave process. Shell files load at the next normal sign-in. The user’s running browser was kept open. Other third-party apps use Win+Z. OneDrive stayed mounted through the companion reload.
+
+Run `/usr/bin/python3 tests/maximize_hover_live.py` for the private test. Set `ZORIN11_TEST_HOVER_SCALE=125` or `150` to exercise a fractional display. [Chromium’s native caption IDs](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/chrome/browser/ui/view_ids.h)
+
 ## Physical fractional scaling on the laptop panel — 2026-11-15
 
 - Ran identical GTK3/WebKit text and fine-line samples on the physical eDP panel at its native 2560 × 1600 @ 165 Hz. Mutter used 1.25 and the mode’s supported 1.50235 scale (shown as 150%). For both scales, the native GTK Wayland sample reported a backing scale and WebKit device pixel ratio of 2. The same sample over XWayland reported 1. In comparable compositor window captures, the XWayland text and black rules had visibly softer edges at both scales. These captures use the preview service, which normalizes resolution, and are useful for visual comparison alongside the original render scales. They do not measure the physical panel’s optical sharpness.
