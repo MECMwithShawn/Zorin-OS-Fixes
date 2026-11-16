@@ -29,6 +29,7 @@ import start_preferences
 import file_transfer
 import threading
 import settings_backend
+import email_files
 import wallpaper
 import notifications
 import quick_controls
@@ -1752,6 +1753,9 @@ class Hub(Gtk.Application):
                 _,x,y=pointer.get_position()
                 if action=='file-move':surface.begin_move_drag(1,x,y,Gdk.CURRENT_TIME)
                 else:surface.begin_resize_drag(Gdk.WindowEdge.SOUTH_EAST,1,x,y,Gdk.CURRENT_TIME)
+        elif action=='file-email':
+            problem=email_files.compose(message.get('paths',[]))
+            surface.send({'type':'notice','message':problem or 'Opening a new message in Axentra Outlook'})
         elif action=='file-copy-path':
             Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text('\n'.join(message['paths']),-1)
             surface.send({'type':'notice','message':'Path copied'})
