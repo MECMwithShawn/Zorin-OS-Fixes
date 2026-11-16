@@ -16,6 +16,7 @@ export class TaskbarCentering {
     constructor(settings) {
         this._settings = settings;
         this._changed = new Map();
+        this._translations = new Map();
         const source = Gio.SettingsSchemaSource.get_default();
         this._taskbar = source.lookup(SCHEMA, true) ? new Gio.Settings({schema_id: SCHEMA}) : null;
         import(PANEL_SETTINGS).then(module => {
@@ -34,7 +35,11 @@ export class TaskbarCentering {
             this._reset();
             return;
         }
-        for (const panel of global.zorinTaskbar?.panels ?? []) {
+        const panels = (global.zorinTaskbar?.panels ?? []).filter(panel =>
+            panel.monitor && !panel.geom?.vertical && !panel.geom?.dynamic);
+        for (const [actor, entry] of this._translations)
+            if (!panels.includes(entry.panel)) this._clearTranslation(actor, entry);
+        for (const panel of panels) {
             try {
                 this._checkPanel(panel);
             } catch (e) {
@@ -44,8 +49,6 @@ export class TaskbarCentering {
     }
 
     _checkPanel(panel) {
-        if (!panel.monitor || panel.geom?.vertical || panel.geom?.dynamic)
-            return;
         const index = panel.monitor.index, now = GLib.get_monotonic_time();
         if (now - (this._changed.get(index) ?? 0) < COOLDOWN)
             return;
@@ -54,8 +57,10 @@ export class TaskbarCentering {
         const groups = panel._elementGroups ?? [];
         const group = groups.find(g => g.expandableIndex >= 0);
         const adjustment = panel.taskbar?._scrollView?.hadjustment;
-        if (!group || !Number.isFinite(group.x1) || !adjustment || !panel.panel?.width)
+        if (!group || !Number.isFinite(group.x1) || !adjustment || !panel.panel?.width) {
+            this._nudge(panel, null, 0);
             return;
+        }
         const state = {
             mode, overflow: adjustment.upper - adjustment.page_size > 1,
             width: panel.panel.width, pad: panel.geom?.varPadding ?? 0,
@@ -72,22 +77,32 @@ export class TaskbarCentering {
     }
 
     _nudge(panel, group, x) {
-        const actors = new Set(group.elements.map(e => e.actor));
-        for (const g of panel._elementGroups ?? [])
-            for (const e of g.elements)
-                if (e.actor.translation_x && !actors.has(e.actor))
-                    e.actor.translation_x = 0;  // the group was rebuilt
-        for (const actor of actors)
-            if (actor.translation_x !== x)
-                actor.translation_x = x;
+        const actors = new Set(x ? group.elements.map(e => e.actor) : []);
+        for (const [actor, entry] of this._translations)
+            if (entry.panel === panel && !actors.has(actor)) this._clearTranslation(actor, entry);
+        for (const actor of actors) {
+            let entry = this._translations.get(actor);
+            if (!entry) {
+                const destroyId = actor.connect('destroy', () => this._translations.delete(actor));
+                entry = {panel, base: actor.translation_x, applied: actor.translation_x, destroyId};
+                this._translations.set(actor, entry);
+            } else if (actor.translation_x !== entry.applied) {
+                // Accept a translation changed by another extension while we were active.
+                entry.base = actor.translation_x;
+            }
+            if (actor.translation_x !== entry.base + x) actor.translation_x = entry.base + x;
+            entry.applied = actor.translation_x;
+        }
+    }
+
+    _clearTranslation(actor, entry) {
+        this._translations.delete(actor);
+        actor.disconnect(entry.destroyId);
+        if (actor.translation_x === entry.applied) actor.translation_x = entry.base;
     }
 
     _reset() {
-        for (const panel of global.zorinTaskbar?.panels ?? [])
-            for (const g of panel._elementGroups ?? [])
-                for (const e of g.elements)
-                    if (e.actor.translation_x)
-                        e.actor.translation_x = 0;
+        for (const [actor, entry] of this._translations) this._clearTranslation(actor, entry);
     }
 
     destroy() {

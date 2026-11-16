@@ -101,3 +101,11 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 
 - [x] Consolidate installed logout cleanup into GNOME installer, protect current OneDrive sync daemon, and skip cleanup on maintenance stops during active sessions. Disposable process tests pass (2026-10-30).
 - [x] Verify automatic Wi-Fi reconnection in one recorded sleep/wake cycle (2026-10-30: connected approximately 12 seconds after resume). Broader physical monitor, repeated sleep and sign-out checks remain pending.
+
+## Wayland audit follow-ups — 2026-11-15
+- [x] Keep display-only recipes separate, recover a newly launched window from the primary display, and preserve window lifecycle events used by the switcher and previews.
+- [x] Fix initial popup placement and prevent adaptive centering from overriding other taskbar effects. Verify native Always on Top and preserve it through update repair.
+- [x] Verify Wi-Fi reconnection in two more recorded sleep/wake cycles (about 11–12 seconds). No new suspend or logout was triggered.
+- [ ] On physical laptop + Dell: verify mixed scaling, pointer boundaries, taskbar on both displays, saved display-only layout, and monitor wake after sleep.
+- [ ] During a planned sign-out: test opted-in layout restore once, legacy player cleanup, OneDrive survival and the latest lock screen. Exercise rapid lock/unlock when multiple extensions are still starting in the private Shell before revising the guard.
+- [ ] Improve keyboard activation on the custom GNOME taskbar buttons and verify high contrast, reduced motion and 125%/150% rendering. Assess third-party caption snap entry points separately from the existing Win+Z shortcut.

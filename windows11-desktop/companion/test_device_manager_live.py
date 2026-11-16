@@ -1,5 +1,10 @@
 #!/usr/bin/python3
 """Native GTK controls against a disposable sysfs fixture; private display/bus."""
+
+if __name__ != '__main__':
+    import unittest
+    raise unittest.SkipTest('Run this GUI integration fixture directly.')
+
 import os
 from pathlib import Path
 import subprocess

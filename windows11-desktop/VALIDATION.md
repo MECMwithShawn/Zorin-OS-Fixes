@@ -1,3 +1,24 @@
+## Wayland reliability audit — 2026-11-15
+
+- Saved layouts for **All displays** and a **specific display** keep separate identities and startup choices. A display-only restore first uses windows already on the target display (or remembered windows from that recipe). If it launches a missing app on the primary display, it can move a single newly appearing matching window to its saved display without borrowing an existing unrelated window. Ambiguous new matches wait; app identity and launch timing cannot distinguish a concurrent independent launch of the same app. The new regressions cover saved scope and off-display matching. Saved Groups cards show their scope and can be searched by display; the native GTK fixture passed against the installed runtime. A private two-monitor GNOME session also verified normal layout restore and window isolation. It did not verify physical outputs or real sign-in.
+- A synchronous GNOME window read no longer consumes notifications for window close, focus or workspace change before the next asynchronous poll. A regression and the delayed private D-Bus fixture passed.
+- Initial Start/Quick Settings/Notification popup placement uses Mutter’s compositor map event, with weak tracking to prevent moving an existing popup again after minimizing it. Adaptive taskbar centering owns only the offsets it applies and preserves other tray/app effects. The private taskbar fixtures verified these cases and exercised the actual **Win+Ctrl+T** pin/unpin shortcut with native Wayland and XWayland clients.
+- Pre-update backups now skip obsolete keys left by retired settings schemas, and conservative repair includes the saved Always on Top shortcut. The prior automatic archive verified against its manifest and the OneDrive checksum; the live daily 03:00 schedule and no-reboot policy were checked without installing packages. Scoped source changes preserve independent Explorer, OneDrive and desktop extension files.
+- Private GNOME smoke covered Start, Explorer, Settings, flyouts, groups, Task View, native window resizing/previews, notifications and the Zorin wallpaper catalog. Separate private tests exercised lock timing and stray-extension cleanup, X11 fence drag/drop, Snipping Tool’s installed recording binary with real PipeWire and a consent fixture, and the installer/recovery and companion model suites. Five browser suites passed after bringing the Start fixture up to date with the six-column default, drag targets and unified search. GUI fixtures are opt-in so unit discovery cannot launch them on a developer’s desktop.
+- The actual session reported Wayland, NVIDIA active, the laptop at 125%, and OneDrive mounted and in sync at baseline. Kernel and NetworkManager logs showed two completed suspend/resume cycles on November 15 and successful Wi-Fi activation roughly 11–12 seconds after each wake. The Dell was disconnected during this audit. External-monitor wake, mixed scaling, and real sign-in restoration remain hardware checks. The local Shell changes and removal of temporary lock-screen title logging take effect on the next normal sign-in.
+
+Run the isolation-friendly suites from this directory:
+
+```sh
+/usr/bin/python3 -m unittest discover -s tests -p 'test_*.py'
+(cd companion && env XDG_CURRENT_DESKTOP=XFCE XDG_SESSION_TYPE=x11 GSETTINGS_BACKEND=memory \
+  dbus-run-session -- /usr/bin/python3 -m unittest discover -p 'test_*.py')
+/usr/bin/python3 tests/gnome_live.py
+/usr/bin/python3 tests/taskbar_live.py
+/usr/bin/python3 tests/taskbar_center_live.py
+/usr/bin/python3 tests/lock_keep_on_live.py
+```
+
 ## Taskbar left on the lock screen — 2026-11-13
 
 - Seen on the real desktop on 2026-11-13: the taskbar was drawn over the lock screen after the lid was opened. The journal shows the session unlocking at 23:09:29.28 the night before and the lid closing 0.09 s later.

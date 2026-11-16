@@ -1,4 +1,9 @@
 """Exercise Start folders and previews through real WebKit and backend routes."""
+
+if __name__ != '__main__':
+    import unittest
+    raise unittest.SkipTest('Run this GUI integration fixture directly.')
+
 import json
 import os
 from pathlib import Path

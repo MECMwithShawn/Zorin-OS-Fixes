@@ -78,7 +78,10 @@ class Recipes:
     def put(self,members,desktop='',ident=None,name=None,kind=None,display_only=False):
         data=copy.deepcopy(self.data)
         old=next((g for g in data['groups'] if g['id']==ident),None)
-        if not old:old=next((g for g in data['groups'] if g['members']==members and g.get('desktop','')==desktop),None)
+        if not old:
+            old=next((g for g in data['groups'] if g['members']==members
+                      and g.get('desktop','')==desktop and g.get('kind')==kind
+                      and g.get('display_only',False)==display_only),None)
         if old:ident=old['id'];name=name or old['name'];data['groups'].remove(old)
         elif len(data['groups'])>=40:raise ValueError('Saved groups is full. Remove a group before saving another.')
         ident=ident or uuid.uuid4().hex
@@ -210,13 +213,14 @@ class SavedGroups:
         items=self.m.desktops.items();target=next((d['id'] for d in items if d['uid']==recipe.get('desktop')),self.m.desktops.current())
         area=self.m.area(self.m.windows.active());ax,ay,aw,ah=area
         rects=[(ax+round(r['rect'][0]*aw),ay+round(r['rect'][1]*ah),max(1,round(r['rect'][2]*aw)),max(1,round(r['rect'][3]*ah))) for r in recipe['members']]
+        display_only=recipe.get('kind')=='layout' and recipe.get('display_only',False)
         if recipe.get('kind')=='layout':
             from window_layouts import monitors,decode,resolve_monitor,encode
             outputs=monitors()
             if not outputs:raise ValueError('No displays are available.')
-            if recipe.get('display_only') and any(resolve_monitor(r,outputs) is None for r in recipe['members']):raise ValueError('Connect the saved display before restoring this display-only layout.')
+            if display_only and any(resolve_monitor(r,outputs) is None for r in recipe['members']):raise ValueError('Connect the saved display before restoring this display-only layout.')
             rects=[decode(r,outputs) for r in recipe['members']]
-        op={'recipe':recipe,'apps':apps,'target':target,'rects':rects,'assigned':{},'launched':set(),'deadline':time.monotonic()+30,'timer':0,'notify':notify,'phase':'matching','started':False}
+        op={'recipe':recipe,'apps':apps,'target':target,'rects':rects,'assigned':{},'launched':{},'deadline':time.monotonic()+30,'timer':0,'notify':notify,'phase':'matching','started':False}
         self.operation=op
         if self.m.desktops.current()!=target:self.m.desktops.switch(target)
         notify('Opening apps…',False)
@@ -243,13 +247,21 @@ class SavedGroups:
                         continue
                     matches=[w for w in live if w.get_xid() not in used and self.m.desktops.on(w,target)
                              and matches_member(w,member)]
-                    if recipe.get('display_only'):
+                    if display_only:
                         target_monitor=resolve_monitor(member,outputs)
-                        matches=[w for w in matches if encode(w.get_geometry(),outputs)['monitor']['index']==target_monitor['index']]
-                        # Same-app windows on the laptop are never borrowed for
-                        # a display-only layout. Match nearby quadrants first.
+                        on_display=[w for w in matches
+                                    if encode(w.get_geometry(),outputs)['monitor']['index']==target_monitor['index']]
+                        # Prefer windows already on the display, ordered by quadrant.
                         rect=rects[index]
-                        matches.sort(key=lambda w:sum((a-b)**2 for a,b in zip(w.get_geometry()[:2],rect[:2])))
+                        on_display.sort(key=lambda w:sum((a-b)**2 for a,b in zip(w.get_geometry()[:2],rect[:2])))
+                        if not on_display and index in op['launched']:
+                            # A successful launch may put its window on the primary
+                            # display. Only use a single new candidate for that request.
+                            before_launch=op['launched'][index]
+                            new_windows=[w for w in matches if w.get_xid() not in before_launch
+                                         and (self.m.windows.can_snap(w) or w.is_fullscreen())]
+                            if len(new_windows)==1:on_display=new_windows
+                        matches=on_display
                     if matches:
                         xid=matches[0].get_xid();op['assigned'][index]=xid;used.add(xid);continue
                     if index not in op['launched']:
@@ -262,7 +274,7 @@ class SavedGroups:
                             raise ValueError(apps[member['app']].get_display_name()+' is open on another desktop. Move the desired window here, then retry.')
                         context=Gdk.Display.get_default().get_app_launch_context();context.set_timestamp(self.m.windows.timestamp())
                         if not apps[member['app']].launch([],context):raise ValueError('Could not open '+apps[member['app']].get_display_name()+'.')
-                        op['launched'].add(index)
+                        op['launched'][index]={w.get_xid() for w in live} if display_only else None
                 if len(op['assigned'])==len(recipe['members']):
                     windows=[self.m.windows.get(op['assigned'][i]) for i in range(len(recipe['members']))]
                     for w,rect in zip(windows,rects):

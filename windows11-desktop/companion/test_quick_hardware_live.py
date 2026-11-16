@@ -1,4 +1,9 @@
 """Real WebKit → Hub → D-Bus tests; all service names live on a private bus."""
+
+if __name__ != '__main__':
+    import unittest
+    raise unittest.SkipTest('Run this GUI integration fixture directly.')
+
 import json
 import os
 from pathlib import Path

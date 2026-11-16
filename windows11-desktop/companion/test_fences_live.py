@@ -5,6 +5,11 @@ Run under Xvfb with a private D-Bus session, for example:
       /usr/bin/python3 test_fences_live.py [--output DIR]
 HOME and the config directory point at a temporary folder; no user files are used.
 """
+
+if __name__ != '__main__':
+    import unittest
+    raise unittest.SkipTest('Run this GUI integration fixture directly.')
+
 import json, os, subprocess, sys, tempfile, threading, time
 from pathlib import Path
 

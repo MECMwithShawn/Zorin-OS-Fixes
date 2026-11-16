@@ -23,6 +23,7 @@ const ACTIONS = {'start':'--toggle-start','search':'--search','explorer':'--expl
 export default class Zorin11 extends Extension {
     enable() {
         this._signals=[]; this._buttons=[]; this._hidden=new Map();
+        this._mappedWindows=new WeakSet(this._windows());
         this._settings=this.getSettings();
         this._bindingChanges=[];
         let recovery=[];
@@ -50,8 +51,11 @@ export default class Zorin11 extends Extension {
             if(extension.uuid==='zorin-menu@zorinos.com')this._syncMenu();
         });
         this._syncMenu();
-        this._connect(global.display,'window-created',(_,win)=>{
-            this._connect(win,'shown',()=>this._placeCompanion(win));
+        this._connect(global.window_manager, 'map', (_, actor) => {
+            const win = actor.meta_window;
+            if (!win || this._mappedWindows.has(win)) return;
+            this._mappedWindows.add(win);
+            this._placeCompanion(win);
         });
         this._connect(this._settings,'changed::start-button',()=>this._panels());
         this._connect(Main.layoutManager,'monitors-changed',()=>this._panels());
@@ -117,7 +121,6 @@ export default class Zorin11 extends Extension {
     _placeCompanion(win) {
         const title=win.get_title() || '';
         if(!['Zorin 11 Start','Quick settings','Notifications and calendar'].includes(title))return;
-        const app=this._tracker.get_window_app(win);
         if(!(win.get_wm_class() || '').toLowerCase().startsWith('zorin11'))return;
         const area=global.workspace_manager.get_active_workspace().get_work_area_for_monitor(title==='Zorin 11 Start'?Main.layoutManager.primaryIndex:global.display.get_current_monitor());
         const r=win.get_frame_rect();

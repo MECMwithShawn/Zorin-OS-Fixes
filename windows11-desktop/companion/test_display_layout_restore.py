@@ -17,6 +17,45 @@ class Window:
     def is_fullscreen(self):return False
 
 class DisplayRestoreTests(unittest.TestCase):
+    def test_new_window_on_laptop_can_restore_to_dell(self):
+        with tempfile.TemporaryDirectory() as root:
+            laptop = Window(1, (500, 1000, 700, 500))
+            opened = Window(2, (510, 1010, 700, 500))
+            live = {1: laptop}
+            windows = NS(windows=lambda: list(live.values()), get=live.get,
+                         active=lambda: laptop, minimum=lambda w: (1, 1),
+                         can_snap=lambda w: True, place=Mock(), timestamp=lambda: 0)
+            desktop = NS(busy=False, current=lambda: 0, items=lambda: [dict(id=0, uid='desk')],
+                         on=lambda w, d: True)
+            saved = SavedGroups(NS(config=Path(root), windows=windows, desktops=desktop,
+                                   area=lambda *_: OUTPUTS[0]['area']))
+            dell_rect = (30, 30, 800, 700)
+            member = dict(app='browser.desktop', **{'class': 'browser'}, state='normal',
+                          **encode(dell_rect, OUTPUTS))
+            ident = saved.store.put([member], desktop='desk', kind='layout', display_only=True)
+            app = Mock()
+            context = Mock()
+            display = NS(get_default=lambda: NS(get_app_launch_context=lambda: context))
+            ticks = []
+            with patch('window_layouts.monitors', return_value=OUTPUTS), \
+                 patch('saved_groups.catalog', return_value={'browser.desktop': app}), \
+                 patch('saved_groups.Gdk.Display', display), \
+                 patch('saved_groups.GLib.timeout_add', side_effect=lambda _, fn: ticks.append(fn) or 1):
+                saved.restore(ident, Mock())
+                ticks[0]()
+                app.launch.assert_called_once_with([], context)
+                windows.place.assert_not_called()
+
+                # Multiple new same-app windows cannot be attributed to the launch.
+                live[2] = opened
+                live[3] = Window(3, (530, 1030, 700, 500))
+                ticks[0]()
+                windows.place.assert_not_called()
+
+                live.pop(3)
+                ticks[0]()
+            windows.place.assert_called_once_with(2, dell_rect)
+
     def test_same_app_windows_on_laptop_are_not_borrowed(self):
         with tempfile.TemporaryDirectory() as root:
             laptop=Window(1,(500,1000,700,500));dell=Window(2,(30,30,800,700))

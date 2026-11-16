@@ -4,6 +4,11 @@ The receiving session, login and GDM services record requests; they cannot
 lock, suspend, switch or end the host session. GDM uses the host's read-only
 seat metadata, so run this integration check from a graphical GDM session.
 """
+
+if __name__ != '__main__':
+    import unittest
+    raise unittest.SkipTest('Run this GUI integration fixture directly.')
+
 import json
 import os
 from pathlib import Path

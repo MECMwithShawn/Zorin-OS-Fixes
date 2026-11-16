@@ -1,4 +1,9 @@
 """Native WebKit/GTK checks for the Modern Start layout: tabs, flat app list, places, power and search."""
+
+if __name__ != '__main__':
+    import unittest
+    raise unittest.SkipTest('Run this GUI integration fixture directly.')
+
 import json
 import os
 from pathlib import Path
