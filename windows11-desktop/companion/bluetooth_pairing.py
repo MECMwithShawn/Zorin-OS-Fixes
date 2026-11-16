@@ -40,6 +40,25 @@ def nearby_groups(objects, query=''):
     return sorted(groups.values(), key=lambda g: (g['name']=='Unnamed devices', g['name'].casefold()))
 
 
+def paired_devices(objects, query=''):
+    """Paired devices on a powered adapter, so people looking here can reconnect them."""
+    devices = []
+    query = query.strip().casefold()
+    for path, interfaces in objects.items():
+        info = interfaces.get(DEVICE, {})
+        if not info.get('Paired') or info.get('Blocked'):
+            continue
+        if not objects.get(info.get('Adapter'), {}).get(ADAPTER, {}).get('Powered'):
+            continue
+        address = str(info.get('Address', ''))
+        name = str(info.get('Alias') or info.get('Name') or 'Bluetooth device')
+        if query and query not in name.casefold() and query not in address.casefold():
+            continue
+        devices.append(dict(id=str(path), name=name, address=address, icon=str(info.get('Icon') or 'bluetooth'),
+                            connected=bool(info.get('Connected'))))
+    return sorted(devices, key=lambda d: (not d['connected'], d['name'].casefold(), d['address']))
+
+
 class Rejected(dbus.DBusException):
     _dbus_error_name = 'org.bluez.Error.Rejected'
 
@@ -107,7 +126,7 @@ class PairingSession:
         self.agent = PairingAgent(self)
         self.objects = {}; self.started = set(); self.starting = set()
         self.scanning = False; self.closed = False; self.registered = False
-        self.target = None; self.pending = False; self.waiters = []; self.timer = 0; self.deadline = 0
+        self.target = None; self.connecting = None; self.pending = False; self.waiters = []; self.timer = 0; self.deadline = 0
 
     def call(self, path, interface, method, args=(), done=lambda *_:None, failed=None, timeout=5):
         if self.closed: return
@@ -197,6 +216,25 @@ class PairingSession:
             else: self.call('/org/bluez', MANAGER, 'RegisterAgent', (dbus.ObjectPath(AGENT_PATH),'KeyboardDisplay'), done=registered, failed=failed)
         self.refresh(begin)
 
+    def connect(self, ident):
+        if self.target or self.connecting: return
+        def begin():
+            if self.target or self.connecting or self.closed: return
+            device = next((d for d in paired_devices(self.objects) if d['id'] == ident), None)
+            if not device:
+                self.status('This device is no longer paired. Search again to pair it.'); return
+            if device['connected']:
+                self.status(device['name']+' is already connected.'); return
+            self.connecting = ident; self.status('Connecting to '+device['name']+'…')
+            def connected():
+                self.connecting = None; self.status(device['name']+' is connected.'); self.refresh()
+            def failed(error):
+                self.connecting = None
+                self.status('Could not connect to '+device['name']+'. Make sure it is nearby and turned on (earbuds out of their case). '+str(error).split(': ',1)[-1])
+                self.refresh()
+            self.call(ident, DEVICE, 'Connect', done=connected, failed=failed, timeout=20)
+        self.refresh(begin)
+
     def close(self):
         if self.closed: return
         self.dismiss()
@@ -216,12 +254,14 @@ class PairingWindow(Gtk.Window):
         self.prompt_dialog=None; self.prompt_error=None; self.session=None
         box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=14);box.set_border_width(24);self.add(box)
         heading=Gtk.Label(xalign=0);heading.set_markup('<span size="x-large" weight="bold">Add a device</span>');box.pack_start(heading,False,False,0)
-        hint=Gtk.Label(label='Choose your Bluetooth device. Repeated names are grouped; expand a group to select an address.',xalign=0)
+        hint=Gtk.Label(label='Choose your Bluetooth device. Repeated names are grouped; expand a group to select an address. Devices you already paired are listed first; choose Connect to use one.',xalign=0)
         hint.set_line_wrap(True);box.pack_start(hint,False,False,0)
         self.search=Gtk.SearchEntry();self.search.set_placeholder_text('Search by device name or address');self.search.get_accessible().set_name('Search Bluetooth devices')
         self.search.connect('search-changed',lambda *_:self.render());box.pack_start(self.search,False,False,0)
         scroll=Gtk.ScrolledWindow();scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.AUTOMATIC);scroll.set_min_content_height(300)
-        self.list=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6);scroll.add(self.list);box.pack_start(scroll,True,True,0)
+        content=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6);scroll.add(content);box.pack_start(scroll,True,True,0)
+        self.paired=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6);content.pack_start(self.paired,False,False,0)
+        self.list=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6);content.pack_start(self.list,False,False,0)
         self.status=Gtk.Label(xalign=0);self.status.set_line_wrap(True);self.status.set_selectable(True);box.pack_start(self.status,False,False,0)
         footer=Gtk.Box(spacing=10);box.pack_end(footer,False,False,0)
         self.scan=Gtk.Button(label='Stop search');self.scan.connect('clicked',self.toggle_scan);footer.pack_start(self.scan,False,False,0)
@@ -243,8 +283,9 @@ class PairingWindow(Gtk.Window):
         self.status.set_text(text)
         if self.session:
             self.scan.set_label('Stop search' if self.session.scanning else 'Search again')
+            busy=bool(self.session.target or self.session.connecting)
             self.scan.set_sensitive(not bool(self.session.target))
-            self.list.set_sensitive(not bool(self.session.target))
+            self.list.set_sensitive(not busy);self.paired.set_sensitive(not busy)
 
     def toggle_scan(self,*_):
         if self.session.scanning:self.session.stop()
@@ -255,12 +296,19 @@ class PairingWindow(Gtk.Window):
 
     def render(self):
         groups=nearby_groups(self.objects,self.search.get_text())
-        signature=repr((groups,sorted(self.expanded)))
+        paired=paired_devices(self.objects,self.search.get_text())
+        signature=repr((groups,paired,sorted(self.expanded)))
         if signature==self.signature:return
         self.signature=signature
         focused=self.get_focus()
         focus_name=focused.get_accessible().get_name() if focused and focused.is_ancestor(self.list) else None
-        for child in self.list.get_children():child.destroy()
+        for child in self.list.get_children()+self.paired.get_children():child.destroy()
+        if paired:
+            self.section('Already paired',self.paired)
+            for device in paired:self.paired_row(device)
+            self.section('Nearby',self.paired)
+        if paired:self.paired.show_all()
+        else:self.paired.hide()
         if not groups:
             label=Gtk.Label(label='No matching devices. Check the name and put your device in pairing mode.',xalign=0)
             label.set_line_wrap(True);self.list.pack_start(label,False,False,16)
@@ -277,6 +325,21 @@ class PairingWindow(Gtk.Window):
         if focus_name:
             for child in self.list.get_children():
                 if child.get_accessible().get_name()==focus_name:child.grab_focus();break
+
+    def section(self,title,parent):
+        label=Gtk.Label(xalign=0);label.set_markup('<b>'+GLib.markup_escape_text(title)+'</b>');label.set_margin_top(6)
+        parent.pack_start(label,False,False,0)
+
+    def paired_row(self,device):
+        row=Gtk.Box(spacing=12);row.set_border_width(10);row.get_accessible().set_name(device['name']+', '+device['address'])
+        row.pack_start(Gtk.Image.new_from_icon_name(device['icon'],Gtk.IconSize.DND),False,False,0)
+        text=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=4);row.pack_start(text,True,True,0)
+        name=Gtk.Label(label=device['name'],xalign=0);name.set_ellipsize(3);text.pack_start(name,False,False,0)
+        text.pack_start(Gtk.Label(label=device['address']+' · '+('Connected' if device['connected'] else 'Not connected'),xalign=0),False,False,0)
+        if not device['connected']:
+            button=Gtk.Button(label='Connect');button.set_valign(Gtk.Align.CENTER);button.get_accessible().set_name('Connect '+device['name'])
+            button.connect('clicked',lambda *_:self.session.connect(device['id']));row.pack_end(button,False,False,0)
+        self.paired.pack_start(row,False,False,0)
 
     def expand(self,_button,name):
         if name in self.expanded:self.expanded.remove(name)
