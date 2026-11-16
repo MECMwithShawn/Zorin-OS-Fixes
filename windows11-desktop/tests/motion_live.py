@@ -8,10 +8,12 @@ from pathlib import Path
 from gnome_live import until,systemd_fixture
 ROOT=Path(__file__).resolve().parents[1]
 UUID='zorin11-motion@zorin-os-fixes'
+WINDOW_MOVE='zorin-window-move-effect@zorinos.com'
 WRAPPER=r'''
 import Base from './motion.js';
 import Gio from 'gi://Gio';import GLib from 'gi://GLib';import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
+import Meta from 'gi://Meta';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 const XML='<node><interface name="local.zorin11.MotionTest"><method name="Call"><arg type="s" direction="in"/><arg type="s" direction="out"/></method><method name="Capture"><arg type="s" direction="out"/></method></interface></node>';
@@ -31,11 +33,17 @@ export default class Test extends Base {
  if(p.overview===true)Main.overview.show();
  if(p.focus)global.get_window_actors().map(a=>a.meta_window).find(w=>w.get_title()===(p.focus===true?'Taskbar motion':p.focus))?.activate(global.get_current_time());
  if(p.animations!==undefined)this._interface.set_boolean('enable-animations',p.animations);
+ const prefsWindow=global.get_window_actors().find(a=>a.meta_window.get_title()==='Taskbar motion');
+ if(p.beginMove)global.display.emit('grab-op-begin',prefsWindow.meta_window,Meta.GrabOp.MOVING);
+ if(p.endMove)global.display.emit('grab-op-end',prefsWindow.meta_window,Meta.GrabOp.MOVING);
  if(p.battery!==undefined){this._power={get_cached_property:()=>new GLib.Variant('b',p.battery)};this._refresh();}
  if(p.fullscreen!==undefined){const w=global.get_window_actors().map(a=>a.meta_window).find(w=>w.get_title()==='Taskbar motion');if(w){p.fullscreen?w.make_fullscreen():w.unmake_fullscreen();}}
  if(p.menu){Main.panel.statusArea.quickSettings.menu.open();this._menus[0].tile.menu.open();}
  return JSON.stringify({layout:this._panels.map(r=>{const a=r.entry.allocationMap?.taskbar?.actor,t=r.panel._rightBox;return a?{appX:a.get_transformed_position()[0],appWidth:a.width,trayX:t.get_transformed_position()[0],trayWidth:t.width,panelX:r.panel.get_transformed_position()[0],panelWidth:r.panel.width}:null;}),startup:this._settings.get_boolean('apply-at-startup'),startupMenus:this._menus.map(m=>m.startup.state),emptyStartup:this.emptyStartup,contextMenus:this._panels.map(r=>r.entry.showAppsIconWrapper?._menu?._getMenuItems().map(i=>i.label?.text).filter(Boolean)),timer:!!this._timer,preset:this._config.preset,tiles:this._menus.length,
   subtitle:this._menus[0]?.tile.subtitle,checked:this._menus[0]?.tile.checked,
+  windowMoveEffect:!!prefsWindow?.get_effect('wobbly-compiz-effect'),
+  windowMoveReady:!!Main.extensionManager.lookup('zorin-window-move-effect@zorinos.com')?.stateObj?.grabOpBeginId,
+  shellStarting:Main.layoutManager._startingUp,
   panels:this._panels.filter(r=>!r.dead).map(r=>({visible:r.moving,mapped:r.actor.mapped,reason:r.reason,focus:this._focus(r,r.actor.width),
    rect:[...r.actor.get_transformed_position(),...r.actor.get_transformed_size()],panel:[r.panel.width,r.panel.height],reactive:r.actor.reactive,layers:r.panel.get_children().filter(c=>c.name==='zorin11-motion-layer').length})),
   windows:global.get_window_actors().map(a=>({title:a.meta_window.get_title(),focused:a.meta_window.has_focus()}))});}
@@ -83,7 +91,7 @@ def session(temp,output):
     for key,value in motion_install.context_menu_settings(['/usr/bin/true'],['My custom action']).items():taskbar.set_strv(key,value)
     shellsettings=Gio.Settings.new('org.gnome.shell')
     theme='user-theme@gnome-shell-extensions.gcampax.github.com'
-    enabled=[theme,'zorin-taskbar@zorinos.com',UUID]
+    enabled=[theme,'zorin-taskbar@zorinos.com',WINDOW_MOVE,UUID]
     shellsettings.set_strv('enabled-extensions',enabled)
     shellsettings.set_strv('disabled-extensions',[p.name for p in Path('/usr/share/gnome-shell/extensions').iterdir() if p.is_dir() and p.name not in enabled])
     shellsettings.set_strv('favorite-apps',['zorin11-taskbar-motion.desktop','org.gnome.Nautilus.desktop'])
@@ -181,8 +189,21 @@ def session(temp,output):
         state=call('MotionPrefs');assert [state[k] for k in ['intensity','period','accent']]==[20,20,'#60cdff'],state
         assert state['dirty'],'Restore defaults must wait for Apply'
         call('MotionPrefs',apply=True);until(lambda:not call('MotionPrefs')['busy'])
-        call(animations=False);until(lambda:not call()['timer'] and not call('MotionPrefs')['timer'])
+        assert call(beginMove=True)['windowMoveEffect']
+        call(animations=False)
+        until(lambda:not call()['timer'] and not call('MotionPrefs')['timer'] and not call()['windowMoveEffect'])
+        assert not call(beginMove=True)['windowMoveEffect']
+        assert WINDOW_MOVE in shellsettings.get_strv('enabled-extensions')
+        shellsettings.set_strv('enabled-extensions',[uuid for uuid in enabled if uuid!=WINDOW_MOVE]);Gio.Settings.sync()
+        until(lambda:not call()['windowMoveReady'])
+        shellsettings.set_strv('enabled-extensions',enabled);Gio.Settings.sync()
+        until(lambda:call()['windowMoveReady'])
+        assert not call(beginMove=True)['windowMoveEffect']
         call(animations=True);until(lambda:call()['timer'])
+        assert call(beginMove=True)['windowMoveEffect']
+        call(endMove=True)
+        until(lambda:not call()['windowMoveEffect'])
+        print('PASS: Reduced Motion stops taskbar effects and window wobble, then restores both when re-enabled.',flush=True)
         call(battery=True);assert not call()['timer']
         call(battery=False);assert call()['timer']
         call(overview=True);until(lambda:not call()['timer'])
@@ -247,7 +268,7 @@ def session(temp,output):
             nonlocal shell
             shell.terminate();shell.wait(timeout=8)
             shell=start(shellargs)
-            try:until(lambda:len(call()['panels'])==2)
+            try:until(lambda:len((state:=call())['panels'])==2 and not state['shellStarting'])
             except Exception:
                 print('Cold startup settings:',subprocess.check_output(['gsettings','get','org.gnome.shell','enabled-extensions'],text=True),subprocess.check_output(['gsettings','get','org.gnome.shell','disable-user-extensions'],text=True))
                 print('Extension:',bus.call_sync('org.gnome.Shell','/org/gnome/Shell','org.gnome.Shell.Extensions','GetExtensionInfo',GLib.Variant('(s)',(UUID,)),None,0,3000,None).unpack())

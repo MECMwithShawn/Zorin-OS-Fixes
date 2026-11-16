@@ -21,10 +21,25 @@ class DisplayTests(unittest.TestCase):
         self.assertEqual(rows[0]['resolution'],(3840,2160))
         self.assertEqual(rows[1]['refresh'],59.95)
         self.assertIn(('Scale','125%'),d.fields(rows[0]))
+    def test_diagram_uses_logical_extent_and_native_mode_from_same_snapshot(self):
+        state = list(fixture())
+        external = state[1][0][0]
+        mode = state[1][0][1][0]
+        state[1][0][1][0] = (mode[0], 1920, 1080, *mode[3:])
+        state[2][1] = (1728, 0, 1.5, 0, False, [external], {})
+        panel, external = d.layout_rows(state)
+        self.assertEqual((panel['width'], panel['height'], panel['actualScale']), (1728, 3072, 1.25))
+        self.assertEqual((external['x'], external['width'], external['height']), (1728, 1280, 720))
+        self.assertEqual((external['nativeWidth'], external['nativeHeight'], external['actualScale']), (1920, 1080, 1.5))
+        state[3]['layout-mode'] = 2
+        physical = d.layout_rows(state)
+        self.assertEqual((physical[0]['width'], physical[0]['height']), (2160, 3840))
+        self.assertEqual((physical[1]['width'], physical[1]['height']), (1920, 1080))
     def test_mirrored_group_and_inactive_monitor(self):
         state=list(fixture());panel=state[1][1][0];external=state[1][0][0]
         state[2]=[(0,0,2.,0,True,[panel,external],{})]
         self.assertTrue(all(r['mirrored'] for r in d.parse_state(state)))
+        self.assertEqual(len(d.layout_rows(state)),1)
         state[2]=[(0,0,2.,0,True,[panel],{})]
         row=next(r for r in d.parse_state(state) if r['connector']=='DP-1')
         self.assertFalse(row['active']);self.assertIsNone(row['scale'])

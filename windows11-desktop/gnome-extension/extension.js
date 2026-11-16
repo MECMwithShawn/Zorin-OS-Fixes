@@ -95,11 +95,24 @@ export default class Zorin11 extends Extension {
         const destroyed=button.connect('destroy',()=>this._hidden.delete(button));
         this._hidden.set(button,{id,destroyed,visible});button.hide();
     }
-    _taskbarButton(action, label, icon) {
+    _taskbarButton(action, label, icon, contrastIconName = null) {
         const button = new PanelMenu.Button(0.5, label, true);
         button.accessible_role = Atk.Role.PUSH_BUTTON;
         button.add_style_class_name('zorin11-taskbar-button');
         button.add_child(icon);
+        const settings = St.Settings.get();
+        const originalIcon = icon.gicon;
+        const contrastIcon = contrastIconName ? Gio.ThemedIcon.new(contrastIconName) : null;
+        const updateContrast = () => {
+            if (settings.high_contrast)
+                button.add_style_class_name('zorin11-taskbar-high-contrast');
+            else
+                button.remove_style_class_name('zorin11-taskbar-high-contrast');
+            if (contrastIcon)
+                icon.gicon = settings.high_contrast ? contrastIcon : originalIcon;
+        };
+        settings.connectObject('notify::high-contrast', updateContrast, button);
+        updateContrast();
         button.connect('button-press-event', () => {
             this._launch(action);
             return Clutter.EVENT_STOP;
@@ -126,16 +139,17 @@ export default class Zorin11 extends Extension {
         for(const panel of panels) {
             const old=panel.statusArea['zorin-menu'];
             if(old)this._hideMenu(old);
-            for (const [i, [action, label, name]] of [
-                ['start', 'Start', 'start.svg'],
-                ['search', 'Search', 'search.svg'],
-                ['tasks', 'Task View', 'taskview.svg'],
+            for (const [i, [action, label, name, contrastIconName]] of [
+                ['start', 'Start', 'start.svg', 'view-app-grid-symbolic'],
+                ['search', 'Search', 'search.svg', 'system-search-symbolic'],
+                ['tasks', 'Task View', 'taskview.svg', 'focus-windows-symbolic'],
             ].entries()) {
                 // Start can use the image chosen in Search & Start settings when it still exists.
                 const custom=action==='start'?this._settings.get_string('start-button'):'';
                 const file=custom&&GLib.file_test(custom,GLib.FileTest.IS_REGULAR)?custom:`${this.path}/${name}`;
                 const icon = new St.Icon({gicon:Gio.icon_new_for_string(file),icon_size:24});
-                panel.addToStatusArea(`zorin11-${action}`, this._taskbarButton(action, label, icon), i, 'left');
+                const button = this._taskbarButton(action, label, icon, contrastIconName);
+                panel.addToStatusArea(`zorin11-${action}`, button, i, 'left');
             }
             for (const [i, [action, label, iconName]] of [
                 ['quick', 'Quick Settings', 'preferences-system-symbolic'],

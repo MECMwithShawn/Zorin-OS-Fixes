@@ -52,6 +52,32 @@ def parse_state(state,resources=None):
     return sorted(rows,key=lambda r:(not r['primary'],not r['active'],r['connector']))
 
 
+def layout_rows(state):
+    """Build one diagram row per active logical monitor from a single Mutter snapshot."""
+    displays = {}
+    for display in parse_state(state):
+        if display['active']:
+            displays.setdefault(display['group'], display)
+    logical_layout = state[3].get('layout-mode', 1) == 1
+    rows = []
+    for index, (x, y, scale, transform, _primary, _specs, _properties) in enumerate(state[2]):
+        display = displays.get(index)
+        if display is None or finite(scale, 0) <= 0:
+            continue
+        native_width, native_height = display['resolution']
+        width, height = native_width, native_height
+        if transform in (1, 3, 5, 7):
+            width, height = height, width
+        if logical_layout:
+            width, height = round(width / scale), round(height / scale)
+        refresh = display['refresh']
+        rows.append(dict(name=display['connector'], x=x, y=y, width=width, height=height,
+                         nativeWidth=native_width, nativeHeight=native_height,
+                         refresh=round(refresh, 2) if refresh is not None else None,
+                         scale=scale, actualScale=scale))
+    return rows
+
+
 def run(argv):
     if not shutil.which(argv[0]):return ''
     try:

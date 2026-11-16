@@ -79,6 +79,8 @@ class Multitasking:
         win.set_decorated(False);win.set_skip_taskbar_hint(True);win.set_skip_pager_hint(True)
         win.set_type_hint(Gdk.WindowTypeHint.UTILITY);win.set_keep_above(True)
         win.set_resizable(False);win.get_style_context().add_class('z11-multitask')
+        from accessible_appearance import configure_native
+        configure_native(win)
         visual=win.get_screen().get_rgba_visual()
         if visual:win.set_visual(visual)
         win.set_default_size(width,height)

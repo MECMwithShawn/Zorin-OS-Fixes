@@ -1,8 +1,10 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {ExtensionState} from 'resource:///org/gnome/shell/misc/extensionUtils.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as QuickSettings from 'resource:///org/gnome/shell/ui/quickSettings.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
@@ -13,10 +15,12 @@ import {paint} from './renderer.js';
 // GNOME Shell process starts a fresh login session. The saved preset is retained.
 const session = {active: undefined, request: null};
 const SCHEMA = 'org.gnome.shell.extensions.zorin11-motion';
+const WINDOW_MOVE = 'zorin-window-move-effect@zorinos.com';
 export default class TaskbarMotion extends Extension {
     enable() {
         this._settings = this.getSettings(SCHEMA); this._interface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
         this._signals = []; this._panelSignals = []; this._panels = []; this._menus = []; this._timer = 0; this._pending = 0; this._alive = true;
+        this._pausedWindowMoveSignals = [];
         const request = this._settings.get_string('activation-request');
         if (session.active === undefined) session.active = this._settings.get_boolean('apply-at-startup');
         else if (session.request !== request) session.active = true;
@@ -25,9 +29,15 @@ export default class TaskbarMotion extends Extension {
             if (key === 'activation-request') {session.active = true; session.request = this._settings.get_string(key);}
             this._refresh();
         });
-        this._connect(this._interface, 'changed::enable-animations', () => this._refresh());
+        this._connect(this._interface, 'changed::enable-animations', () => {
+            this._syncWindowMoveMotion();
+            this._refresh();
+        });
         this._connect(Main.extensionManager, 'extension-state-changed', (_manager, extension) => {
             if (extension.uuid === 'zorin-taskbar@zorinos.com') this._schedule();
+            // GNOME can rebuild other extensions' signal handlers while
+            // disabling one, then report only the extension that changed.
+            if (!this._interface.get_boolean('enable-animations')) this._syncWindowMoveMotion();
         });
         this._connect(Main.layoutManager, 'monitors-changed', () => this._schedule());
         this._connect(Main.layoutManager, 'startup-complete', () => this._schedule());
@@ -47,7 +57,41 @@ export default class TaskbarMotion extends Extension {
                     this._refresh();
                 } catch (_) { /* Desktops without UPower keep manual controls. */ }
             });
+        this._syncWindowMoveMotion();
         this._sync();
+    }
+    _syncWindowMoveMotion() {
+        if (this._interface.get_boolean('enable-animations')) {
+            this._resumeWindowMoveMotion();
+            return;
+        }
+
+        // The bundled Zorin extension uses its own timelines and does not
+        // consult GNOME's animation setting. Pause its effect-start handlers
+        // in place so the saved extension state and native window moves survive.
+        const extension = Main.extensionManager.lookup(WINDOW_MOVE);
+        if (extension?.state !== ExtensionState.ACTIVE) return;
+        const effect = extension.stateObj;
+        if (typeof effect?.destroyActorEffect !== 'function') return;
+        const signals = [
+            [global.display, effect.grabOpBeginId],
+            [global.window_manager, effect.startResizeOpId],
+            [global.window_manager, effect.endResizeOpId],
+        ];
+        if (!signals.every(([object, id]) => id && GObject.signal_handler_is_connected(object, id))) return;
+        if (signals.every(([, id], index) => id === this._pausedWindowMoveSignals[index]?.[1])) return;
+
+        this._resumeWindowMoveMotion();
+        for (const [object, id] of signals) GObject.signal_handler_block(object, id);
+        this._pausedWindowMoveSignals = signals;
+        effect.resizedActor = null;
+        for (const actor of global.get_window_actors()) effect.destroyActorEffect(actor);
+    }
+    _resumeWindowMoveMotion() {
+        for (const [object, id] of this._pausedWindowMoveSignals) {
+            if (GObject.signal_handler_is_connected(object, id)) GObject.signal_handler_unblock(object, id);
+        }
+        this._pausedWindowMoveSignals = [];
     }
     _connect(object, signal, callback, list = this._signals) {
         const r = {object, id: object.connect(signal, callback), death: 0};
@@ -177,6 +221,7 @@ export default class TaskbarMotion extends Extension {
     }
     disable() {
         this._alive = false; this._powerCancel.cancel();
+        this._resumeWindowMoveMotion();
         for (const id of [this._timer, this._pending]) if (id) GLib.source_remove(id);
         this._timer = 0; this._pending = 0; this._disconnect(this._signals); this._disconnect(this._panelSignals);
         for (const row of this._panels) if (!row.dead) row.actor.destroy();

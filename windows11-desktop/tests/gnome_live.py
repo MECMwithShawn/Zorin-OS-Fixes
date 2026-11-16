@@ -4,6 +4,7 @@
 Requires gnome-shell, Xwayland and the normal companion dependencies. A private
 session-manager fixture permits XWayland startup without the real user systemd.
 Set ZORIN11_TEST_FEEDS=1 to additionally test the live Bing/Spotlight services.
+Set ZORIN11_TEST_FRACTIONAL=1 to test two virtual outputs at 125% and 150%.
 """
 import json
 import os
@@ -54,6 +55,49 @@ def systemd_fixture():
     GLib.MainLoop().run()
 
 
+def configure_fractional_displays():
+    """Apply the mixed scales temporarily on the test session's own display service."""
+    from gi.repository import Gio, GLib
+    from display_details import SERVICE, PATH, layout_rows
+
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+
+    def read():
+        return bus.call_sync(SERVICE, PATH, SERVICE, 'GetCurrentState', None,
+                             None, Gio.DBusCallFlags.NONE, 1000, None).unpack()
+
+    state = read()
+    if len(state[1]) != 2 or not all(spec[0].startswith('Meta-') and spec[1] == 'MetaVendor'
+                                        for spec, _modes, _properties in state[1]):
+        raise RuntimeError('The fractional test requires two private Mutter virtual displays')
+    modes = {(mode[1], mode[2]): (spec[0], mode[0], mode[5])
+             for spec, candidates, _properties in state[1] for mode in candidates}
+    monitors = []
+    for resolution, scale, y, primary in (
+        ((1600, 1000), 1.25, 720, True),
+        ((1920, 1080), 1.5, 0, False),
+    ):
+        connector, mode, supported = modes[resolution]
+        assert scale in supported, (resolution, scale, supported)
+        monitors.append((0, y, scale, 0, primary, [(connector, mode, {})]))
+    config = GLib.Variant('(uua(iiduba(ssa{sv}))a{sv})',
+                          (state[0], 1, monitors, {'layout-mode': GLib.Variant('u', 1)}))
+    bus.call_sync(SERVICE, PATH, SERVICE, 'ApplyMonitorsConfig', config,
+                  None, Gio.DBusCallFlags.NONE, 3000, None)
+
+    def configured():
+        rows = {row['scale']: row for row in layout_rows(read())}
+        return rows if set(rows) == {1.25, 1.5} else None
+
+    rows = until(configured)
+    panel, external = rows[1.25], rows[1.5]
+    assert (panel['x'], panel['y'], panel['width'], panel['height'],
+            panel['nativeWidth'], panel['nativeHeight']) == (0, 720, 1280, 800, 1600, 1000), panel
+    assert (external['x'], external['y'], external['width'], external['height'],
+            external['nativeWidth'], external['nativeHeight']) == (0, 0, 1280, 720, 1920, 1080), external
+    print('Mutter 125% and 150% scales, logical positions and native modes: passed', flush=True)
+
+
 def session(temp):
     import re,base64
     from gi.repository import Gio,GLib
@@ -67,6 +111,11 @@ def session(temp):
     Gio.Settings.new('org.gnome.shell').set_strv('enabled-extensions',[
         'user-theme@gnome-shell-extensions.gcampax.github.com','zorin-taskbar@zorinos.com','zorin-menu@zorinos.com',UUID])
     Gio.Settings.new('org.gnome.mutter').set_boolean('dynamic-workspaces',False)
+    fractional = os.environ.get('ZORIN11_TEST_FRACTIONAL') == '1'
+    if fractional:
+        mutter = Gio.Settings.new('org.gnome.mutter')
+        mutter.set_strv('experimental-features', ['scale-monitor-framebuffer'])
+        mutter.set_boolean('workspaces-only-on-primary', False)
     Gio.Settings.new('org.gnome.shell').set_string('welcome-dialog-last-shown-version','46.0')
     Gio.Settings.sync()
     children=[]
@@ -74,9 +123,14 @@ def session(temp):
         p=subprocess.Popen(args,env=env,stdout=log,stderr=subprocess.STDOUT);children.append(p);return p
     stub=start(['/usr/bin/python3',__file__,'--systemd-fixture']);time.sleep(.3)
     shell_log=(temp/'shell.log').open('w')
-    shell=start(['gnome-shell','--headless','--wayland','--virtual-monitor','1600x1000','--wayland-display','zorin11-test'],log=shell_log)
+    monitors = ['--virtual-monitor', '1600x1000']
+    if fractional:
+        monitors += ['--virtual-monitor', '1920x1080']
+    shell=start(['gnome-shell','--headless','--wayland',*monitors,'--wayland-display','zorin11-test'],log=shell_log)
     try:
         until(lambda:call('snapshot'))
+        if fractional:
+            configure_fractional_displays()
         until(lambda:re.search(r'public X11 display (:\d+)',(temp/'shell.log').read_text()))
         display=re.search(r'public X11 display (:\d+)',(temp/'shell.log').read_text()).group(1)
         env=dict(os.environ,DISPLAY=display,XAUTHORITY=str(next((temp/'runtime').glob('.mutter-Xwaylandauth.*'))),
@@ -100,7 +154,7 @@ w.destroy()
         panels=call('panels');assert panels and all(p['windowsStartVisible'] and not p['zorinStartVisible'] for p in panels),panels
         print('Single Start button and transparent desktop theme: passed',flush=True)
         app_log=(temp/'app.log').open('w')
-        app=start(['/usr/bin/python3',str(COMPANION/'app.py'),'--settings','background'],env,app_log)
+        app=start(['/usr/bin/python3',str(COMPANION/'app.py'),'--settings','display' if fractional else 'background'],env,app_log)
         def command(*args):
             subprocess.run(['/usr/bin/python3',str(COMPANION/'app.py'),*args],env=env,stdout=app_log,stderr=app_log,check=True,timeout=50)
         time.sleep(3)
@@ -111,13 +165,26 @@ w.destroy()
         report=until(lambda:json.loads((temp/'diagnostics.json').read_text()))
         for surface in report['surfaces'].values():
             assert surface['ready'] and not surface['errors'] and not surface['brokenImages'],surface
+        if fractional:
+            display_text = report['surfaces']['settings']['text']
+            for fact in ('1600 × 1000', '1920 × 1080', '125%', '150%'):
+                assert fact in display_text, display_text
+            print('Settings shows both native resolutions and fractional scale values: passed', flush=True)
         print('Start, Explorer, Settings, flyouts, groups and Task View: passed',flush=True)
         fixture="import gi;gi.require_version('Gtk','3.0');from gi.repository import Gtk;w=Gtk.Window(title='Zorin11 Wayland test');w.set_default_size(600,400);w.add(Gtk.Label(label='Native Wayland window'));w.show_all();Gtk.main()"
         native=start(['/usr/bin/python3','-c',fixture],dict(env,GDK_BACKEND='wayland'),app_log)
         row=until(lambda:next((w for w in call('snapshot')['windows'] if w['title']=='Zorin11 Wayland test' and w['rect'][2]>100),None))
         ident=row['id'];time.sleep(.6)
-        call('window',id=ident,action='move',rect=[100,120,700,450])
-        until(lambda:next((w for w in call('snapshot')['windows'] if w['id']==ident and abs(w['rect'][2]-700)<20),None))
+        target = [100,120,700,450]
+        call('window',id=ident,action='move',rect=target)
+        try:
+            until(lambda:next((w for w in call('snapshot')['windows'] if w['id']==ident and abs(w['rect'][2]-700)<20),None), seconds=5)
+        except AssertionError as error:
+            after = next((w for w in call('snapshot')['windows'] if w['id'] == ident), None)
+            raise AssertionError(f'Native window did not settle to {target}: before={row}, after={after}') from error
+        if fractional:
+            until(lambda:next((w for w in call('snapshot')['windows'] if w['id']==ident and w['rect']==target),None))
+            print('Native Wayland window moves to a logical rectangle on the 150% display: passed', flush=True)
         call('window',id=ident,action='workspace',index=1)
         assert next(w for w in call('snapshot')['windows'] if w['id']==ident)['workspace']==1
         call('workspace',index=1);assert call('snapshot')['current']==1
