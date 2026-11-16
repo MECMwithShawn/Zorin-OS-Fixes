@@ -36,3 +36,15 @@
     background-color: #155375;
     border-color: #79d9ff;
 }
+
+/* Zorin Tiling Shell's window suggestions use a separate preview container from Overview. */
+.selection-tile-preview .popup-window-preview-container {
+    background-color: #222930;
+    box-shadow: inset 0 0 0 1px #697c8c;
+}
+
+.selection-tile-preview .popup-window-preview-container .window-caption {
+    background-color: #155375;
+    color: #f4f8fc;
+    box-shadow: inset 0 0 0 1px #79d9ff;
+}

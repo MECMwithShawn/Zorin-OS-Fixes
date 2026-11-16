@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Exercise the Multitasking switch in WebKit with private GNOME settings."""
+"""Exercise both top-edge Snap Layouts switches in WebKit with private GNOME settings."""
 
 import argparse
 import json
@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from unittest.mock import patch
 
 
 def run_session(runtime):
@@ -22,6 +23,7 @@ def run_session(runtime):
     from gnome_live import until
     sys.path.insert(0, str(runtime))
     import settings_backend as settings
+    ready = False
 
     shell = Gio.Settings.new('org.gnome.shell')
     shell.set_boolean('disable-user-extensions', False)
@@ -30,6 +32,7 @@ def run_session(runtime):
     native = settings.top_edge_snap_settings()
     assert native is not None, 'Install the Zorin Tiling Shell schema to run this fixture'
     assert native.set_boolean(settings.TOP_EDGE_SNAP, False)
+    assert native.set_boolean(settings.SNAP_SUGGESTIONS, False)
 
     messages = []
     manager = WebKit2.UserContentManager()
@@ -47,8 +50,10 @@ def run_session(runtime):
         data = {'mode': 'settings', 'facts': {'desktop': 'GNOME'}}
         snap = settings.top_edge_snap_settings()
         if snap is not None:
-            data['topEdgeSnap'] = snap.get_boolean(settings.TOP_EDGE_SNAP)
-            data['topEdgeSnapWritable'] = snap.is_writable(settings.TOP_EDGE_SNAP)
+            for name, key in settings.SNAP_SETTINGS.items():
+                data[name] = snap.get_boolean(key)
+                data[name + 'Writable'] = snap.is_writable(key)
+            data['snapSuggestionsReady'] = settings.snap_suggestions_ready()
         send({'type': 'state', 'data': data})
 
     def received(_manager, result):
@@ -82,33 +87,48 @@ def run_session(runtime):
             raise result
         return result
 
-    selector = 'document.querySelector(\'[role="switch"][aria-label="Show Snap Layouts at the top edge"]\')'
+    def control(label):
+        return f'document.querySelector(\'[role="switch"][aria-label="{label}"]\')'
 
-    def switch_state():
+    drag = control('Show Snap Layouts at the top edge')
+    suggestions = control('Suggest windows after dragging to snap')
+
+    def switch_state(selector):
         return javascript(f'String({selector}?.getAttribute("aria-checked"))')
 
+    def click(selector, name, key, value):
+        javascript(f'{selector}.click(); "clicked"')
+        until(lambda: switch_state(selector) == str(value).lower())
+        assert messages[-1] == {'action': 'settings-set', 'name': name, 'value': value}
+        assert native.get_boolean(key) is value
+
     manager.connect('script-message-received::desktop', received)
-    try:
+    with patch.object(settings, 'shell_call', lambda op: ready if op == 'snap-suggestions-ready' else None):
         window.show_all()
         view.load_uri((runtime / 'dist/index.html').as_uri())
-        until(lambda: switch_state() == 'false')
-        assert javascript(f'String({selector}.disabled)') == 'false'
-
-        for expected in (True, False):
-            javascript(f'{selector}.click(); "clicked"')
-            until(lambda: switch_state() == str(expected).lower())
-            assert messages[-1] == {'action': 'settings-set', 'name': 'topEdgeSnap', 'value': expected}
-            assert native.get_boolean(settings.TOP_EDGE_SNAP) is expected
-        assert len(messages) == 2
+        until(lambda: switch_state(drag) == 'false' and switch_state(suggestions) == 'false')
+        assert javascript(f'String({drag}.disabled)') == 'false'
+        assert javascript(f'String({suggestions}.disabled)') == 'true'
+        click(drag, 'topEdgeSnap', settings.TOP_EDGE_SNAP, True)
+        assert javascript(f'String({suggestions}.disabled)') == 'true'
+        ready = True
+        publish()
+        until(lambda: javascript(f'String({suggestions}.disabled)') == 'false')
+        for expected in (True, False, True):
+            click(suggestions, 'snapSuggestions', settings.SNAP_SUGGESTIONS, expected)
+            assert native.get_boolean(settings.TOP_EDGE_SNAP)
+        click(drag, 'topEdgeSnap', settings.TOP_EDGE_SNAP, False)
+        assert javascript(f'String({suggestions}.disabled)') == 'true'
+        assert native.get_boolean(settings.SNAP_SUGGESTIONS)
+        assert len(messages) == 5
 
         shell.set_strv('disabled-extensions', [settings.TILING_EXTENSION])
         publish()
-        until(lambda: switch_state() == 'undefined')
+        until(lambda: switch_state(drag) == 'undefined' and switch_state(suggestions) == 'undefined')
         assert javascript('String(document.body.innerText.includes("Multitasking"))') == 'true'
-    finally:
         window.destroy()
 
-    print('PASS: WebKit toggle updates the native top-edge setting and hides when tiling is disabled')
+    print('PASS: WebKit switches update the native top-edge settings and preserve the suggestions preference')
 
 
 def main():

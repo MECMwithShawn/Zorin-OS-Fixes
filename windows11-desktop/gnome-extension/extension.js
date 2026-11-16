@@ -12,6 +12,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import {TaskbarProgress} from './taskbar-progress.js';
 import {TaskbarCentering} from './taskbar-centering.js';
 import {MaximizeHover} from './maximize-hover.js';
+import {SnapSuggestions} from './snap-suggestions.js';
 
 const XML = `<node><interface name="local.zorin11.Gnome">
 <method name="Call"><arg direction="in" type="s"/><arg direction="out" type="s"/></method>
@@ -66,6 +67,7 @@ export default class Zorin11 extends Extension {
         this._taskbarProgress=new TaskbarProgress();
         this._taskbarCentering=new TaskbarCentering(this._settings);
         this._maximizeHover=new MaximizeHover(this._settings);
+        this._snapSuggestions = new SnapSuggestions();
     }
     _syncMenu() {
         const menu=Main.extensionManager.lookup('zorin-menu@zorinos.com')?.stateObj;
@@ -216,6 +218,7 @@ export default class Zorin11 extends Extension {
         let result=true;
         switch(p.op) {
         case 'taskbar-status': result=this._taskbarProgress?.snapshot() || [];break;
+        case 'snap-suggestions-ready': result=this._snapSuggestions?.ready === true;break;
         case 'panels': result=(global.zorinTaskbar?.panels?.map(panel=>panel.panel)||[Main.panel]).map(panel=>({
             zorinStartVisible:panel.statusArea['zorin-menu']?.visible||false,
             windowsStartVisible:panel.statusArea['zorin11-start']?.visible||false}));break;
@@ -273,6 +276,8 @@ export default class Zorin11 extends Extension {
         return JSON.stringify(result);
     }
     disable() {
+        this._snapSuggestions?.destroy();
+        this._snapSuggestions = null;
         this._maximizeHover?.destroy();this._maximizeHover=null;
         this._taskbarProgress?.destroy();this._taskbarProgress=null;
         this._taskbarCentering?.destroy();this._taskbarCentering=null;

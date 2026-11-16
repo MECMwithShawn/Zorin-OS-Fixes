@@ -101,6 +101,8 @@ For an existing installation, `python3 motion_install.py` adds this extension, i
 
 **Drag to snap:** Drag a window by its title bar to just below the top center of a display. Keep holding, move onto a zone in the strip to preview its position, then release to snap. Move away before releasing to cancel. The strip uses your Zorin Advanced Window Tiling layouts and follows the display you drag onto. Toggle **Show Snap Layouts at the top edge** in **Settings → System → Multitasking**. If the switch is missing, enable Advanced Window Tiling in Zorin Appearance. Desktop backups include the toggle, custom layouts and per-workspace layout selections.
 
+**Fill the remaining zones:** After the first window snaps, choose a preview of an open window from the current desktop. Snap Assist continues through the empty zones until you finish or run out of windows. Press **Esc** to stop and keep the windows you've already snapped. **Suggest windows after dragging to snap** in **Settings → System → Multitasking** controls this behavior. The updated Shell extension loads at the next normal sign-in and enables suggestions if you haven't already set a preference. Desktop backups include the setting.
+
 The Customize toggle also turns hover off. To change it from a terminal, run:
 
 ```sh

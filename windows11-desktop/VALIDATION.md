@@ -1,3 +1,11 @@
+## Open-window suggestions after a Wayland drag snap — 2026-11-16
+
+- Private GNOME Wayland tests dragged a GTK4 window into the first column and used two native suggestion-card clicks to fill the adjacent columns. The tests checked exact window rectangles and the destination display at 100%, 125%, and 150%, as well as suppression when suggestions were off. The Shell enables suggestions once its dismissal fix is active if the native preference is unset, and honors an explicit opt-out.
+- The stock popup could hide unselected window actors if dismissed during its opening fade. The regression test sends Escape before that fade completes and checks that the first window stays snapped and the other windows retain their original frames, visibility, opacity and scale. The fix cancels only the fade transitions started by the suggestion popup.
+- The Multitasking control passed private WebKit tests with both the repository and installed bundles. The settings and Shell files are installed, and the Shell code will load on the next normal sign-in. The installed Explorer read the mounted OneDrive folder after the companion reload.
+
+Run `/usr/bin/python3 tests/top_edge_snap_live.py` for 100%, with `ZORIN11_TEST_FRACTIONAL=1` for the two fractional displays. Run `/usr/bin/python3 tests/top_edge_snap_settings_live.py` for the Settings controls.
+
 ## Top-edge Snap Layouts on Wayland — 2026-11-16
 
 - A real GTK4 titlebar drag in private GNOME Shell revealed the six native layouts at 100% and on stacked 125% and 150% virtual displays. The fixture checked the strip and tile colors, a zone's placement preview, the exact window rectangle after release, retreat after hovering, Escape before selecting, and the position of an untouched window. Disabling the Settings option suppressed the strip and ordinary window dragging continued.
