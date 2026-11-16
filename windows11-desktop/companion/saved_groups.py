@@ -17,6 +17,8 @@ import gi
 gi.require_version("Gdk","3.0")
 from gi.repository import Gio, Gdk, GLib
 
+from app_launch import launch_context
+
 
 def validate(data):
     if not isinstance(data,dict) or data.get('version')!=1 or not isinstance(data.get('groups'),list) or len(data['groups'])>40:
@@ -272,7 +274,7 @@ class SavedGroups:
                         if waiting:continue
                         if any(not self.m.desktops.on(w,target) and matches_member(w,member) for w in live):
                             raise ValueError(apps[member['app']].get_display_name()+' is open on another desktop. Move the desired window here, then retry.')
-                        context=Gdk.Display.get_default().get_app_launch_context();context.set_timestamp(self.m.windows.timestamp())
+                        context = launch_context(self.m.windows.timestamp())
                         if not apps[member['app']].launch([],context):raise ValueError('Could not open '+apps[member['app']].get_display_name()+'.')
                         op['launched'][index]={w.get_xid() for w in live} if display_only else None
                 if len(op['assigned'])==len(recipe['members']):

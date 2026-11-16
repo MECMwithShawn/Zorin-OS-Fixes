@@ -1,3 +1,11 @@
+## Physical fractional scaling on the laptop panel — 2026-11-15
+
+- Ran identical GTK3/WebKit text and fine-line samples on the physical eDP panel at its native 2560 × 1600 @ 165 Hz. Mutter used 1.25 and the mode’s supported 1.50235 scale (shown as 150%). For both scales, the native GTK Wayland sample reported a backing scale and WebKit device pixel ratio of 2. The same sample over XWayland reported 1. In comparable compositor window captures, the XWayland text and black rules had visibly softer edges at both scales. These captures use the preview service, which normalizes resolution, and are useful for visual comparison alongside the original render scales. They do not measure the physical panel’s optical sharpness.
+- Used a temporary display configuration with a timed restore fallback. Confirmed the physical display returned to 125% with the same mode and that the saved monitor configuration was byte-identical. Only the laptop panel was connected.
+- The companion’s X11 setting was being inherited by apps opened from desktop entries and tools. Child launches now allow the app to select its normal Wayland or X11 backend. Explicit backend choices and the companion’s own XWayland placement behavior are preserved. True X11 apps can still look softer at fractional scale on the installed Mutter 46. The [GNOME 47 release notes](https://release.gnome.org/47/#other-changes) describe the experimental scaling support added for legacy X11 apps.
+
+- The private mixed-scale GNOME fixture and the installed runtime both launched disposable GTK apps through a desktop entry, desktop action and Settings tool. Automatic launches used native Wayland, explicit X11 still used XWayland, and the companion process kept its original backend. OneDrive stayed mounted and active through the companion reload.
+
 ## Wayland High Contrast, Reduced Motion and fractional scaling — 2026-11-15
 
 - The taskbar uses GNOME’s live High Contrast preference. The private fixture checked all five controls, including monochrome icons, opaque backgrounds and the white keyboard focus ring. Standard and custom Start icons return when the setting is turned off. The private GTK/WebKit fixture checked opaque surfaces, decoration removal and focus, plus independent contrast and motion toggles without reloading. It also passed against the installed companion files.

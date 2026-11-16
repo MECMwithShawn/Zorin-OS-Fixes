@@ -10,6 +10,7 @@ import sys
 import dbus
 import hardware_controls
 import audio_effects
+from app_launch import child_environment
 from platform_ui import desktop_status
 from gnome_bridge import active as is_gnome
 from gi.repository import Gio
@@ -248,4 +249,4 @@ def launch(tool):
         if taskbar.is_file():
             command = ['gjs', '-m', str(taskbar)]
     if not shutil.which(command[0]):raise ValueError('This settings tool is not installed.')
-    subprocess.Popen(command,start_new_session=True)
+    subprocess.Popen(command,start_new_session=True,env=child_environment())

@@ -35,11 +35,10 @@ class DisplayRestoreTests(unittest.TestCase):
             ident = saved.store.put([member], desktop='desk', kind='layout', display_only=True)
             app = Mock()
             context = Mock()
-            display = NS(get_default=lambda: NS(get_app_launch_context=lambda: context))
             ticks = []
             with patch('window_layouts.monitors', return_value=OUTPUTS), \
                  patch('saved_groups.catalog', return_value={'browser.desktop': app}), \
-                 patch('saved_groups.Gdk.Display', display), \
+                 patch('saved_groups.launch_context', return_value=context), \
                  patch('saved_groups.GLib.timeout_add', side_effect=lambda _, fn: ticks.append(fn) or 1):
                 saved.restore(ident, Mock())
                 ticks[0]()
