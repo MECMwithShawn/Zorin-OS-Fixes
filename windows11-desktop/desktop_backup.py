@@ -129,6 +129,8 @@ def current_settings(home=HOME):
     journal = home/'.config/zorin11-gnome/integration-backup.json'
     for record in json.loads(journal.read_text()) if journal.exists() else []:
         requests.setdefault(record['schema'], set()).add(record['key'])
+    requests.setdefault('org.gnome.shell.extensions.zorin-tiling-shell', set()).update(
+        ('enable-snap-assist', 'layouts-json', 'selected-layouts'))
     for schema in ('org.gnome.desktop.background', 'org.gnome.desktop.wm.preferences',
                    'org.gnome.desktop.interface', 'org.gnome.shell.extensions.zorin-taskbar',
                    'org.gnome.desktop.session', 'org.gnome.desktop.screensaver',

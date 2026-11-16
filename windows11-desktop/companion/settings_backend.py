@@ -66,6 +66,24 @@ BOOL_SETTINGS = {
     'eventSounds': ('xsettings','/Net/EnableEventSounds'),
 }
 TIMEOUTS = (0,1,2,3,5,10,15,20,30,45,60,90,120)
+TILING_EXTENSION = 'zorin-tiling-shell@zorinos.com'
+TILING_SCHEMA = 'org.gnome.shell.extensions.zorin-tiling-shell'
+TOP_EDGE_SNAP = 'enable-snap-assist'
+
+
+def top_edge_snap_settings():
+    if not is_gnome():
+        return None
+    source = Gio.SettingsSchemaSource.get_default()
+    schema = source.lookup(TILING_SCHEMA, True) if source else None
+    if schema is None or not schema.has_key(TOP_EDGE_SNAP):
+        return None
+    shell = Gio.Settings.new('org.gnome.shell')
+    if (shell.get_boolean('disable-user-extensions')
+            or TILING_EXTENSION in shell.get_strv('disabled-extensions')
+            or TILING_EXTENSION not in shell.get_strv('enabled-extensions')):
+        return None
+    return Gio.Settings.new_full(schema, None, None)
 
 
 def run(args):
@@ -144,6 +162,10 @@ def snapshot():
     result['desktop']='GNOME' if is_gnome() else 'Xfce'
     if is_gnome():
         result['desktopAnimations']=Gio.Settings.new('org.gnome.desktop.interface').get_boolean('enable-animations')
+    snap = top_edge_snap_settings()
+    if snap is not None:
+        result.update(topEdgeSnap=snap.get_boolean(TOP_EDGE_SNAP),
+                      topEdgeSnapWritable=snap.is_writable(TOP_EDGE_SNAP))
     result['outputs']=sound_outputs()
     result['audioEffects']=audio_effects.snapshot()
     try:result['output']=run(['pactl','get-default-sink'])
@@ -185,6 +207,15 @@ def apply(name,value):
     elif name in ('desktopAnimations','desktopAnimationDuration'):
         from desktop_motion import configure
         configure(name,value)
+    elif name == 'topEdgeSnap':
+        if type(value) is not bool:
+            raise ValueError('This control needs an on/off value.')
+        snap = top_edge_snap_settings()
+        if snap is None:
+            raise ValueError('Enable Advanced Window Tiling in Zorin Appearance first.')
+        if not snap.set_boolean(TOP_EDGE_SNAP, value):
+            raise RuntimeError('The top-edge Snap Layouts setting is locked.')
+        Gio.Settings.sync()
     elif name in BOOL_SETTINGS:
         if type(value) is not bool:raise ValueError('This control needs an on/off value.')
         set_property(*BOOL_SETTINGS[name],dbus.Boolean(value))

@@ -1,3 +1,11 @@
+## Top-edge Snap Layouts on Wayland — 2026-11-16
+
+- A real GTK4 titlebar drag in private GNOME Shell revealed the six native layouts at 100% and on stacked 125% and 150% virtual displays. The fixture checked the strip and tile colors, a zone's placement preview, the exact window rectangle after release, retreat after hovering, Escape before selecting, and the position of an untouched window. Disabling the Settings option suppressed the strip and ordinary window dragging continued.
+- The Multitasking switch passed real WebKit tests against both the repository and installed bundles. The test toggled the real Zorin setting in memory and checked that the row hides when Advanced Window Tiling is disabled. On the running desktop, GNOME reloaded the stylesheet and the companion reloaded Settings. Zorin's active layout definitions and edge-tiling preferences were preserved.
+- Explorer listed the mounted OneDrive folder using its installed backend. The OneDrive process stayed active during deployment. No sign-out or sleep test was run.
+
+Run `/usr/bin/python3 tests/top_edge_snap_live.py` for 100%, with `ZORIN11_TEST_FRACTIONAL=1` for the two fractional displays. Run `/usr/bin/python3 tests/top_edge_snap_settings_live.py` for the Settings check.
+
 ## Maximize-hover expansion on Wayland — 2026-11-15
 
 - Real native Files (Nautilus) at 100% and 125%, Calculator at 100% and 150%, and GNOME Settings on Displays at 100% passed private maximize and restore hover tests. Each test used compositor pointer input and a real layout click. A separate GTK4 fixture verified that a content button named Maximize does not open the picker. GTK4 caption bounds are relative to the frame, so the resolver uses the frame origin rather than the shadow buffer.

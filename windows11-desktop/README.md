@@ -99,6 +99,8 @@ For an existing installation, `python3 motion_install.py` adds this extension, i
 
 **Maximize hover in other apps on Wayland:** Enable **Show Snap Layouts on Maximize hover in supported apps** under **Win+Z → Customize**. Native Files (Nautilus), Calculator, and GNOME Settings work with their usual launchers when the window exposes its caption controls. For a browser, fully exit it, then open **Brave with Snap Layouts** or **Chrome with Snap Layouts** from Start. The Chrome shortcut is for the Flatpak. Both use the normal browser profile and enable caption accessibility for that process. Pause over **Maximize** or **Restore** for about a second, then choose a zone. Move away or press **Esc** to dismiss. Use **Win+Z** when an app has no supported caption.
 
+**Drag to snap:** Drag a window by its title bar to just below the top center of a display. Keep holding, move onto a zone in the strip to preview its position, then release to snap. Move away before releasing to cancel. The strip uses your Zorin Advanced Window Tiling layouts and follows the display you drag onto. Toggle **Show Snap Layouts at the top edge** in **Settings → System → Multitasking**. If the switch is missing, enable Advanced Window Tiling in Zorin Appearance. Desktop backups include the toggle, custom layouts and per-workspace layout selections.
+
 The Customize toggle also turns hover off. To change it from a terminal, run:
 
 ```sh
