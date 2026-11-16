@@ -103,6 +103,8 @@ For an existing installation, `python3 motion_install.py` adds this extension, i
 
 **Fill the remaining zones:** After the first window snaps, choose a preview of an open window from the current desktop. Snap Assist continues through the empty zones until you finish or run out of windows. Press **Esc** to stop and keep the windows you've already snapped. **Suggest windows after dragging to snap** in **Settings → System → Multitasking** controls this behavior. The updated Shell extension loads at the next normal sign-in and enables suggestions if you haven't already set a preference. Desktop backups include the setting.
 
+**Restore a drag-snap group:** Fill at least two zones of one top-strip layout by dragging or choosing suggested windows. Side and corner drags can also form groups on the same display. Hover over a member app on the taskbar and pick the **Snap group** card to bring its open windows back together, including minimized windows. These groups are live for the current session. Use **Task View → Saved groups** to save a layout for future sessions.
+
 The Customize toggle also turns hover off. To change it from a terminal, run:
 
 ```sh

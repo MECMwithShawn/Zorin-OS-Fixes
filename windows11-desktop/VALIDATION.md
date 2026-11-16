@@ -1,3 +1,11 @@
+## Drag-created Snap Groups in the taskbar — 2026-11-16
+
+- Private GNOME Wayland tests used real GTK titlebar drags, Zorin's suggestion cards, and pointer hover and click on the real Zorin taskbar. At 100%, 125%, and 150%, the card restored three minimized group members to their exact snapped frames and focused the member whose icon opened the preview. Individual previews stayed available, and an unrelated app showed no group.
+- Independent drags into complementary top-strip zones formed a group, and closing a member of a two-window group removed the card. At 100%, direct left and right drags formed a group and its card restored both windows. The registry checks the settled frame to recognize Mutter's ungapped halves as well as Zorin's gapped zones.
+- Both Shell modules and the preview stylesheet were installed without restarting the session. The installed Shell loads the new code at the next normal sign-in. Explorer could browse OneDrive and its sync process stayed active.
+
+Run `ZORIN11_TEST_DRAG_GROUPS=1 /usr/bin/python3 tests/top_edge_snap_live.py` at 100%, and add `ZORIN11_TEST_FRACTIONAL=1` for stacked 125% and 150% displays.
+
 ## Open-window suggestions after a Wayland drag snap — 2026-11-16
 
 - Private GNOME Wayland tests dragged a GTK4 window into the first column and used two native suggestion-card clicks to fill the adjacent columns. The tests checked exact window rectangles and the destination display at 100%, 125%, and 150%, as well as suppression when suggestions were off. The Shell enables suggestions once its dismissal fix is active if the native preference is unset, and honors an explicit opt-out.
