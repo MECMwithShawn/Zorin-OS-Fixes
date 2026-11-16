@@ -49,6 +49,14 @@ def brave_snap_entry():
             'Categories=Network;WebBrowser;\nStartupWMClass=brave-browser\nOnlyShowIn=GNOME;\n').encode()
 
 
+def chrome_snap_entry():
+    return ('[Desktop Entry]\nType=Application\nName=Chrome with Snap Layouts\n'
+            'Comment=Expose Chrome’s maximize button for the Snap Layouts picker\n'
+            f'Exec=/usr/bin/python3 "{DEST / "brave_snap.py"}" --chrome-flatpak %U\n'
+            'TryExec=flatpak\nIcon=com.google.Chrome\nTerminal=false\n'
+            'Categories=Network;WebBrowser;\nStartupWMClass=com.google.Chrome\nOnlyShowIn=GNOME;\n').encode()
+
+
 def explorer_favorites(favorites):
     replacements={'org.gnome.Nautilus.desktop':'zorin11-explorer.desktop',
                   'org.gnome.SystemMonitor.desktop':'io.missioncenter.MissionCenter.desktop'}
@@ -126,6 +134,8 @@ def install():
     apps=HOME/'.local/share/applications'
     files[apps/'zorin11-display-details.desktop']=display_details_entry()
     files[apps/'zorin11-brave-snap.desktop']=brave_snap_entry()
+    if shutil.which('flatpak') and subprocess.run(['flatpak', 'info', 'com.google.Chrome'], capture_output=True).returncode == 0:
+        files[apps/'zorin11-chrome-snap.desktop']=chrome_snap_entry()
     for ident,name,args,icon,wm in [
         ('start','Start','--toggle-start',str(DEST/'start.svg'),'Zorin11-hub'),
         ('explorer','File Explorer','--explorer %U',str(DEST/'explorer.svg'),'Zorin11-explorer'),

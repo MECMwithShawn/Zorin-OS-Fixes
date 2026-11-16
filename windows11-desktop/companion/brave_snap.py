@@ -1,22 +1,23 @@
-"""Launch Brave with the native caption accessibility needed for hover snapping."""
+"""Launch an opted-in browser with native caption accessibility for hover snapping."""
 
 import os
-from pathlib import Path
 import sys
 
 from gi.repository import Gio
+from gnome_bridge import maximize_hover_settings
 
 
 def main():
-    schemas = Path.home() / '.local/share/gnome-shell/extensions/zorin11@zorin-os-fixes/schemas'
-    if (schemas / 'gschemas.compiled').is_file():
-        source = Gio.SettingsSchemaSource.new_from_directory(
-            str(schemas), Gio.SettingsSchemaSource.get_default(), False)
-        schema = source.lookup('org.gnome.shell.extensions.zorin11', True)
-        if schema and schema.has_key('maximize-hover'):
-            settings = Gio.Settings.new_full(schema, None, None)
-            settings.set_boolean('maximize-hover', True)
-            Gio.Settings.sync()
+    settings = maximize_hover_settings()
+    if settings:
+        settings.set_boolean('maximize-hover', True)
+        Gio.Settings.sync()
+    if sys.argv[1:2] == ['--chrome-flatpak']:
+        flags = ['--force-renderer-accessibility=basic']
+        if os.environ.get('XDG_SESSION_TYPE') == 'wayland':
+            flags.append('--ozone-platform=wayland')
+        os.execvp('flatpak', ['flatpak', 'run', '--env=ACCESSIBILITY_ENABLED=1', 'com.google.Chrome',
+                             *flags, *sys.argv[2:]])
     os.execvpe('brave-browser',
                ['brave-browser', '--force-renderer-accessibility=basic', *sys.argv[1:]],
                dict(os.environ, ACCESSIBILITY_ENABLED='1'))

@@ -242,7 +242,9 @@ class Multitasking:
         self.close(False);self.windows.restore(xid)
 
     def customize(self,xid):
-        area=self.area(self.windows.get(xid));win,box=self.shell('Snap preferences',430,240,area)
+        from gnome_bridge import maximize_hover_settings
+        hover_settings = maximize_hover_settings()
+        area=self.area(self.windows.get(xid));win,box=self.shell('Snap preferences',430,280 if hover_settings else 240,area)
         box.pack_start(label('Make room for your main app','z11-heading'),False,False,0)
         box.pack_start(label('Center width in the Focus columns layout','z11-muted'),False,False,0)
         scale=Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL,40,70,5)
@@ -250,7 +252,16 @@ class Multitasking:
         scale.connect('format-value',lambda _,value:f'{value:.0f}%');box.pack_start(scale,False,False,0)
         assist=Gtk.CheckButton(label='Suggest windows for the remaining spaces')
         assist.set_active(self.preferences.get('assist',True));box.pack_start(assist,False,False,0)
+        hover = None
+        if hover_settings:
+            hover = Gtk.CheckButton(label='Show Snap Layouts on Maximize hover in supported apps')
+            hover.get_child().set_line_wrap(True)
+            hover.set_active(hover_settings.get_boolean('maximize-hover'))
+            hover.set_sensitive(hover_settings.is_writable('maximize-hover'))
+            box.pack_start(hover,False,False,0)
         def save():
+            if hover is not None and hover.get_sensitive():
+                hover_settings.set_boolean('maximize-hover', hover.get_active())
             self.preferences.update(focus_width=int(scale.get_value()),assist=assist.get_active());self.save();self.show_snap(xid)
         box.pack_end(button('Save',save,'z11-primary'),False,False,0);win.show_all();win.present()
 

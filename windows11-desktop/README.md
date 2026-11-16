@@ -97,9 +97,9 @@ For an existing installation, `python3 motion_install.py` adds this extension, i
 
 **Snap Layouts:** press Win+Z for the active window. In companion Explorer and Settings, hover over Maximize, right-click it, or focus it and press Down or Shift+F10. Choose a zone to snap; Escape closes the picker. Keys 1–6 focus the first available zone in that layout. Initial focus uses an enabled footer control, and moving keyboard focus off a zone clears its target outline. Caption requests resolve the originating window through GNOME, including duplicate Explorer titles, so an XWayland window ID cannot select an unrelated native window. Ambiguous or closed windows are ignored.
 
-**Brave on Wayland:** Open **Brave with Snap Layouts** from Start after a normal sign-in and a full Brave exit. The shortcut enables Brave’s caption accessibility for that browser process and uses the usual Brave profile. Pause over **Maximize** or **Restore** for about a second, then move into the layout picker and choose a zone. Moving away or pressing **Esc** dismisses it. Use **Win+Z** for other apps or when Brave does not expose a supported caption button.
+**Maximize hover in other apps on Wayland:** Enable **Show Snap Layouts on Maximize hover in supported apps** under **Win+Z → Customize**. Native Files (Nautilus), Calculator, and GNOME Settings work with their usual launchers when the window exposes its caption controls. For a browser, fully exit it, then open **Brave with Snap Layouts** or **Chrome with Snap Layouts** from Start. The Chrome shortcut is for the Flatpak. Both use the normal browser profile and enable caption accessibility for that process. Pause over **Maximize** or **Restore** for about a second, then choose a zone. Move away or press **Esc** to dismiss. Use **Win+Z** when an app has no supported caption.
 
-To turn Brave hover off for the current desktop, run:
+The Customize toggle also turns hover off. To change it from a terminal, run:
 
 ```sh
 gsettings --schemadir "$HOME/.local/share/gnome-shell/extensions/zorin11@zorin-os-fixes/schemas" set org.gnome.shell.extensions.zorin11 maximize-hover false

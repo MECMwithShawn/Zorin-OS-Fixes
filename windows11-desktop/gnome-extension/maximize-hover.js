@@ -5,7 +5,16 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-const BRAVE = new Set(['brave-browser.desktop', 'com.brave.Browser.desktop', 'zorin11-brave-snap.desktop']);
+const APP_KINDS = new Map([
+    ['brave-browser.desktop', 'chromium'],
+    ['com.brave.Browser.desktop', 'chromium'],
+    ['zorin11-brave-snap.desktop', 'chromium'],
+    ['com.google.Chrome.desktop', 'chrome-flatpak'],
+    ['zorin11-chrome-snap.desktop', 'chrome-flatpak'],
+    ['org.gnome.Nautilus.desktop', 'gtk4'],
+    ['org.gnome.Settings.desktop', 'gtk4'],
+    ['org.gnome.Calculator.desktop', 'gtk4'],
+]);
 const BUTTONS = Clutter.ModifierType.BUTTON1_MASK | Clutter.ModifierType.BUTTON2_MASK
     | Clutter.ModifierType.BUTTON3_MASK;
 const contains = (rect, x, y) =>
@@ -34,7 +43,7 @@ export class MaximizeHover {
             return null;
         const win = global.display.focus_window;
         if (!win || win.is_fullscreen() || win.minimized || (!win.allows_resize() && !win.get_maximized())
-            || !BRAVE.has(this._tracker.get_window_app(win)?.get_id()))
+            || !this._kind(win))
             return null;
         const frame = win.get_frame_rect();
         // Limit accessibility inspection to the top chrome and outer edges.
@@ -47,6 +56,18 @@ export class MaximizeHover {
         while (picked && picked !== actor)
             picked = picked.get_parent();
         return picked ? win : null;
+    }
+
+    _kind(win) {
+        const kind = APP_KINDS.get(this._tracker.get_window_app(win)?.get_id());
+        if (kind && kind !== 'chromium' && win.get_client_type() !== Meta.WindowClientType.WAYLAND)
+            return null;
+        return kind;
+    }
+
+    _captionSpace(win, kind) {
+        // GTK exposes coordinates inside its frame. Chromium includes its shadow buffer.
+        return kind === 'gtk4' ? win.get_frame_rect() : win.get_buffer_rect();
     }
 
     _check() {
@@ -69,12 +90,13 @@ export class MaximizeHover {
 
     _resolve(hover) {
         const {win, x, y} = hover;
-        const buffer = win.get_buffer_rect();
-        const box = [buffer.x, buffer.y, buffer.width, buffer.height];
+        const kind = this._kind(win);
+        const space = this._captionSpace(win, kind);
+        const box = [space.x, space.y, space.width, space.height];
         const runtime = GLib.getenv('ZORIN11_RUNTIME_DIR')
             || GLib.build_filenamev([GLib.get_home_dir(), '.local/share/zorin11-hub']);
-        const request = {pid: win.get_pid(), title: win.get_title(),
-            width: buffer.width, height: buffer.height, x: x - buffer.x, y: y - buffer.y};
+        const request = {kind, pid: win.get_pid(), title: win.get_title(),
+            width: space.width, height: space.height, x: x - space.x, y: y - space.y};
         let process;
         try {
             process = Gio.Subprocess.new(
@@ -102,7 +124,9 @@ export class MaximizeHover {
                 const [px, py, state] = global.get_pointer();
                 if (this._candidate(px, py, state) !== win)
                     return;
-                const current = win.get_buffer_rect();
+                if (this._kind(win) !== kind)
+                    return;
+                const current = this._captionSpace(win, kind);
                 if ([current.x, current.y, current.width, current.height].some((v, i) => v !== box[i]))
                     return;
                 const anchor = [box[0] + rect[0], box[1] + rect[1], rect[2], rect[3]];

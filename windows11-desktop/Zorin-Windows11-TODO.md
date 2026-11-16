@@ -27,7 +27,8 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 
 ## P1 — Window management and Explorer
 - [x] Add maximize-hover Snap Layouts for Brave on Wayland through its accessibility controls.
-- [ ] Assess exact caption detection for other third-party apps. Win+Z is available across window types.
+- [x] Extend exact maximize-hover detection to GTK4 Files, Calculator and native GNOME Settings, plus the Chrome Flatpak. Add the shared Customize toggle.
+- [ ] Assess caption controls in other apps. Win+Z is available across window types.
 - [x] Companion Snap Layouts: native GNOME caption targeting, duplicate-title handling, right-click and Down/Shift+F10 access on Maximize. Live Wayland/WebKit fixtures and installed runtime passed 2026-10-21; arbitrary desktop keyboard injection remains unverified.
 - [x] Persist Snap Group app/layout recipes across restarts; on-demand relaunch, rename/remove and monitor scaling.
 - [ ] Investigate top-edge snap bar and custom free-form zones without breaking native tiling.

@@ -1,3 +1,11 @@
+## Maximize-hover expansion on Wayland — 2026-11-15
+
+- Real native Files (Nautilus) at 100% and 125%, Calculator at 100% and 150%, and GNOME Settings on Displays at 100% passed private maximize and restore hover tests. Each test used compositor pointer input and a real layout click. A separate GTK4 fixture verified that a content button named Maximize does not open the picker. GTK4 caption bounds are relative to the frame, so the resolver uses the frame origin rather than the shadow buffer.
+- Real Chrome Flatpak passed the full hover, dismissal and zone-click flow at 100%, 125% and 150%. The resolver verifies that the browser and its accessibility proxy share the exact application scope and Flatpak instance before checking the native caption. Negative Minimize and brief-hover checks passed. Brave’s existing behavior also passed.
+- The private GTK preference test verified that the Customize checkbox writes the shared hover setting on Save. The companion resolver tests passed against the installed runtime, and the isolated companion and installer suites passed. The updated Shell module will load at the next normal sign-in. Chrome needs a fresh process from **Chrome with Snap Layouts**. OneDrive stayed mounted through the companion reload.
+
+Run `ZORIN11_TEST_HOVER_APP=nautilus /usr/bin/python3 tests/maximize_hover_live.py` and substitute `calculator`, `settings`, `brave`, or `chrome` for each test. The Chrome fixture requires a system Flatpak installation. Set `ZORIN11_TEST_HOVER_SCALE=125` or `150` where applicable.
+
 ## Maximize-hover Snap Layouts in Brave on Wayland — 2026-11-15
 
 - Private GNOME Wayland sessions used real Brave with disposable profiles at 100%, 125%, and 150%. The test moved the real compositor pointer over Maximize and Restore, verified dismissal after leaving and pressing Escape, and clicked a layout zone. Only Brave moved. Hovering Minimize and leaving Maximize before the delay kept the picker closed. The mixed-scale fixtures allow Brave’s bounds to settle after maximizing before moving the pointer.
