@@ -122,4 +122,12 @@ class ExplorerTests(unittest.TestCase):
                 self.assertIsNone(explorer.search(directory,'x',cancelled=lambda:True))
                 with self.assertRaises(ValueError):explorer.search(directory,'  ')
 
+    def test_drive_monitor_is_created_on_the_main_loop(self):
+        # GIO updates a VolumeMonitor only on the thread that created it. Explorer lists
+        # drives in worker threads, so the app must create the monitor first, on the main
+        # loop, or drives plugged in later never appear in This PC.
+        source=(Path(__file__).parent/'app.py').read_text()
+        init=source.index('self.workers = ThreadPoolExecutor')
+        self.assertIn('Gio.VolumeMonitor.get()',source[init:init+400])
+
 if __name__=='__main__':unittest.main()
