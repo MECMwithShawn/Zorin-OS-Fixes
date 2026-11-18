@@ -52,7 +52,7 @@ export default class Zorin11 extends Extension {
         this._owner=Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.Gnome',Gio.BusNameOwnerFlags.NONE,null,null);
         for (const key of Object.keys(ACTIONS)) Main.wm.addKeybinding(key,this._settings,Meta.KeyBindingFlags.NONE,Shell.ActionMode.NORMAL,()=>this._launch(key));
         this._injections=new InjectionManager();
-        this._menu=null;
+        this._menu=null;this._dateMenus=new WeakSet();
         this._connect(Main.extensionManager,'extension-state-changed',(_,extension)=>{
             if(extension.uuid==='zorin-menu@zorinos.com')this._syncMenu();
         });
@@ -168,6 +168,19 @@ export default class Zorin11 extends Extension {
                 const icon = new St.Icon({icon_name:iconName, icon_size:18});
                 panel.addToStatusArea(`zorin11-${action}`, this._taskbarButton(action, label, icon), i, 'right');
             }
+        }
+        this._redirectDateMenus(panels);
+    }
+    _redirectDateMenus(panels) {
+        // The taskbar clock is GNOME's date menu. Its own calendar popup would be a
+        // second calendar, so clicks, keys and Super+V open the companion's
+        // notifications-and-calendar panel instead.
+        for(const panel of new Set([Main.panel,...panels])) {
+            const menu=panel.statusArea?.dateMenu?.menu;
+            if(!menu||this._dateMenus.has(menu))continue;
+            this._dateMenus.add(menu);
+            if(menu.isOpen)menu.close();
+            this._injections.overrideMethod(menu,'open',()=>()=>this._launch('notifications'));
         }
     }
     _placeCompanion(win) {
@@ -293,7 +306,7 @@ export default class Zorin11 extends Extension {
         this._taskbarProgress?.destroy();this._taskbarProgress=null;
         this._taskbarCentering?.destroy();this._taskbarCentering=null;
         this._keyringYubiKey?.destroy();this._keyringYubiKey=null;
-        this._injections?.clear();
+        this._injections?.clear();this._dateMenus=null;
         for(const {settings,key,before} of this._bindingChanges || [])if(settings.get_strv(key).length===0)settings.set_value(key,before);
         this._bindingChanges=[];
         for(const key of Object.keys(ACTIONS))Main.wm.removeKeybinding(key);

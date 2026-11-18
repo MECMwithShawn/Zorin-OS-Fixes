@@ -1,3 +1,11 @@
+## One notifications-and-calendar panel from the taskbar clock — 2026-11-18
+
+- Before: clicking the taskbar clock opened GNOME's own date menu (a second calendar with its own notification list), while the bell and Win+N opened the companion's notifications-and-calendar panel. The extension now replaces the date menu's `open` on every taskbar panel, so clock clicks, keyboard activation and Super+V/Super+M (`Main.panel.toggleCalendar`) open the companion panel and GNOME's popup never appears. Disabling the extension restores the stock date menu.
+- New `tests/clock_calendar_live.py`: a private headless GNOME Shell 46 with the real extension and Zorin taskbar. A virtual-pointer click on the clock, a second click and `toggleCalendar` each launch the companion with `--notifications`, and the date menu stays closed. After disable, a click opens GNOME's menu again. After re-enable, the redirect returns. No JS errors. The same test fails at the first click against `origin/master`.
+- The installed extension (which also carries unmerged modules) was patched with the same hunks after backing up its `extension.js` to OneDrive, and the test passed against that installed copy. GNOME 46 Wayland loads extension code at the next sign-in, so the live session was not signed out and the click has not been observed on the signed-in desktop yet.
+
+Run `/usr/bin/python3 tests/clock_calendar_live.py`.
+
 ## Drag-created Snap Groups in the taskbar — 2026-11-16
 
 - Private GNOME Wayland tests used real GTK titlebar drags, Zorin's suggestion cards, and pointer hover and click on the real Zorin taskbar. At 100%, 125%, and 150%, the card restored three minimized group members to their exact snapped frames and focused the member whose icon opened the preview. Individual previews stayed available, and an unrelated app showed no group.
