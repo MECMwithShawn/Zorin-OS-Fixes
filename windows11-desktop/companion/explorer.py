@@ -1,11 +1,14 @@
 """File Explorer operations backed by real local files and Gio applications."""
 import datetime
+from collections import deque
+import fnmatch
 import json
 import tempfile
 import threading
 import os
 from pathlib import Path
 import shutil
+import time
 from urllib.parse import urlparse, unquote
 import gi
 gi.require_version('Gtk','3.0')
@@ -209,6 +212,61 @@ def listing(location, hidden=False):
     return {'path': str(folder), 'title': title,
             'entries': sorted(entries, key=lambda e: (not e['folder'], e['name'].casefold())), 'places': places,
             'clouds': clouds}
+
+
+def name_matcher(query):
+    """Matches names like the Windows search box: * and ? are wildcards, otherwise a substring."""
+    query = query.strip().casefold()
+    if '*' in query or '?' in query:
+        # Brackets are literal in Windows names, so they never form a character class.
+        pattern = query.replace('[', '[[]')
+        return lambda name: fnmatch.fnmatchcase(name.casefold(), pattern)
+    return lambda name: query in name.casefold()
+
+
+def search(location, query, hidden=False, cancelled=lambda: False, *, max_entries=2000000, seconds=30.0, limit=2000):
+    """Finds names matching query in location and its subfolders.
+
+    Runs on a worker. Symlinked folders are not followed, so a link loop cannot
+    trap the walk; the scan stops at the entry, time or result limit and says so.
+    """
+    folder = Path(location).expanduser().absolute()
+    if not folder.is_dir():
+        raise ValueError('This folder is unavailable.')
+    query = query.strip()[:260]
+    if not query:
+        raise ValueError('Type something to search for.')
+    matches, deadline, count, limited = name_matcher(query), time.monotonic() + seconds, 0, False
+    found, queue = [], deque([folder])
+    while queue and not limited:
+        if cancelled():
+            return None
+        directory = queue.popleft()
+        try:
+            with os.scandir(directory) as iterator:
+                for item in iterator:
+                    count += 1
+                    if count > max_entries or time.monotonic() > deadline or len(found) >= limit:
+                        limited = True
+                        break
+                    if not hidden and item.name.startswith('.'):
+                        continue
+                    try:
+                        is_folder = item.is_dir(follow_symlinks=False)
+                    except OSError:
+                        continue
+                    if matches(item.name):
+                        result = entry(item.path)
+                        result['within'] = str(directory)
+                        found.append(result)
+                    if is_folder:
+                        queue.append(Path(item.path))
+        except OSError:
+            continue  # Unreadable folders are skipped, as Windows does.
+    title = 'Home folder' if folder == HOME else folder.name or 'Local Disk (C:)'
+    return {'path': str(folder), 'title': 'Search results in ' + title, 'search': query, 'limited': limited,
+            'entries': sorted(found, key=lambda e: (not e['folder'], e['name'].casefold())),
+            'places': place_paths(), 'clouds': cloud_places()}
 
 
 def child_path(parent, name):

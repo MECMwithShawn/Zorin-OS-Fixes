@@ -1605,6 +1605,8 @@ class Hub(Gtk.Application):
                         GLib.source_remove(surface.monitor_refresh)
                     def refresh():
                         surface.monitor_refresh=0
+                        # Search results stay put; clearing the search reloads the folder.
+                        if (surface.file_state or {}).get('search'):return False
                         self.load_folder(surface,surface.location,hidden)
                         return False
                     surface.monitor_refresh=GLib.timeout_add(350,refresh)
@@ -1614,6 +1616,26 @@ class Hub(Gtk.Application):
                 surface.send({'type':'error','message':error})
                 surface.send({'type':'file-loaded'})
         self.background(lambda: explorer.listing(location,hidden),loaded,failed)
+
+    def search_folder(self, surface, query, hidden=False):
+        location=surface.location
+        if not query.strip() or not location or location.startswith('::'):
+            return self.load_folder(surface,location or '::home',hidden)
+        surface.request_id += 1
+        request = surface.request_id
+        surface.send({'type':'file-loading'}) if surface.ready else None
+        def found(data):
+            if data is None or request != surface.request_id or str(id(surface)) not in self.surfaces:
+                return
+            surface.file_state = dict(data, hidden=hidden)
+            surface.set_title(data['title']+' — File Explorer')
+            surface.update()
+            file_thumbnails.prefetch(self, surface)
+        def failed(error):
+            if request==surface.request_id:
+                surface.send({'type':'error','message':error})
+                surface.send({'type':'file-loaded'})
+        self.background(lambda: explorer.search(location,query,hidden,lambda: request != surface.request_id),found,failed)
 
     def preview_file(self, surface, request):
         surface.preview_current = request
@@ -1728,6 +1750,8 @@ class Hub(Gtk.Application):
             if not any(e['path']==path and not e['folder'] for e in (surface.file_state or {}).get('entries',[])):
                 raise ValueError('Select a file in the current folder to preview.')
             self.preview_file(surface,dict(path=path,id=message.get('id'),location=surface.location))
+        elif action == 'file-search':
+            self.search_folder(surface,str(message.get('query') or ''),bool(message.get('hidden')))
         elif action == 'file-navigate':
             self.load_folder(surface,str(message['path']),bool(message.get('hidden')))
         elif action == 'file-open':
