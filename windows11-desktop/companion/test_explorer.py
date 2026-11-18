@@ -102,4 +102,24 @@ class ExplorerTests(unittest.TestCase):
         self.assertTrue(all(Path(e['path']).exists() for e in entries))
         self.assertTrue(any(e['path']=='/' for e in entries))
 
+    def test_search_matches_wildcards_in_subfolders(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            for name in ('top.mrimgx','a/b/deep.MRIMGX','a/notes.txt','.hidden/secret.mrimgx','[1].txt'):
+                (root/name).parent.mkdir(parents=True,exist_ok=True);(root/name).write_text('x')
+            (root/'a/loop').symlink_to(root)
+            with patch.object(explorer,'cloud_places',return_value=[]):
+                found=lambda q,**k:sorted(e['name'] for e in explorer.search(directory,q,**k)['entries'])
+                self.assertEqual(found('*.mrimgx'),['deep.MRIMGX','top.mrimgx'])
+                self.assertEqual(found('*.mrimgx',hidden=True),['deep.MRIMGX','secret.mrimgx','top.mrimgx'])
+                self.assertEqual(found('note'),['notes.txt'])
+                self.assertEqual(found('?op*'),['top.mrimgx'])
+                self.assertEqual(found('[1]*'),['[1].txt'])
+                result=explorer.search(directory,'deep')
+                self.assertEqual(result['entries'][0]['within'],str(root/'a/b'))
+                self.assertEqual(result['search'],'deep');self.assertFalse(result['limited'])
+                self.assertTrue(explorer.search(directory,'*',limit=2)['limited'])
+                self.assertIsNone(explorer.search(directory,'x',cancelled=lambda:True))
+                with self.assertRaises(ValueError):explorer.search(directory,'  ')
+
 if __name__=='__main__':unittest.main()
