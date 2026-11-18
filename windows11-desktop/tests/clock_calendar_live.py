@@ -20,7 +20,7 @@ export default class Fixture extends Extension {
   this.pointer=Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);}
  Clocks(){return JSON.stringify(panels().map(panel=>{const d=panel.statusArea.dateMenu;if(!d)return null;
   const [x,y]=d.get_transformed_position(),[w,h]=d.get_transformed_size();
-  return {mapped:d.is_mapped(),open:!!d.menu?.isOpen,rect:[x,y,w,h],bell:!!panel.statusArea['zorin11-notifications']};}));}
+  return {mapped:d.is_mapped(),open:!!d.menu?.isOpen,rect:[x,y,w,h],bell:!!panel.statusArea['zorin11-notifications'],quick:!!panel.statusArea['zorin11-quick']};}));}
  Click(i){const d=panels()[i].statusArea.dateMenu,[x,y]=d.get_transformed_position(),[w,h]=d.get_transformed_size();
   const t=GLib.get_monotonic_time();this.pointer.notify_absolute_motion(t,x+w/2,y+h/2);
   this.pointer.notify_button(t+1000,Clutter.BUTTON_PRIMARY,Clutter.ButtonState.PRESSED);
@@ -75,7 +75,8 @@ def session(temp,output):
         until(lambda:'Registering session with GDM' in (output/'shell.log').read_text())
         time.sleep(1)
         gnome_setup.install(gnome_setup.plan({gnome_setup.TASKBAR:gnome_setup.appearance(gnome_setup.monitor_ids())[gnome_setup.TASKBAR]}),temp/'recovery.json')
-        until(lambda:clocks() and all(c and c['mapped'] and c['bell'] for c in clocks()))
+        until(lambda:clocks() and all(c and c['mapped'] and c['quick'] for c in clocks()))
+        assert not any(c['bell'] for c in clocks()),'The separate notifications button is gone; the clock opens the panel'
         # A real pointer click on the taskbar clock opens the companion panel, not GNOME's calendar.
         fixture_call('Click',GLib.Variant('(i)',(0,)))
         until(lambda:launched()==['--notifications'])
@@ -91,13 +92,13 @@ def session(temp,output):
         assert not any(c['open'] for c in clocks()),'Keyboard toggle must not open GNOME date menu'
         # Disabling the extension gives the clock its GNOME popup back.
         fixture_call('SetEnabled',GLib.Variant('(b)',(False,)))
-        until(lambda:clocks() and not any(c['bell'] for c in clocks() if c))
+        until(lambda:clocks() and not any(c['quick'] for c in clocks() if c))
         fixture_call('Click',GLib.Variant('(i)',(0,)))
         until(lambda:clocks()[0]['open'])
         assert len(launched())==3
         fixture_call('Close')
         fixture_call('SetEnabled',GLib.Variant('(b)',(True,)))
-        until(lambda:clocks() and all(c and c['bell'] for c in clocks()))
+        until(lambda:clocks() and all(c and c['quick'] for c in clocks()))
         fixture_call('Click',GLib.Variant('(i)',(0,)))
         until(lambda:len(launched())==4)
         time.sleep(.5);assert not any(c['open'] for c in clocks())
