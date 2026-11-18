@@ -332,6 +332,9 @@ class Hub(Gtk.Application):
         self.file_monitors = []
         self.refresh_timer = 0
         self.workers = ThreadPoolExecutor(max_workers=3)
+        # GIO only updates the mount list on the thread that created the monitor,
+        # so create it here on the GTK main loop, not in the Explorer worker threads.
+        self.volume_monitor = Gio.VolumeMonitor.get()
         self.status = {}
         self.settings_data = {'loading':True}
         self.settings_busy = False
