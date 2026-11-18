@@ -7,6 +7,7 @@ A consolidated repository for Zorin OS fixes, including wake-source suspend fixe
 - [Windows 11 desktop for Zorin OS](windows11-desktop/) — GNOME by default, with automatic Xfce/Lite support: Start, Explorer, Settings, Quick Settings, notifications, Desktop Groups, multitasking, PowerShell/Terminal, and Spotlight/Bing alongside the Zorin wallpaper collection. Includes installation and restore commands.
 - `Zorin OS Stay Asleep` wake-source service and script for persistent suspend reliability.
 - Keyboard double-typing (key chatter) fix using Bounce Keys, for mechanical/gaming keyboards.
+- Quiet Intel RAID (IMSM) shutdown: hides mdadm's `stopped /dev/md127` lines at reboot.
 - Slow qBittorrent downloads fix: open the listening port through UFW and the router, with a checker script.
 - Link to the dedicated NVIDIA display-resolution fix for Secure Boot systems where the driver is installed but blocked until the local MOK key is enrolled.
 - Reference links to existing repositories:
@@ -21,6 +22,7 @@ A consolidated repository for Zorin OS fixes, including wake-source suspend fixe
 - `mini-disable-wakeup.sh` — shell script disabling known wake sources and clearing RTC wake alarms.
 - `keyboard-bounce-keys.sh` — enables Bounce Keys to stop a keyboard from double-typing characters.
 - `qbittorrent-port-check.sh` — checks whether qBittorrent's listening port is open from the internet and says what to fix.
+- `imsm-quiet-shutdown.finalrd` — mdadm's final shutdown step for Intel RAID, with its console output hidden.
 - `commands.sh` — convenience command record for install/test operations.
 - `README.md` — documentation for this consolidated fix repository.
 
@@ -39,6 +41,18 @@ sudo systemctl daemon-reload
 sudo systemctl enable mini-disable-wakeup.service
 sudo systemctl start mini-disable-wakeup.service
 ```
+
+## Quiet Intel RAID Shutdown
+
+On an Intel RST (IMSM) RAID, every reboot prints `mdadm: stopped /dev/md127` and similar lines. `md127` is the RAID container, not the array; the message is normal. It comes from mdadm's `finalrd` hook, which runs `mdadm -vv` after the splash screen has gone, so `quiet splash` can't hide it.
+
+`finalrd` also reads `/etc/finalrd`, and a same-named script there is copied after the packaged one, so it wins. This copy runs the same three commands as `/usr/share/finalrd/mdadm.finalrd` (mdadm 4.3) with their output sent to `/dev/null`. No package file is changed, so mdadm updates don't undo it. If a future mdadm changes its own script, compare the two files again.
+
+```bash
+sudo install -D -m 0755 imsm-quiet-shutdown.finalrd /etc/finalrd/mdadm.finalrd
+```
+
+Takes effect at the next reboot. To undo: `sudo rm /etc/finalrd/mdadm.finalrd`.
 
 ## Display Resolution / MOK Boot Fix
 

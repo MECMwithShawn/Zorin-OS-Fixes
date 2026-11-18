@@ -287,6 +287,10 @@ On GNOME, hold **Ctrl+Alt** and tap **Tab** until the taskbar's **Top Bar** entr
 | Win+Shift+F | Peek: bring fences above windows / send back (Esc also sends back) |
 | Double-click the desktop | Quick-hide or show all fences |
 
+## Switch back to Zorin's own desktop
+
+Optional: [startup-toggle](startup-toggle/) makes the **Windows 11 Desktop** checkbox in Startup Applications turn the whole Windows 11 layout on or off, so Zorin's own desktop and Jelly Mode are one click away.
+
 ## Restore
 
 From the matching desktop session:
