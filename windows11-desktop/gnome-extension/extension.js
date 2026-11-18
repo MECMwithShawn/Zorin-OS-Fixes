@@ -15,6 +15,7 @@ import {MaximizeHover} from './maximize-hover.js';
 import {SnapSuggestions} from './snap-suggestions.js';
 import {DragSnapGroups} from './drag-snap-groups.js';
 import {TaskbarSnapGroups} from './taskbar-snap-groups.js';
+import {KeyringYubiKey} from './keyring-yubikey.js';
 
 const XML = `<node><interface name="local.zorin11.Gnome">
 <method name="Call"><arg direction="in" type="s"/><arg direction="out" type="s"/></method>
@@ -72,6 +73,7 @@ export default class Zorin11 extends Extension {
         this._snapSuggestions = new SnapSuggestions();
         this._dragSnapGroups = new DragSnapGroups(() => this._taskbarSnapGroups?.refresh());
         this._taskbarSnapGroups = new TaskbarSnapGroups(this._dragSnapGroups);
+        this._keyringYubiKey=new KeyringYubiKey();
     }
     _syncMenu() {
         const menu=Main.extensionManager.lookup('zorin-menu@zorinos.com')?.stateObj;
@@ -275,6 +277,7 @@ export default class Zorin11 extends Extension {
         case 'modifiers':result=global.get_pointer()[2];break;
         case 'pointer':result=global.get_pointer().slice(0,2);break;
         case 'overview':Main.overview.toggle();break;
+        case 'yubikey-prompt':result=!!this._keyringYubiKey?.ready;break;
         default:throw Error('Unknown operation');
         }
         return JSON.stringify(result);
@@ -289,6 +292,7 @@ export default class Zorin11 extends Extension {
         this._maximizeHover?.destroy();this._maximizeHover=null;
         this._taskbarProgress?.destroy();this._taskbarProgress=null;
         this._taskbarCentering?.destroy();this._taskbarCentering=null;
+        this._keyringYubiKey?.destroy();this._keyringYubiKey=null;
         this._injections?.clear();
         for(const {settings,key,before} of this._bindingChanges || [])if(settings.get_strv(key).length===0)settings.set_value(key,before);
         this._bindingChanges=[];
