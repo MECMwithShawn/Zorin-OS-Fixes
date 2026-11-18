@@ -161,9 +161,9 @@ export default class Zorin11 extends Extension {
                 const button = this._taskbarButton(action, label, icon, contrastIconName);
                 panel.addToStatusArea(`zorin11-${action}`, button, i, 'left');
             }
+            // The taskbar clock opens notifications and calendar (see _redirectDateMenus).
             for (const [i, [action, label, iconName]] of [
                 ['quick', 'Quick Settings', 'preferences-system-symbolic'],
-                ['notifications', 'Notifications and calendar', 'preferences-system-notifications-symbolic'],
             ].entries()) {
                 const icon = new St.Icon({icon_name:iconName, icon_size:18});
                 panel.addToStatusArea(`zorin11-${action}`, this._taskbarButton(action, label, icon), i, 'right');
