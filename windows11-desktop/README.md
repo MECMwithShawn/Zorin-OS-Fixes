@@ -124,7 +124,7 @@ Alt+Tab also refreshes only visible, nonminimized window and Snap Group previews
 | Explorer / This PC | Tabs, sidebar, system drive first as Local Disk (C:), persistent display letters for other mounted drives, capacity, details view, create/rename/copy/cut/paste/trash; advanced locations open the system file manager |
 | Settings | Windows-style categories with actual device information and GNOME settings controls; advanced pages open the native tools |
 | Quick Settings | Eight editable tiles, Wi-Fi, airplane mode, battery saver, paired Bluetooth devices with connect/disconnect and battery, volume/output, DND, accessibility and supported backlights |
-| Notifications | GNOME's current session notifications, read/dismiss/clear and calendar; native notification banners remain managed by GNOME |
+| Notifications | GNOME's current session notifications, read/dismiss/clear and calendar in one panel. The taskbar clock, the bell, Win+N and Super+V/Super+M all open it; GNOME's own date-menu calendar no longer opens while the extension is on. Native notification banners remain managed by GNOME |
 | Task Manager | Mission Center provides expandable application/process groups, actual application icons, combined resource usage, and CPU, memory, disk, network and supported GPU graphs |
 | Event Viewer | Standalone dark event list, Application/System/Kernel journals, time and severity filters, loaded-event search, details, Copy event and optional auto-refresh |
 | Lock screen | Windows 11 presentation around native GNOME unlocking, independent Spotlight/Bing, Zorin collection, personal picture, preview/Apply and daily cache |
@@ -334,6 +334,7 @@ python3 companion/test_start_more_layouts_live.py
 python3 companion/test_start_appearance_live.py
 # Headless GNOME Shell with the real extension and Zorin taskbar; never touches the signed-in session.
 python3 tests/start_button_live.py
+python3 tests/clock_calendar_live.py
 # Power/radio/device services are isolated; this does not change host hardware.
 python3 companion/test_quick_hardware_live.py
 python3 companion/test_bluetooth_pairing_live.py
