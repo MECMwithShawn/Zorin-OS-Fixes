@@ -10,9 +10,10 @@ import sys
 import dbus
 import hardware_controls
 import audio_effects
+from app_launch import child_environment
 from platform_ui import desktop_status
-from gnome_bridge import active as is_gnome
-from gi.repository import Gio
+from gnome_bridge import active as is_gnome, call as shell_call
+from gi.repository import Gio, GLib
 
 TOOLS = {
     'display': ['xfce4-display-settings'], 'sound': ['pavucontrol'],
@@ -65,6 +66,33 @@ BOOL_SETTINGS = {
     'eventSounds': ('xsettings','/Net/EnableEventSounds'),
 }
 TIMEOUTS = (0,1,2,3,5,10,15,20,30,45,60,90,120)
+TILING_EXTENSION = 'zorin-tiling-shell@zorinos.com'
+TILING_SCHEMA = 'org.gnome.shell.extensions.zorin-tiling-shell'
+TOP_EDGE_SNAP = 'enable-snap-assist'
+SNAP_SUGGESTIONS = 'enable-snap-assistant-windows-suggestions'
+SNAP_SETTINGS = {'topEdgeSnap': TOP_EDGE_SNAP, 'snapSuggestions': SNAP_SUGGESTIONS}
+
+
+def top_edge_snap_settings():
+    if not is_gnome():
+        return None
+    source = Gio.SettingsSchemaSource.get_default()
+    schema = source.lookup(TILING_SCHEMA, True) if source else None
+    if schema is None or not schema.has_key(TOP_EDGE_SNAP):
+        return None
+    shell = Gio.Settings.new('org.gnome.shell')
+    if (shell.get_boolean('disable-user-extensions')
+            or TILING_EXTENSION in shell.get_strv('disabled-extensions')
+            or TILING_EXTENSION not in shell.get_strv('enabled-extensions')):
+        return None
+    return Gio.Settings.new_full(schema, None, None)
+
+
+def snap_suggestions_ready():
+    try:
+        return shell_call('snap-suggestions-ready') is True
+    except (GLib.Error, ValueError):
+        return False
 
 
 def run(args):
@@ -143,6 +171,15 @@ def snapshot():
     result['desktop']='GNOME' if is_gnome() else 'Xfce'
     if is_gnome():
         result['desktopAnimations']=Gio.Settings.new('org.gnome.desktop.interface').get_boolean('enable-animations')
+    snap = top_edge_snap_settings()
+    if snap is not None:
+        schema = snap.props.settings_schema
+        for name, key in SNAP_SETTINGS.items():
+            if schema.has_key(key):
+                result[name] = snap.get_boolean(key)
+                result[name + 'Writable'] = snap.is_writable(key)
+        if 'snapSuggestions' in result:
+            result['snapSuggestionsReady'] = snap_suggestions_ready()
     result['outputs']=sound_outputs()
     result['audioEffects']=audio_effects.snapshot()
     try:result['output']=run(['pactl','get-default-sink'])
@@ -184,6 +221,18 @@ def apply(name,value):
     elif name in ('desktopAnimations','desktopAnimationDuration'):
         from desktop_motion import configure
         configure(name,value)
+    elif name in SNAP_SETTINGS:
+        if type(value) is not bool:
+            raise ValueError('This control needs an on/off value.')
+        snap = top_edge_snap_settings()
+        key = SNAP_SETTINGS[name]
+        if snap is None or not snap.props.settings_schema.has_key(key):
+            raise ValueError('This control requires compatible Zorin Advanced Window Tiling.')
+        if key == SNAP_SUGGESTIONS and value and not snap_suggestions_ready():
+            raise RuntimeError('Window suggestions require the updated desktop extension.')
+        if not snap.set_boolean(key, value):
+            raise RuntimeError('This Snap Layouts setting is locked.')
+        Gio.Settings.sync()
     elif name in BOOL_SETTINGS:
         if type(value) is not bool:raise ValueError('This control needs an on/off value.')
         set_property(*BOOL_SETTINGS[name],dbus.Boolean(value))
@@ -248,4 +297,4 @@ def launch(tool):
         if taskbar.is_file():
             command = ['gjs', '-m', str(taskbar)]
     if not shutil.which(command[0]):raise ValueError('This settings tool is not installed.')
-    subprocess.Popen(command,start_new_session=True)
+    subprocess.Popen(command,start_new_session=True,env=child_environment())

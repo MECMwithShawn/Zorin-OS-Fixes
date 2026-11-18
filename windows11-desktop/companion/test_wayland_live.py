@@ -1,6 +1,11 @@
 """Opt-in live Wayland snap, preview and restore test on a disposable window.
 Run with GDK_BACKEND=x11; the child uses native Wayland.
 """
+
+if __name__ != '__main__':
+    import unittest
+    raise unittest.SkipTest('Run this GUI integration fixture directly.')
+
 import gi,sys,time,subprocess,os
 from pathlib import Path
 gi.require_version('Gtk','3.0')

@@ -1,0 +1,80 @@
+#panel .panel-button.zorin11-taskbar-button:focus {
+    background-color: rgba(99, 190, 255, 0.20);
+    box-shadow: inset 0 0 0 2px #a5dcff;
+}
+
+#panel .panel-button.zorin11-taskbar-high-contrast {
+    background-color: #000;
+    color: #fff;
+}
+
+#panel .panel-button.zorin11-taskbar-high-contrast:hover {
+    background-color: #262626;
+}
+
+#panel .panel-button.zorin11-taskbar-high-contrast:focus {
+    background-color: #000;
+    box-shadow: inset 0 0 0 2px #fff;
+}
+
+/* Theme the drag strip while leaving the layout editor and tray preview alone. */
+.popup-menu-content.snap-assistant {
+    background-color: #222930;
+    color: #f4f8fc;
+    border: 1px solid #697c8c;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.40);
+}
+
+.popup-menu-content.snap-assistant .snap-assist-tile {
+    background-color: #36424c;
+    border-color: #a2b1bf;
+    transition-duration: 0ms;
+}
+
+.popup-menu-content.snap-assistant .snap-assist-tile:hover {
+    background-color: #155375;
+    border-color: #79d9ff;
+}
+
+/* Zorin Tiling Shell's window suggestions use a separate preview container from Overview. */
+.selection-tile-preview .popup-window-preview-container {
+    background-color: #222930;
+    box-shadow: inset 0 0 0 1px #697c8c;
+}
+
+.selection-tile-preview .popup-window-preview-container .window-caption {
+    background-color: #155375;
+    color: #f4f8fc;
+    box-shadow: inset 0 0 0 1px #79d9ff;
+}
+
+#preview-menu .zorin11-snap-group-card {
+    color: #f4f8fc;
+    background-color: #222930;
+    box-shadow: inset 0 0 0 1px #697c8c;
+    border-radius: 8px;
+}
+
+#preview-menu .zorin11-snap-group-card:hover,
+#preview-menu .zorin11-snap-group-card:focus {
+    background-color: #155375;
+    box-shadow: inset 0 0 0 2px #79d9ff;
+}
+
+#preview-menu .zorin11-snap-group-content {
+    spacing: 5px;
+}
+
+#preview-menu .zorin11-snap-group-title {
+    font-weight: bold;
+}
+
+#preview-menu .zorin11-snap-group-mosaic {
+    background-color: #151d24;
+    border-radius: 4px;
+}
+
+#preview-menu .zorin11-snap-group-cell {
+    background-color: #36424c;
+}

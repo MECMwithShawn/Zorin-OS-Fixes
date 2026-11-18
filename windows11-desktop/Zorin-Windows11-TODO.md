@@ -26,10 +26,15 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 - [ ] Perform Windows 11 screenshot-based visual comparisons at matched scale for taskbar, Start, flyouts and window chrome.
 
 ## P1 — Window management and Explorer
-- [ ] Expand maximize-hover Snap Layouts to compatible third-party windows; keep Win+Z fallback.
+- [x] Add maximize-hover Snap Layouts for Brave on Wayland through its accessibility controls.
+- [x] Extend exact maximize-hover detection to GTK4 Files, Calculator and native GNOME Settings, plus the Chrome Flatpak. Add the shared Customize toggle.
+- [ ] Assess caption controls in other apps. Win+Z is available across window types.
 - [x] Companion Snap Layouts: native GNOME caption targeting, duplicate-title handling, right-click and Down/Shift+F10 access on Maximize. Live Wayland/WebKit fixtures and installed runtime passed 2026-10-21; arbitrary desktop keyboard injection remains unverified.
 - [x] Persist Snap Group app/layout recipes across restarts; on-demand relaunch, rename/remove and monitor scaling.
-- [ ] Investigate top-edge snap bar and custom free-form zones without breaking native tiling.
+- [x] Style the native top-edge snap bar on Zorin GNOME, with a toggle in Settings → System → Multitasking.
+- [x] Suggest open windows for the remaining zones after a top-edge drag snap.
+- [x] Restore live drag-created Snap Groups from a native Zorin taskbar preview card.
+- [ ] Assess free-form zone editing in the companion's Win+Z picker.
 - [x] Task View: workspace thumbnails plus create, rename and remove desktop actions. Verified 2026-10-18.
 - [x] Task View/Snap Layouts keyboard polish: Escape cancels a desktop rename before focus-out saves it, clears search before closing, Ctrl+F selects search, explicit search accessibility label, enabled-zone number shortcuts and outline cleanup. Native Wayland-session fixtures passed against source and installed runtime 2026-10-21.
 - [x] Task View/Snap Assist: bounded live refresh of visible cards, native Wayland frame updates, hidden/minimized filtering and stale-result rejection across rebuild/close. Installed runtime verified 2026-10-21; compositor-throttled applications retain their latest frame.
@@ -101,3 +106,14 @@ Source of truth: [PARITY.md](PARITY.md). Refer to [VALIDATION.md](VALIDATION.md)
 
 - [x] Consolidate installed logout cleanup into GNOME installer, protect current OneDrive sync daemon, and skip cleanup on maintenance stops during active sessions. Disposable process tests pass (2026-10-30).
 - [x] Verify automatic Wi-Fi reconnection in one recorded sleep/wake cycle (2026-10-30: connected approximately 12 seconds after resume). Broader physical monitor, repeated sleep and sign-out checks remain pending.
+
+## Wayland audit follow-ups — 2026-11-15
+- [x] Keep display-only recipes separate, recover a newly launched window from the primary display, and preserve window lifecycle events used by the switcher and previews.
+- [x] Fix initial popup placement and prevent adaptive centering from overriding other taskbar effects. Verify native Always on Top and preserve it through update repair.
+- [x] Verify Wi-Fi reconnection in two more recorded sleep/wake cycles (about 11–12 seconds). No new suspend or logout was triggered.
+- [ ] On physical laptop + Dell: verify mixed scaling, pointer boundaries, taskbar on both displays, saved display-only layout, and monitor wake after sleep.
+- [ ] During a planned sign-out: test opted-in layout restore once, legacy player cleanup, OneDrive survival and the latest lock screen. Exercise rapid lock/unlock when multiple extensions are still starting in the private Shell before revising the guard.
+- [x] Add keyboard activation, accessible names and visible focus to the custom GNOME taskbar buttons.
+- [x] Apply High Contrast and Reduced Motion across companion and taskbar surfaces. Verify 125% and 150% display readout and Wayland window geometry on virtual displays.
+- [x] Compare native Wayland and XWayland at 125% and 150% on the physical laptop. Preserve app backend selection through the companion’s launch paths.
+- [ ] Compare rendering on the physical Dell and verify Brave’s opt-in launcher on the next normal sign-in.

@@ -27,6 +27,22 @@ class LayoutTests(unittest.TestCase):
             loaded=Recipes(p);self.assertEqual(len(loaded.groups[0]['members']),12)
             loaded.rename(ident,'Work');self.assertEqual(Recipes(p).groups[0]['name'],'Work')
             loaded.remove(ident);self.assertFalse(Recipes(p).groups)
+
+    def test_same_windows_can_be_saved_with_both_display_scopes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = Recipes(Path(folder) / 'layouts.json')
+            members = [member()]
+            all_displays = store.put(members, kind='layout', name='All displays')
+            store.set_startup(all_displays)
+            one_display = store.put(members, kind='layout', name='Dell', display_only=True)
+
+            self.assertNotEqual(all_displays, one_display)
+            reloaded = Recipes(store.path)
+            recipes = {recipe['id']: recipe for recipe in reloaded.groups}
+            self.assertEqual(recipes[all_displays]['name'], 'All displays')
+            self.assertTrue(recipes[one_display]['display_only'])
+            self.assertEqual(reloaded.data['startup_layout'], all_displays)
+
     def test_invalid_monitor_and_state_do_not_get_saved(self):
         with tempfile.TemporaryDirectory() as folder:
             store=Recipes(Path(folder)/'layout.json')

@@ -1,4 +1,9 @@
 """Exercise the real WebKit bridge on disposable files and a private app ID."""
+
+if __name__ != '__main__':
+    import unittest
+    raise unittest.SkipTest('Run this GUI integration fixture directly.')
+
 import json,os,tempfile,time,re,subprocess
 from pathlib import Path
 with tempfile.TemporaryDirectory(prefix='zorin11-live-') as directory:

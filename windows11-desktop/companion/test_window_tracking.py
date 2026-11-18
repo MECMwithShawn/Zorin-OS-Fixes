@@ -32,6 +32,31 @@ class TrackingTests(unittest.TestCase):
         self.callbacks[0](state([],None),None)
         self.assertEqual(screen.data,state([9],9));screen.close()
 
+    def test_foreground_refresh_does_not_consume_change_events(self):
+        screen = g.Screen()
+        closed, focused, workspace = Mock(), Mock(), Mock()
+        screen.connect('window-closed', lambda _, window: closed(window.get_xid()))
+        screen.connect('active-window-changed', focused)
+        screen.connect('active-workspace-changed', workspace)
+        screen.poll()
+        current = state([2], 2, 1)
+        with patch.object(g, 'call', return_value=current):
+            screen.force_update()
+        self.callbacks[0](state([1], 1), None)
+        self.assertEqual(screen.data, current)
+        closed.assert_not_called()
+        focused.assert_not_called()
+        workspace.assert_not_called()
+
+        screen.poll()
+        self.callbacks[1](current, None)
+        screen.poll()
+        self.callbacks[2](current, None)
+        closed.assert_called_once_with(1)
+        focused.assert_called_once_with(screen, None)
+        workspace.assert_called_once_with(screen, None)
+        screen.close()
+
     def test_failure_keeps_state_and_retry_is_allowed(self):
         screen=g.Screen();screen.poll();self.callbacks[0](None,RuntimeError('offline'))
         self.assertEqual(screen.data,state([1],1))

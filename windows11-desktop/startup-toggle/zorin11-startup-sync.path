@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch the Windows 11 Desktop checkbox in Startup Applications
+
+[Path]
+PathChanged=%h/.config/autostart/zorin11-desktop.desktop
+Unit=zorin11-startup-sync.service
+
+[Install]
+WantedBy=default.target

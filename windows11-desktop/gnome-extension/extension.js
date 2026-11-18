@@ -1,3 +1,4 @@
+import Atk from 'gi://Atk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
@@ -10,6 +11,10 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import {TaskbarProgress} from './taskbar-progress.js';
 import {TaskbarCentering} from './taskbar-centering.js';
+import {MaximizeHover} from './maximize-hover.js';
+import {SnapSuggestions} from './snap-suggestions.js';
+import {DragSnapGroups} from './drag-snap-groups.js';
+import {TaskbarSnapGroups} from './taskbar-snap-groups.js';
 import {KeyringYubiKey} from './keyring-yubikey.js';
 
 const XML = `<node><interface name="local.zorin11.Gnome">
@@ -24,6 +29,7 @@ const ACTIONS = {'start':'--toggle-start','search':'--search','explorer':'--expl
 export default class Zorin11 extends Extension {
     enable() {
         this._signals=[]; this._buttons=[]; this._hidden=new Map();
+        this._mappedWindows=new WeakSet(this._windows());
         this._settings=this.getSettings();
         this._bindingChanges=[];
         let recovery=[];
@@ -51,8 +57,11 @@ export default class Zorin11 extends Extension {
             if(extension.uuid==='zorin-menu@zorinos.com')this._syncMenu();
         });
         this._syncMenu();
-        this._connect(global.display,'window-created',(_,win)=>{
-            this._connect(win,'shown',()=>this._placeCompanion(win));
+        this._connect(global.window_manager, 'map', (_, actor) => {
+            const win = actor.meta_window;
+            if (!win || this._mappedWindows.has(win)) return;
+            this._mappedWindows.add(win);
+            this._placeCompanion(win);
         });
         this._connect(this._settings,'changed::start-button',()=>this._panels());
         this._connect(Main.layoutManager,'monitors-changed',()=>this._panels());
@@ -60,6 +69,10 @@ export default class Zorin11 extends Extension {
         this._panels();
         this._taskbarProgress=new TaskbarProgress();
         this._taskbarCentering=new TaskbarCentering(this._settings);
+        this._maximizeHover=new MaximizeHover(this._settings);
+        this._snapSuggestions = new SnapSuggestions();
+        this._dragSnapGroups = new DragSnapGroups(() => this._taskbarSnapGroups?.refresh());
+        this._taskbarSnapGroups = new TaskbarSnapGroups(this._dragSnapGroups);
         this._keyringYubiKey=new KeyringYubiKey();
     }
     _syncMenu() {
@@ -92,34 +105,74 @@ export default class Zorin11 extends Extension {
         const destroyed=button.connect('destroy',()=>this._hidden.delete(button));
         this._hidden.set(button,{id,destroyed,visible});button.hide();
     }
+    _taskbarButton(action, label, icon, contrastIconName = null) {
+        const button = new PanelMenu.Button(0.5, label, true);
+        button.accessible_role = Atk.Role.PUSH_BUTTON;
+        button.add_style_class_name('zorin11-taskbar-button');
+        button.add_child(icon);
+        const settings = St.Settings.get();
+        const originalIcon = icon.gicon;
+        const contrastIcon = contrastIconName ? Gio.ThemedIcon.new(contrastIconName) : null;
+        const updateContrast = () => {
+            if (settings.high_contrast)
+                button.add_style_class_name('zorin11-taskbar-high-contrast');
+            else
+                button.remove_style_class_name('zorin11-taskbar-high-contrast');
+            if (contrastIcon)
+                icon.gicon = settings.high_contrast ? contrastIcon : originalIcon;
+        };
+        settings.connectObject('notify::high-contrast', updateContrast, button);
+        updateContrast();
+        button.connect('button-press-event', () => {
+            this._launch(action);
+            return Clutter.EVENT_STOP;
+        });
+        button.connect('key-press-event', (_actor, event) => {
+            const key = event.get_key_symbol();
+            if (key === Clutter.KEY_Escape) {
+                global.stage.set_key_focus(null);
+                global.display.focus_default_window(event.get_time());
+                return Clutter.EVENT_STOP;
+            }
+            if (key !== Clutter.KEY_Return && key !== Clutter.KEY_KP_Enter && key !== Clutter.KEY_space)
+                return Clutter.EVENT_PROPAGATE;
+            if (!(event.get_flags() & Clutter.EventFlags.FLAG_REPEATED))
+                this._launch(action);
+            return Clutter.EVENT_STOP;
+        });
+        this._buttons.push(button);
+        return button;
+    }
     _panels() {
         for(const b of this._buttons)b.destroy();this._buttons=[];
         const panels=global.zorinTaskbar?.panels?.map(p=>p.panel) || [Main.panel];
         for(const panel of panels) {
             const old=panel.statusArea['zorin-menu'];
             if(old)this._hideMenu(old);
-            for(const [i,action] of ['start','search','tasks'].entries()) {
-                const b=new PanelMenu.Button(0.5,action,true);
-                const name={start:'start.svg',search:'search.svg',tasks:'taskview.svg'}[action];
+            for (const [i, [action, label, name, contrastIconName]] of [
+                ['start', 'Start', 'start.svg', 'view-app-grid-symbolic'],
+                ['search', 'Search', 'search.svg', 'system-search-symbolic'],
+                ['tasks', 'Task View', 'taskview.svg', 'focus-windows-symbolic'],
+            ].entries()) {
                 // Start can use the image chosen in Search & Start settings when it still exists.
                 const custom=action==='start'?this._settings.get_string('start-button'):'';
                 const file=custom&&GLib.file_test(custom,GLib.FileTest.IS_REGULAR)?custom:`${this.path}/${name}`;
-                b.add_child(new St.Icon({gicon:Gio.icon_new_for_string(file),icon_size:24}));
-                b.connect('button-press-event',()=>{this._launch(action);return Clutter.EVENT_STOP;});
-                panel.addToStatusArea(`zorin11-${action}`,b,i,'left');this._buttons.push(b);
+                const icon = new St.Icon({gicon:Gio.icon_new_for_string(file),icon_size:24});
+                const button = this._taskbarButton(action, label, icon, contrastIconName);
+                panel.addToStatusArea(`zorin11-${action}`, button, i, 'left');
             }
-            for(const [i,action] of ['quick','notifications'].entries()) {
-                const b=new PanelMenu.Button(0.5,action,true);
-                b.add_child(new St.Icon({icon_name:action==='quick'?'preferences-system-symbolic':'preferences-system-notifications-symbolic',icon_size:18}));
-                b.connect('button-press-event',()=>{this._launch(action);return Clutter.EVENT_STOP;});
-                panel.addToStatusArea(`zorin11-${action}`,b,i,'right');this._buttons.push(b);
+            for (const [i, [action, label, iconName]] of [
+                ['quick', 'Quick Settings', 'preferences-system-symbolic'],
+                ['notifications', 'Notifications and calendar', 'preferences-system-notifications-symbolic'],
+            ].entries()) {
+                const icon = new St.Icon({icon_name:iconName, icon_size:18});
+                panel.addToStatusArea(`zorin11-${action}`, this._taskbarButton(action, label, icon), i, 'right');
             }
         }
     }
     _placeCompanion(win) {
         const title=win.get_title() || '';
         if(!['Zorin 11 Start','Quick settings','Notifications and calendar'].includes(title))return;
-        const app=this._tracker.get_window_app(win);
         if(!(win.get_wm_class() || '').toLowerCase().startsWith('zorin11'))return;
         const area=global.workspace_manager.get_active_workspace().get_work_area_for_monitor(title==='Zorin 11 Start'?Main.layoutManager.primaryIndex:global.display.get_current_monitor());
         const r=win.get_frame_rect();
@@ -171,6 +224,7 @@ export default class Zorin11 extends Extension {
         let result=true;
         switch(p.op) {
         case 'taskbar-status': result=this._taskbarProgress?.snapshot() || [];break;
+        case 'snap-suggestions-ready': result=this._snapSuggestions?.ready === true;break;
         case 'panels': result=(global.zorinTaskbar?.panels?.map(panel=>panel.panel)||[Main.panel]).map(panel=>({
             zorinStartVisible:panel.statusArea['zorin-menu']?.visible||false,
             windowsStartVisible:panel.statusArea['zorin11-start']?.visible||false}));break;
@@ -221,6 +275,7 @@ export default class Zorin11 extends Extension {
             }break;
         }
         case 'modifiers':result=global.get_pointer()[2];break;
+        case 'pointer':result=global.get_pointer().slice(0,2);break;
         case 'overview':Main.overview.toggle();break;
         case 'yubikey-prompt':result=!!this._keyringYubiKey?.ready;break;
         default:throw Error('Unknown operation');
@@ -228,6 +283,13 @@ export default class Zorin11 extends Extension {
         return JSON.stringify(result);
     }
     disable() {
+        this._taskbarSnapGroups?.destroy();
+        this._taskbarSnapGroups = null;
+        this._dragSnapGroups?.destroy();
+        this._dragSnapGroups = null;
+        this._snapSuggestions?.destroy();
+        this._snapSuggestions = null;
+        this._maximizeHover?.destroy();this._maximizeHover=null;
         this._taskbarProgress?.destroy();this._taskbarProgress=null;
         this._taskbarCentering?.destroy();this._taskbarCentering=null;
         this._keyringYubiKey?.destroy();this._keyringYubiKey=null;

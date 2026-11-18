@@ -34,6 +34,27 @@
 .z11-desktop-menu menuitem { padding: 8px 18px; border-radius: 4px; }
 .z11-desktop-menu menuitem:hover { background: #414348; }
 
+.z11-multitask.z11-high-contrast {
+    background: #000;
+    border-color: #fff;
+}
+.z11-multitask.z11-high-contrast label { color: #fff; }
+.z11-multitask.z11-high-contrast button,
+.z11-multitask.z11-high-contrast entry,
+.z11-multitask.z11-high-contrast .z11-saved-card {
+    background: #171717;
+    border-color: #bcbcbc;
+    color: #fff;
+}
+.z11-multitask.z11-high-contrast button:hover { background: #303030; }
+.z11-multitask.z11-high-contrast button:focus,
+.z11-multitask.z11-high-contrast entry:focus {
+    border-color: #ffdf75;
+    outline: 2px solid #ffdf75;
+    outline-offset: -2px;
+}
+.z11-multitask.z11-high-contrast button:disabled { opacity: .7; }
+
 .z11-switcher { background: #202123; }
 .z11-switcher button.z11-window-card { border: 2px solid #454545; padding: 11px; }
 .z11-switcher button.z11-window-card:focus, .z11-switcher button.z11-switch-selected { border-color: #60cdff; background: #34383c; outline: none; }

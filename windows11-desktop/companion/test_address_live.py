@@ -1,4 +1,9 @@
 """WebKit address editing and real clipboard, against source or preserved live bundle."""
+
+if __name__ != '__main__':
+    import unittest
+    raise unittest.SkipTest('Run this GUI integration fixture directly.')
+
 import os,sys,json,time,subprocess
 from pathlib import Path
 if '--private' not in sys.argv:

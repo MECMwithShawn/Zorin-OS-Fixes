@@ -1,0 +1,73 @@
+/* Applied only while GNOME High Contrast is enabled. */
+:root {
+    color-scheme: dark;
+    --contrast-base: #000;
+    --contrast-panel: #171717;
+    --contrast-text: #fff;
+    --contrast-muted: #d6d6d6;
+    --contrast-edge: #9c9c9c;
+    --contrast-focus: #ffdf75;
+}
+
+:is(.start-shell, .explorer-shell, .settings-shell, .control-flyout,
+    .notification-flyout, .fence, .desktop-group) {
+    background: var(--contrast-base) !important;
+    color: var(--contrast-text) !important;
+    border-color: var(--contrast-edge) !important;
+    --ink: var(--contrast-text);
+    --ink-soft: var(--contrast-muted);
+    --line: var(--contrast-edge);
+}
+
+:is(.start-shell, .control-flyout, .notification-flyout)::before,
+:is(.start-shell, .control-flyout, .notification-flyout)::after {
+    display: none !important;
+}
+
+:is(.explorer-title, .explorer-addressbar, .explorer-commandbar, .explorer-sidebar,
+    .explorer-status, .explorer-details, .explorer-preview, .settings-titlebar,
+    .settings-sidebar, .setting-row, .setting-card, .start-footer,
+    .classic-right, .w10-rail, .flyout-footer, .notification-card, .calendar-pane,
+    .fence-titlebar, .context-menu, .power-menu, .file-modal, .transfer-dialog,
+    .picker, .start-folder-dialog, .start-folder-picker) {
+    background: var(--contrast-panel) !important;
+    border-color: var(--contrast-edge) !important;
+    color: var(--contrast-text) !important;
+}
+
+:is(.search-box, .address, .folder-search, .settings-search, select, textarea,
+    input:not([type="range"]):not([type="checkbox"]):not([type="radio"])) {
+    background-color: var(--contrast-base) !important;
+    border-color: var(--contrast-edge) !important;
+    color: var(--contrast-text) !important;
+    caret-color: var(--contrast-text);
+}
+
+::placeholder, :is(.empty, .hint, .settings-note, .folder-empty, .file-date,
+    .file-size, .file-type, .flyout-hint, .flyout-tile-detail, .notification-empty,
+    .fence-count, .fence-note, .search-scope, .unified-status, .setting-row-text small,
+    .recommended-item small) {
+    color: var(--contrast-muted) !important;
+    opacity: 1 !important;
+}
+
+:is(.file-item.selected, .unified-result.selected, .settings-sidebar .active,
+    .explorer-tab.active, .flyout-tile.enabled, .calendar-grid .selected,
+    [role="tab"][aria-selected="true"], [role="radio"][aria-checked="true"]) {
+    background: #303030 !important;
+    color: var(--contrast-text) !important;
+    box-shadow: inset 0 0 0 1px var(--contrast-text) !important;
+}
+
+:is(button, input, select, textarea, [tabindex], a):focus-visible {
+    outline: 2px solid var(--contrast-focus) !important;
+    outline-offset: -2px !important;
+}
+
+button:disabled {
+    opacity: .7 !important;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--contrast-edge) !important;
+}

@@ -5,7 +5,7 @@
 
 ## Save current window layout
 
-Open **Win+Tab → Saved groups → Save current layout…**, enter a name, then choose **Save layout**. Choose **All displays** or a specific display in the save dialog. This captures visible, non-minimized application windows on the current desktop (up to 128 windows). A display-only layout restores only apps on that screen; it does not borrow same-app windows from your laptop and requires its saved display to be connected. Select **Restore layout** on its saved card to restore positions and maximized/fullscreen states. Saved layouts can be renamed and removed. Use the search field or **Ctrl+F** to filter by layout/app name. **Escape** cancels an unfinished name edit, then clears an active search before closing the panel.
+Open **Win+Tab → Saved groups → Save current layout…**, enter a name, then choose **Save layout**. Choose **All displays** or a specific display in the save dialog. This captures visible, non-minimized application windows on the current desktop (up to 128 windows). A display-only layout restores only apps on that screen; it does not borrow same-app windows from your laptop and requires its saved display to be connected. Select **Restore layout** on its saved card to restore positions and maximized/fullscreen states. Each saved layout shows **All displays** or the monitor it belongs to. Use the search field or **Ctrl+F** to filter by layout, app or display name. Saved layouts can be renamed and removed. **Escape** cancels an unfinished name edit, then clears an active search before closing the panel.
 
 Positions scale relative to each monitor’s work area and restored frames are contained within that area, preventing oversized windows from spilling onto an adjacent screen. If a monitor is disconnected, its windows are fitted onto the primary display. Existing windows are reused; missing apps with installed launchers can be opened. Apps without a recognized launcher must already be open. Windows that cannot be resized produce an explicit error rather than being silently omitted. Native Wayland application IDs distinguish apps that share a toolkit window class.
 
@@ -29,9 +29,19 @@ This agent manages APT packages. Flatpak, app stores and firmware continue using
 
 ## Fractional scaling on hybrid graphics
 
+**Settings → System → Display** shows each active monitor’s native resolution and actual Wayland scale. The display layout uses Mutter’s logical monitor positions and sizes. Open **Arrange displays** to change the layout or scale.
+
 On the tested Intel/NVIDIA laptop, GNOME X11 at laptop 125% / external 100% produces a cropped external display even though the reported native modes and screenshot look correct. Do not use a successful settings readback alone to confirm scaling: check all four edges on the physical screens. This matches the [X11 PRIME transform issue documented by NVIDIA](https://forums.developer.nvidia.com/t/450-75-with-reverse-prime-xrandr-scale-2x2-does-not-work-renders-only-1-4-of-screen-problem-with-nvidia-settings/142424).
 
 Test **Zorin Desktop on Wayland** from the login-screen session selector for independent scaling. Save work before signing out. This is a different session, not a theme reinstall; the package does not switch sessions automatically. The user confirmed improved scaling in Wayland; native window snapping, previews and Snipping Tool capture/recording have also passed local checks. Broader mixed-DPI and suspend/resume coverage remains pending. Both screens at 100% is the fallback if staying on the current X11 session.
+
+On the physical laptop at 125% and 150%, native Wayland GTK/WebKit rendered the test text at twice the logical resolution. The XWayland sample rendered at the logical resolution and looked softer. Apps launched from the companion now choose their usual backend. The companion still uses XWayland for desktop placement on GNOME 46.
+
+## Accessibility on GNOME
+
+GNOME’s **High Contrast** preference updates the companion surfaces and the custom taskbar buttons as soon as you change it. The taskbar uses monochrome icons and a white focus ring. Start, Explorer, Settings, flyouts, fences and the multitasking panels use opaque backgrounds, clearer borders and visible keyboard focus.
+
+Turning off GNOME animations also stops companion transitions and Taskbar Motion. The installed Taskbar Motion extension pauses Zorin’s window wobble until animations are enabled again.
 
 ## Device Manager (GNOME)
 
@@ -64,7 +74,7 @@ Re-run `python3 setup.py install` to upgrade. Your original recovery values, Sta
 ## GNOME experience
 
 
-**Lock screen:** open **Settings → Personalization → Lock screen**, or search **Lock screen settings** in Start. The Windows 11 appearance uses GNOME's real clock, account photo, password entry, accessibility, notifications and unlock gestures. The photo stays clear behind the clock and blurs/dims behind native authentication. Installed media controls remain in the native clock. No authentication method or login-screen/GDM file is replaced.
+**Lock screen:** open **Settings → Personalization → Lock screen**, or search **Lock screen settings** in Start. The Windows 11 appearance uses GNOME's real clock, account photo, password entry, accessibility, notifications and unlock gestures. The photo stays clear behind the clock and blurs/dims behind native authentication. Installed media controls remain in the native clock. No authentication method or login-screen/GDM file is replaced. After a lock you start yourself the displays stay on for 10 minutes instead of GNOME's 30 seconds. If GNOME leaves the taskbar or another desktop-only extension running on the lock screen (closing the lid a moment after unlocking can do it), the lock screen extension switches it off again within a few seconds.
 
 Choose **Windows Spotlight**, **Bing image of the day**, **Zorin wallpapers**, **Use desktop background**, or a personal **Picture**. Online sources refresh daily through `zorin11-lockscreen-wallpaper.timer`; failures retain the last cached photo and retry on the next hourly check. All installed Zorin backgrounds remain available. Lock-screen choices are independent of the desktop except when explicitly following it. A selected personal picture is copied into the private cache so a cloud mount or removable disk is not needed at unlock. The cache keeps up to 30 recent photos plus the selected one.
 
@@ -85,7 +95,21 @@ Motion respects GNOME's animation setting and pauses on the lock screen and in O
 
 For an existing installation, `python3 motion_install.py` adds this extension, its Start launchers and a native Zorin context-menu command, and patches only the companion’s Taskbar launch route, preserving other local code. Existing custom menu entries are retained without duplicate Motion commands; no vendor files are edited. Taskbar settings loads Zorin’s installed Style, Position, Behavior and Action pages unchanged and adds Motion. If the GNOME preferences loader changes in a later release, Motion remains available with a link to native controls. New or updated Shell code loads at your **next normal sign-in**. The right-click menu, updated settings window and preview work immediately; Apply reports when first activation still needs a sign-in. An already-open companion Settings process picks up the new Taskbar route when it next starts; use the Start entry immediately. No logout, restart, Explorer rebuild or OneDrive change is performed. Full installation includes it, backups capture its files and settings, and update repair tracks its enabled state and missing files. This release targets horizontal Zorin taskbars on GNOME 46.
 
-**Snap Layouts:** press Win+Z for the active window. In companion Explorer and Settings, hover over Maximize, right-click it, or focus it and press Down or Shift+F10. Choose a zone to snap; Escape closes the picker. Keys 1–6 focus the first available zone in that layout. Initial focus uses an enabled footer control, and moving keyboard focus off a zone clears its target outline. Caption requests resolve the originating window through GNOME, including duplicate Explorer titles, so an XWayland window ID cannot select an unrelated native window. Ambiguous or closed windows are ignored. Third-party maximize-hover integration remains pending.
+**Snap Layouts:** press Win+Z for the active window. In companion Explorer and Settings, hover over Maximize, right-click it, or focus it and press Down or Shift+F10. Choose a zone to snap; Escape closes the picker. Keys 1–6 focus the first available zone in that layout. Initial focus uses an enabled footer control, and moving keyboard focus off a zone clears its target outline. Caption requests resolve the originating window through GNOME, including duplicate Explorer titles, so an XWayland window ID cannot select an unrelated native window. Ambiguous or closed windows are ignored.
+
+**Maximize hover in other apps on Wayland:** Enable **Show Snap Layouts on Maximize hover in supported apps** under **Win+Z → Customize**. Native Files (Nautilus), Calculator, and GNOME Settings work with their usual launchers when the window exposes its caption controls. For a browser, fully exit it, then open **Brave with Snap Layouts** or **Chrome with Snap Layouts** from Start. The Chrome shortcut is for the Flatpak. Both use the normal browser profile and enable caption accessibility for that process. Pause over **Maximize** or **Restore** for about a second, then choose a zone. Move away or press **Esc** to dismiss. Use **Win+Z** when an app has no supported caption.
+
+**Drag to snap:** Drag a window by its title bar to just below the top center of a display. Keep holding, move onto a zone in the strip to preview its position, then release to snap. Move away before releasing to cancel. The strip uses your Zorin Advanced Window Tiling layouts and follows the display you drag onto. Toggle **Show Snap Layouts at the top edge** in **Settings → System → Multitasking**. If the switch is missing, enable Advanced Window Tiling in Zorin Appearance. Desktop backups include the toggle, custom layouts and per-workspace layout selections.
+
+**Fill the remaining zones:** After the first window snaps, choose a preview of an open window from the current desktop. Snap Assist continues through the empty zones until you finish or run out of windows. Press **Esc** to stop and keep the windows you've already snapped. **Suggest windows after dragging to snap** in **Settings → System → Multitasking** controls this behavior. The updated Shell extension loads at the next normal sign-in and enables suggestions if you haven't already set a preference. Desktop backups include the setting.
+
+**Restore a drag-snap group:** Fill at least two zones of one top-strip layout by dragging or choosing suggested windows. Side and corner drags can also form groups on the same display. Hover over a member app on the taskbar and pick the **Snap group** card to bring its open windows back together, including minimized windows. These groups are live for the current session. Use **Task View → Saved groups** to save a layout for future sessions.
+
+The Customize toggle also turns hover off. To change it from a terminal, run:
+
+```sh
+gsettings --schemadir "$HOME/.local/share/gnome-shell/extensions/zorin11@zorin-os-fixes/schemas" set org.gnome.shell.extensions.zorin11 maximize-hover false
+```
 
 Task View and Snap Assist refresh visible window cards in the background, with one capture in flight and no new captures after the panel closes. Minimized windows keep cached previews; filtered, scrolled-out and unmapped cards are skipped. GNOME may pause frame callbacks in fully covered applications, so previews reflect the latest frame the compositor provides. No window-preview images are saved to disk.
 
@@ -241,8 +265,11 @@ Focus the window and press **Win+Ctrl+T** to toggle **Always on Top**. Press it 
 
 ## Shortcuts
 
+On GNOME, hold **Ctrl+Alt** and tap **Tab** until the taskbar's **Top Bar** entry is selected, then release the modifiers. Use **Tab** and **Shift+Tab** to move focus. Press **Enter** or **Space** to open the highlighted control. Press **Esc** from a custom taskbar button to return focus to your window.
+
 | Shortcut | Action |
 |---|---|
+| Ctrl+Alt+Tab | Choose a GNOME focus group, including the taskbar |
 | Super / Ctrl+Esc | Start |
 | Win+S | Search |
 | Win+Ctrl+T | Toggle Always on Top for the focused window |
@@ -259,6 +286,10 @@ Focus the window and press **Win+Ctrl+T** to toggle **Always on Top**. Press it 
 | Alt+Tab / Alt+Shift+Tab | Windows and Snap Groups |
 | Win+Shift+F | Peek: bring fences above windows / send back (Esc also sends back) |
 | Double-click the desktop | Quick-hide or show all fences |
+
+## Switch back to Zorin's own desktop
+
+Optional: [startup-toggle](startup-toggle/) makes the **Windows 11 Desktop** checkbox in Startup Applications turn the whole Windows 11 layout on or off, so Zorin's own desktop and Jelly Mode are one click away.
 
 ## Restore
 
@@ -440,6 +471,8 @@ Remaining app lifecycle issues: Mini Media's Soloist child survived sign-out, an
 
 Event Viewer supports **right-click → Event Properties / Copy event**, double-click or **Alt+Enter** for Properties, and **Ctrl+C** while the event list is focused. Copying selected text in Search or Details retains its normal behavior. Properties and menu actions keep the event that was selected when opened, even if auto-refresh changes the list. These actions work on native Wayland and do not require administrator access.
 
+
+**Search a folder:** the search box matches part of a name, ignoring case, or a Windows-style wildcard pattern with `*` and `?` (for example `*.mrimgx`). Typing still filters the current folder at once; after a short pause Explorer also searches every subfolder and shows the results with the folder each one is in. Hidden items are included only when hidden items are shown. Symlinked folders are not followed, unreadable folders are skipped, and a search stops after 30 seconds, two million entries or 2,000 matches, saying so. Clear the box to return to the folder. Search stays inside the folder you are in; open This PC and a drive to search that drive.
 
 **Copy a folder path:** click the empty address-bar space or the current (last) breadcrumb to select the full path. **Ctrl+L**, **Alt+D** or **F4** also focuses it, including from folder search. Use **Ctrl+C** to copy, Enter to navigate and Escape to return to breadcrumbs. Ancestor breadcrumbs still navigate normally. Existing customized installations can run `python3 explorer_address_install.py` for a guarded address-only bundle patch, preserving OneDrive and other local frontend integrations. Newly opened Explorer windows use the change.
 

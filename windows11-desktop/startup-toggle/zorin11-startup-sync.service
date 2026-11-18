@@ -1,0 +1,6 @@
+[Unit]
+Description=Switch between the Windows 11 layout and Zorin's own desktop
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/zorin11-startup-sync

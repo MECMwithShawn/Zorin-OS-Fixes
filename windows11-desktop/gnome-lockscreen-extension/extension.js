@@ -8,6 +8,9 @@ import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extension
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
 import {UnlockDialog} from 'resource:///org/gnome/shell/ui/unlockDialog.js';
+import {KeepAwake} from './keep-awake.js';
+import {StrayGuard} from './stray-guard.js';
+import {ExtensionState} from 'resource:///org/gnome/shell/misc/extensionUtils.js';
 
 // Presentation only: no verifier, password entry, key handler or unlock method is replaced.
 export default class LockScreen extends Extension {
@@ -29,6 +32,41 @@ export default class LockScreen extends Extension {
             try { owner._attach(this); } catch (e) { console.error(`Axentra lock screen: ${e.message}`); }
         });
         if (Main.screenShield?._dialog instanceof UnlockDialog) this._attach(Main.screenShield._dialog);
+        this._lockInjections ??= this._keepDisplaysOn();
+        this._strayGuard ??= this._guardLockScreen();
+    }
+    // See stray-guard.js: switches off desktop-only extensions GNOME left running on the lock screen.
+    _guardLockScreen() {
+        const manager = Main.extensionManager;
+        const guard = new StrayGuard({
+            isLocked: () => Main.sessionMode.isLocked,
+            modes: () => [Main.sessionMode.currentMode, Main.sessionMode.parentMode],
+            extensions: () => [...manager._extensions.values()],
+            isRunning: state => state === ExtensionState.ACTIVE,
+            disable: uuid => manager._callExtensionDisable(uuid),
+            log: message => console.log(`Axentra lock screen: ${message}`),
+        });
+        const check = () => guard.check();
+        guard.signals = [[Main.sessionMode, Main.sessionMode.connect('updated', check)],
+            [manager, manager.connect('extension-state-changed', check)]];
+        check();
+        return guard;
+    }
+    _keepDisplaysOn() {
+        const idle = global.backend.get_core_idle_monitor();
+        const keepAwake = this._keepAwake = new KeepAwake(() => idle.get_idletime());
+        const injections = new InjectionManager();
+        const shield = Main.screenShield;
+        if (!shield) return injections;
+        // Left alone, GNOME fades a manual lock to black and waits for a key press.
+        injections.overrideMethod(Object.getPrototypeOf(shield), '_lockScreenShown', original => function (params) {
+            original.call(this, keepAwake.recentInput() ? {...params, fadeToBlack: false} : params);
+        });
+        injections.overrideMethod(shield._screenSaverDBus._dbusImpl, 'emit_signal', original => function (name, parameters) {
+            const send = () => original.call(this, name, parameters);
+            if (name !== 'ActiveChanged' || !keepAwake.holdBack(parameters.deepUnpack()[0], send)) send();
+        });
+        return injections;
     }
     _attach(dialog) {
         if (this._dialogs.has(dialog)) return;
@@ -116,6 +154,14 @@ export default class LockScreen extends Extension {
     }
     _refresh() { for (const row of this._dialogs.values()) this._render(row); }
     disable() {
+        // A lock changes the session mode, so GNOME disables and re-enables this
+        // extension while it runs; the lock must keep these in place throughout.
+        if (!Main.sessionMode.isLocked) {
+            this._keepAwake?.destroy(); this._keepAwake = null;
+            this._lockInjections?.clear(); this._lockInjections = null;
+            for (const [obj, id] of this._strayGuard?.signals ?? []) obj.disconnect(id);
+            this._strayGuard?.destroy(); this._strayGuard = null;
+        }
         this._injections.clear();
         for (const [obj, id] of this._signals) obj.disconnect(id);
         for (const row of this._dialogs.values()) {

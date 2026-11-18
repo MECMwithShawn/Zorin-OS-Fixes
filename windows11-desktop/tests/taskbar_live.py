@@ -15,23 +15,182 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 const XML='<node><interface name="local.zorin11.TaskbarTest"><method name="Call"><arg direction="in" type="s"/><arg direction="out" type="s"/></method><method name="Capture"><arg direction="out" type="s"/></method></interface></node>';
 export default class Fixture extends Extension {
- enable(){this.pointer=Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);this.bus=Gio.DBusExportedObject.wrapJSObject(XML,this);this.bus.export(Gio.DBus.session,'/local/zorin11/TaskbarTest');this.owner=Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.TaskbarTest',0,null,null);}
+ enable(){const seat=Clutter.get_default_backend().get_default_seat();this.pointer=seat.create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);this.keyboard=seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);this.bus=Gio.DBusExportedObject.wrapJSObject(XML,this);this.bus.export(Gio.DBus.session,'/local/zorin11/TaskbarTest');this.owner=Gio.bus_own_name_on_connection(Gio.DBus.session,'local.zorin11.TaskbarTest',0,null,null);}
+ key(symbol, state){this.keyboard.notify_keyval(GLib.get_monotonic_time(),symbol,state);}
+ press(symbol){
+  this.key(symbol,Clutter.KeyState.PRESSED);
+  this.key(symbol,Clutter.KeyState.RELEASED);
+ }
+ pointAt(actor){
+  const [x,y]=actor.get_transformed_position(),[width,height]=actor.get_transformed_size();
+  this.pointer.notify_absolute_motion(GLib.get_monotonic_time(),x+width/2,y+height/2);
+ }
+ keyboardProbe(action,panel,extension){
+  const controls=Object.entries(panel.panel.statusArea).filter(([role])=>role.startsWith('zorin11-'));
+  if(action==='keys-observe'){
+   this.launched=[];
+   this.originalLaunch=extension._launch;
+   extension._launch=name=>this.launched.push(name);
+  }
+  if(action==='keys-stop')extension._launch=this.originalLaunch;
+  if(action==='keys-picker'){
+   this.key(Clutter.KEY_Control_L,Clutter.KeyState.PRESSED);
+   this.key(Clutter.KEY_Alt_L,Clutter.KeyState.PRESSED);
+   this.press(Clutter.KEY_Tab);
+  }
+  if(action==='keys-picker-done'){
+   this.key(Clutter.KEY_Alt_L,Clutter.KeyState.RELEASED);
+   this.key(Clutter.KEY_Control_L,Clutter.KeyState.RELEASED);
+  }
+  if(action==='keys-back-tab'){
+   this.key(Clutter.KEY_Shift_L,Clutter.KeyState.PRESSED);
+   this.press(Clutter.KEY_Tab);
+   this.key(Clutter.KEY_Shift_L,Clutter.KeyState.RELEASED);
+  }
+  if(action.startsWith('keys-press:'))this.press(Clutter['KEY_'+action.slice(11)]);
+  if(action==='keys-hold-space')this.key(Clutter.KEY_space,Clutter.KeyState.PRESSED);
+  if(action==='keys-release-space')this.key(Clutter.KEY_space,Clutter.KeyState.RELEASED);
+  if(action.startsWith('keys-point:'))this.pointAt(panel.panel.statusArea['zorin11-'+action.slice(11)]);
+  if(action==='keys-click'){
+   this.pointer.notify_button(GLib.get_monotonic_time(),1,Clutter.ButtonState.PRESSED);
+   this.pointer.notify_button(GLib.get_monotonic_time(),1,Clutter.ButtonState.RELEASED);
+  }
+  const focus=global.stage.get_key_focus();
+  const focusedControl=controls.find(([,actor])=>focus&&actor.contains(focus));
+  const colorChannels=color=>color?[color.red,color.green,color.blue,color.alpha]:null;
+  const focusTheme=focusedControl?.[1].get_theme_node();
+  const popup=Main.ctrlAltTabManager._popup;
+  const selected=popup?._items[popup._selectedIndex]?.root;
+  return {focused:focusedControl?.[0]?.slice(8)??null,
+   focusName:focus?.toString(),
+   insidePanel:!!focus&&panel.contains(focus),
+   focusVisible:!!focus?.has_style_pseudo_class?.('focus'),
+   focusRing:colorChannels(focusTheme?.get_box_shadow()?.color),
+   contrastColors:focusTheme&&[colorChannels(focusTheme.get_background_color()),colorChannels(focusTheme.get_foreground_color())],
+   contrastRoles:controls.filter(([,actor])=>actor.has_style_class_name('zorin11-taskbar-high-contrast')).map(([role])=>role.slice(8)),
+   icons:Object.fromEntries(controls.map(([role,actor])=>{
+    const icon=actor.get_first_child().gicon;
+    return [role.slice(8),icon instanceof Gio.ThemedIcon?icon.get_names()[0]:icon.to_string()];
+   })),
+   pickerOpen:!!popup?._haveModal,
+   pickerOnPanel:selected===panel||selected===panel.panel,
+   overviewVisible:Main.overview.visible,
+   names:Object.fromEntries(controls.map(([role,actor])=>[role.slice(8),actor.get_accessible_name()])),
+   launched:this.launched};
+ }
  Call(action){
   const panel=global.zorinTaskbar.panels[0],button=panel._showDesktopButton;
+  const extension=Main.extensionManager.lookup('zorin11@zorin-os-fixes')?.stateObj;
+  if(action.startsWith('keys-'))return JSON.stringify(this.keyboardProbe(action,panel,extension));
   if(action==='desktop'){this.pointer.notify_button(GLib.get_monotonic_time(),1,Clutter.ButtonState.PRESSED);this.pointer.notify_button(GLib.get_monotonic_time(),1,Clutter.ButtonState.RELEASED);}
   if(action==='enter'){const [x,y]=button.get_transformed_position(),[w,h]=button.get_transformed_size();this.pointer.notify_absolute_motion(GLib.get_monotonic_time(),x+w/2,y+h/2);}
   if(action==='leave')this.pointer.notify_absolute_motion(GLib.get_monotonic_time(),500,200);
   if(action==='overview-close')Main.overview.hide();
+  if(action==='pin'){
+   const keys=[Clutter.KEY_Super_L,Clutter.KEY_Control_L,Clutter.KEY_t];
+   for(const key of keys)this.keyboard.notify_keyval(GLib.get_monotonic_time(),key,Clutter.KeyState.PRESSED);
+   for(const key of keys.reverse())this.keyboard.notify_keyval(GLib.get_monotonic_time(),key,Clutter.KeyState.RELEASED);
+  }
   return JSON.stringify({style:button.get_style(),icon:button.icon.get_parent()===button,visible:button.visible,
-   windows:global.get_window_actors().map(a=>({title:a.meta_window.get_title(),visible:a.visible,minimized:a.meta_window.minimized}))});
+   windowHooks:extension?._signals.filter(([object])=>object.get_stable_sequence).length,
+   windows:global.get_window_actors().map(a=>({title:a.meta_window.get_title(),visible:a.visible,minimized:a.meta_window.minimized,above:a.meta_window.is_above()}))});
  }
  async CaptureAsync(_args,invocation){try{
   const stream=Gio.MemoryOutputStream.new_resizable();await new Shell.Screenshot().screenshot(false,stream);stream.close(null);
   invocation.return_value(new GLib.Variant('(s)',[GLib.base64_encode(stream.steal_as_bytes().get_data())]));
  }catch(e){invocation.return_dbus_error('local.zorin11.Error',String(e));}}
- disable(){this.pointer=null;this.bus.unexport();Gio.bus_unown_name(this.owner);}
+ disable(){this.pointer=null;this.keyboard=null;this.bus.unexport();Gio.bus_unown_name(this.owner);}
 }
 '''
+
+def check_keyboard(test_call, contrast):
+    labels={'start':'Start','search':'Search','tasks':'Task View','quick':'Quick Settings',
+            'notifications':'Notifications and calendar'}
+    expected=[]
+    def snapshot():return test_call('keys-snapshot')
+    def focus(role):
+        try:
+            until(lambda:snapshot()['focused']==role,seconds=2)
+        except AssertionError as exc:
+            raise AssertionError(f'Expected keyboard focus on {role}: {snapshot()}') from exc
+        state=snapshot()
+        assert state['focusVisible'] and state['focusRing'],state
+    def launch(role,command):
+        test_call(command)
+        expected.append(role)
+        until(lambda:len(snapshot()['launched'])>=len(expected),seconds=2)
+        assert snapshot()['launched']==expected,snapshot()
+
+    def enter_panel():
+        test_call('keys-picker')
+        try:
+            until(lambda:snapshot()['pickerOpen'],seconds=3)
+            for _ in range(8):
+                if snapshot()['pickerOnPanel']:break
+                test_call('keys-press:Right')
+                time.sleep(.1)
+            assert snapshot()['pickerOnPanel'],snapshot()
+        finally:
+            test_call('keys-picker-done')
+        focus('start')
+
+    test_call('keys-observe')
+    try:
+        until(lambda:not snapshot()['overviewVisible'],seconds=3)
+        assert snapshot()['names']==labels,snapshot()
+        enter_panel()
+        original_icons=snapshot()['icons']
+        try:
+            contrast.set_boolean('high-contrast',True)
+            until(lambda:set(snapshot()['contrastRoles'])==set(labels),seconds=3)
+            # GNOME can reset keyboard focus when applying a new system stylesheet.
+            enter_panel()
+            state=snapshot()
+            assert state['focusRing']==[255,255,255,255],state
+            assert state['contrastColors']==[[0,0,0,255],[255,255,255,255]],state
+            assert {k:state['icons'][k] for k in ('start','search','tasks')}=={
+                'start':'view-app-grid-symbolic','search':'system-search-symbolic',
+                'tasks':'focus-windows-symbolic'},state
+        finally:
+            contrast.set_boolean('high-contrast',False)
+        until(lambda:not snapshot()['contrastRoles'],seconds=3)
+        enter_panel()
+        assert snapshot()['icons']==original_icons,snapshot()
+        print('Taskbar high contrast: native setting, monochrome icons and focus ring switch live',flush=True)
+        launch('start','keys-press:Return')
+        test_call('keys-press:Tab');focus('search')
+        launch('search','keys-press:space')
+        test_call('keys-press:Tab');focus('tasks')
+        launch('tasks','keys-press:KP_Enter')
+        test_call('keys-back-tab');focus('search')
+
+        found=set()
+        for _ in range(30):
+            test_call('keys-press:Tab')
+            time.sleep(.1)
+            role=snapshot()['focused']
+            if role in ('quick','notifications') and role not in found:
+                launch(role,'keys-press:Return')
+                found.add(role)
+            if found=={'quick','notifications'}:break
+        assert found=={'quick','notifications'},snapshot()
+        launch(role,'keys-hold-space')
+        try:
+            time.sleep(1)
+            assert snapshot()['launched']==expected,snapshot()
+        finally:
+            test_call('keys-release-space')
+        test_call('keys-press:Escape')
+        until(lambda:not snapshot()['insidePanel'],seconds=2)
+        assert snapshot()['launched']==expected,snapshot()
+
+        test_call('keys-point:start');time.sleep(.2)
+        launch('start','keys-click')
+        time.sleep(.15)
+        assert snapshot()['launched']==expected,snapshot()
+    finally:
+        test_call('keys-stop')
+    print('Taskbar keyboard controls: native panel focus, Tab/Shift+Tab navigation, accessible names, single activation, Escape and pointer passed',flush=True)
 
 def session(temp,output):
     import base64,dbus
@@ -54,6 +213,7 @@ def session(temp,output):
     shellsettings.set_strv('disabled-extensions',[p.name for p in Path('/usr/share/gnome-shell/extensions').iterdir() if p.is_dir() and p.name!='zorin-taskbar@zorinos.com'])
     shellsettings.set_strv('favorite-apps',[APP]);shellsettings.set_string('welcome-dialog-last-shown-version','46.0')
     Gio.Settings.new('org.gnome.mutter').set_boolean('dynamic-workspaces',False)
+    Gio.Settings.new('org.gnome.desktop.wm.keybindings').set_strv('always-on-top',['<Super><Control>t'])
     Gio.Settings.sync()
     children=[]
     def start(args,env=None):
@@ -78,6 +238,7 @@ def session(temp,output):
         until(lambda:any(w['title']=='Taskbar progress fixture' for w in call('snapshot')['windows']))
         test_call('overview-close')
         until(lambda:[r for r in call('taskbar-status') if r['app']==APP])
+        check_keyboard(test_call,Gio.Settings.new('org.gnome.desktop.a11y.interface'))
         bus=dbus.SessionBus(private=True)
         def update(**values):
             from dbus.lowlevel import SignalMessage
@@ -123,6 +284,37 @@ def session(temp,output):
         test_call('desktop')
         until(lambda:all(not w['minimized'] for w in call('snapshot')['windows'] if w['title'].endswith('fixture')))
         print('Narrow desktop strip: real enter/leave and click handlers peek, restore and toggle windows passed',flush=True)
+        x11_title='Taskbar focus fixture'
+        native_title='Native Wayland pin fixture'
+        native=start(['/usr/bin/python3','-c',code.replace('Taskbar progress fixture',native_title)],dict(env,GDK_BACKEND='wayland'))
+        def window(title):return next(w for w in call('snapshot')['windows'] if w['title']==title)
+        def above(title):return next(w for w in test_call('snapshot')['windows'] if w['title']==title)['above']
+        until(lambda:window(native_title))
+        for title in (native_title,x11_title):
+            call('window',id=window(title)['id'],action='activate')
+            until(lambda:window(title)['focused'] and not above(title))
+            test_call('pin');until(lambda:above(title))
+            test_call('pin');until(lambda:not above(title))
+        native.terminate();native.wait(timeout=5)
+        print('Win+Ctrl+T pins and unpins native Wayland and XWayland windows',flush=True)
+
+        # Re-showing a companion window should keep the user's new position.
+        menu_code=code.replace('Taskbar progress fixture','Quick settings')
+        menu=start(['/usr/bin/python3','-c',menu_code],env)
+        try:
+            until(lambda:above('Quick settings'),seconds=4)
+        except AssertionError as exc:
+            raise AssertionError((window('Quick settings'),test_call('snapshot'))) from exc
+        ident=window('Quick settings')['id']
+        call('window',id=ident,action='move',rect=[60,70,500,300])
+        until(lambda:window('Quick settings')['rect'][:2]==[60,70])
+        call('window',id=ident,action='minimize');until(lambda:window('Quick settings')['minimized'])
+        call('window',id=ident,action='unminimize')
+        until(lambda:any(w['title']=='Quick settings' and w['visible'] for w in test_call('snapshot')['windows']))
+        assert window('Quick settings')['rect'][:2]==[60,70]
+        menu.terminate();menu.wait(timeout=5)
+        assert test_call('snapshot')['windowHooks']==0
+        print('Initial companion placement is released after mapping and does not repeat on re-show',flush=True)
         # Disable/enable tears down and reattaches overlays without touching the taskbar.
         enabled=shellsettings.get_strv('enabled-extensions')
         shellsettings.set_strv('enabled-extensions',[u for u in enabled if u!=UUID]);Gio.Settings.sync()

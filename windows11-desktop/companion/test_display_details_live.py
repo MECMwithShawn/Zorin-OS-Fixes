@@ -1,5 +1,10 @@
 #!/usr/bin/python3
 """Real GTK window and DisplayConfig calls on a private bus and Xvfb display."""
+
+if __name__ != '__main__':
+    import unittest
+    raise unittest.SkipTest('Run this GUI integration fixture directly.')
+
 import os,sys,time,tempfile,subprocess,json
 from pathlib import Path
 

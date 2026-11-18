@@ -157,7 +157,11 @@ class PamLines(unittest.TestCase):
             pam_install.install(staged, 'shawn', check_module=False, **kw)  # again: no second line
             self.assertEqual(sudo.read_text().count('pam_u2f'), 1)
             self.assertTrue(any((b / 'sudo').read_text() == SUDO for b in backups.iterdir()))
-            pam_install.uninstall(**kw)
+            # uninstall also turns login off; keep it away from the real /etc/pam.d/gdm-password
+            gdm = d / 'gdm-password'
+            gdm.write_text(SUDO)
+            pam_install.uninstall(gdm=gdm, conf=d / 'custom.conf', **kw)
+            self.assertEqual(gdm.read_text(), SUDO)
             self.assertEqual(sudo.read_text(), SUDO)
             self.assertFalse(polkit.exists(), 'our polkit copy goes, so the vendor file applies')
             self.assertFalse(mapping.exists())

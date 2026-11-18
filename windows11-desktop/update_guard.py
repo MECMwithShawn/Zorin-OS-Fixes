@@ -31,7 +31,7 @@ SCALARS = {
     'org.gnome.mutter': {'dynamic-workspaces'},
     'org.gnome.shell.extensions.zorin-menu': {'super-hotkey'},
     'org.gnome.shell.keybindings': {'toggle-application-view', 'focus-active-notification'},
-    'org.gnome.desktop.wm.keybindings': {'switch-applications', 'switch-applications-backward',
+    'org.gnome.desktop.wm.keybindings': {'always-on-top', 'switch-applications', 'switch-applications-backward',
                                        'switch-windows', 'switch-windows-backward'},
 }
 
@@ -125,13 +125,20 @@ def capture_profile():
     from gi.repository import Gio
     journal = HOME/'.config/zorin11-gnome/integration-backup.json'
     owned = json.loads(journal.read_text()) if journal.exists() else []
+    source = Gio.SettingsSchemaSource.get_default()
     result = []
     for record in owned:
         schema, key = record['schema'], record['key']
-        if schema == 'org.gnome.shell.extensions.zorin-taskbar' or key in SCALARS.get(schema, set()):
-            settings = Gio.Settings.new(schema)
-            result.append({'schema':schema, 'key':key,
-                'wanted':settings.get_value(key).print_(True), 'original':record['old']})
+        if schema != 'org.gnome.shell.extensions.zorin-taskbar' and key not in SCALARS.get(schema, set()):
+            continue
+        # The recovery journal can outlive a Zorin schema or key. Looking it up
+        # before constructing GSettings keeps an obsolete entry from aborting APT backups.
+        spec = source.lookup(schema, True)
+        if not spec or not spec.get_path() or not spec.has_key(key):
+            continue
+        settings = Gio.Settings.new_full(spec, None, None)
+        result.append({'schema':schema, 'key':key,
+            'wanted':settings.get_value(key).print_(True), 'original':record['old']})
     shell = Gio.Settings.new('org.gnome.shell')
     return {'settings':result,
         'enabled':[x for x in shell.get_strv('enabled-extensions') if x in MANAGED_EXTENSIONS],

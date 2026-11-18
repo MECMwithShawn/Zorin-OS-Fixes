@@ -1,3 +1,99 @@
+## Drag-created Snap Groups in the taskbar — 2026-11-16
+
+- Private GNOME Wayland tests used real GTK titlebar drags, Zorin's suggestion cards, and pointer hover and click on the real Zorin taskbar. At 100%, 125%, and 150%, the card restored three minimized group members to their exact snapped frames and focused the member whose icon opened the preview. Individual previews stayed available, and an unrelated app showed no group.
+- Independent drags into complementary top-strip zones formed a group, and closing a member of a two-window group removed the card. At 100%, direct left and right drags formed a group and its card restored both windows. The registry checks the settled frame to recognize Mutter's ungapped halves as well as Zorin's gapped zones.
+- Both Shell modules and the preview stylesheet were installed without restarting the session. The installed Shell loads the new code at the next normal sign-in. Explorer could browse OneDrive and its sync process stayed active.
+
+Run `ZORIN11_TEST_DRAG_GROUPS=1 /usr/bin/python3 tests/top_edge_snap_live.py` at 100%, and add `ZORIN11_TEST_FRACTIONAL=1` for stacked 125% and 150% displays.
+
+## Open-window suggestions after a Wayland drag snap — 2026-11-16
+
+- Private GNOME Wayland tests dragged a GTK4 window into the first column and used two native suggestion-card clicks to fill the adjacent columns. The tests checked exact window rectangles and the destination display at 100%, 125%, and 150%, as well as suppression when suggestions were off. The Shell enables suggestions once its dismissal fix is active if the native preference is unset, and honors an explicit opt-out.
+- The stock popup could hide unselected window actors if dismissed during its opening fade. The regression test sends Escape before that fade completes and checks that the first window stays snapped and the other windows retain their original frames, visibility, opacity and scale. The fix cancels only the fade transitions started by the suggestion popup.
+- The Multitasking control passed private WebKit tests with both the repository and installed bundles. The settings and Shell files are installed, and the Shell code will load on the next normal sign-in. The installed Explorer read the mounted OneDrive folder after the companion reload.
+
+Run `/usr/bin/python3 tests/top_edge_snap_live.py` for 100%, with `ZORIN11_TEST_FRACTIONAL=1` for the two fractional displays. Run `/usr/bin/python3 tests/top_edge_snap_settings_live.py` for the Settings controls.
+
+## Top-edge Snap Layouts on Wayland — 2026-11-16
+
+- A real GTK4 titlebar drag in private GNOME Shell revealed the six native layouts at 100% and on stacked 125% and 150% virtual displays. The fixture checked the strip and tile colors, a zone's placement preview, the exact window rectangle after release, retreat after hovering, Escape before selecting, and the position of an untouched window. Disabling the Settings option suppressed the strip and ordinary window dragging continued.
+- The Multitasking switch passed real WebKit tests against both the repository and installed bundles. The test toggled the real Zorin setting in memory and checked that the row hides when Advanced Window Tiling is disabled. On the running desktop, GNOME reloaded the stylesheet and the companion reloaded Settings. Zorin's active layout definitions and edge-tiling preferences were preserved.
+- Explorer listed the mounted OneDrive folder using its installed backend. The OneDrive process stayed active during deployment. No sign-out or sleep test was run.
+
+Run `/usr/bin/python3 tests/top_edge_snap_live.py` for 100%, with `ZORIN11_TEST_FRACTIONAL=1` for the two fractional displays. Run `/usr/bin/python3 tests/top_edge_snap_settings_live.py` for the Settings check.
+
+## Maximize-hover expansion on Wayland — 2026-11-15
+
+- Real native Files (Nautilus) at 100% and 125%, Calculator at 100% and 150%, and GNOME Settings on Displays at 100% passed private maximize and restore hover tests. Each test used compositor pointer input and a real layout click. A separate GTK4 fixture verified that a content button named Maximize does not open the picker. GTK4 caption bounds are relative to the frame, so the resolver uses the frame origin rather than the shadow buffer.
+- Real Chrome Flatpak passed the full hover, dismissal and zone-click flow at 100%, 125% and 150%. The resolver verifies that the browser and its accessibility proxy share the exact application scope and Flatpak instance before checking the native caption. Negative Minimize and brief-hover checks passed. Brave’s existing behavior also passed.
+- The private GTK preference test verified that the Customize checkbox writes the shared hover setting on Save. The companion resolver tests passed against the installed runtime, and the isolated companion and installer suites passed. The updated Shell module will load at the next normal sign-in. Chrome needs a fresh process from **Chrome with Snap Layouts**. OneDrive stayed mounted through the companion reload.
+
+Run `ZORIN11_TEST_HOVER_APP=nautilus /usr/bin/python3 tests/maximize_hover_live.py` and substitute `calculator`, `settings`, `brave`, or `chrome` for each test. The Chrome fixture requires a system Flatpak installation. Set `ZORIN11_TEST_HOVER_SCALE=125` or `150` where applicable.
+
+## Maximize-hover Snap Layouts in Brave on Wayland — 2026-11-15
+
+- Private GNOME Wayland sessions used real Brave with disposable profiles at 100%, 125%, and 150%. The test moved the real compositor pointer over Maximize and Restore, verified dismissal after leaving and pressing Escape, and clicked a layout zone. Only Brave moved. Hovering Minimize and leaving Maximize before the delay kept the picker closed. The mixed-scale fixtures allow Brave’s bounds to settle after maximizing before moving the pointer.
+- The detector uses Chromium’s native caption accessibility IDs and verifies the focused window, its buffer size and the exact control rectangle before opening. It skips web content and rejects stale or ambiguous windows. The resolver tests passed against the installed helper. The usual private GNOME and isolated companion suites also passed.
+- The installed **Brave with Snap Layouts** launcher enables accessibility for Brave only. It uses the normal profile and requires a fresh Brave process. Shell files load at the next normal sign-in. The user’s running browser was kept open. Other third-party apps use Win+Z. OneDrive stayed mounted through the companion reload.
+
+Run `/usr/bin/python3 tests/maximize_hover_live.py` for the private test. Set `ZORIN11_TEST_HOVER_SCALE=125` or `150` to exercise a fractional display. [Chromium’s native caption IDs](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/chrome/browser/ui/view_ids.h)
+
+## Physical fractional scaling on the laptop panel — 2026-11-15
+
+- Ran identical GTK3/WebKit text and fine-line samples on the physical eDP panel at its native 2560 × 1600 @ 165 Hz. Mutter used 1.25 and the mode’s supported 1.50235 scale (shown as 150%). For both scales, the native GTK Wayland sample reported a backing scale and WebKit device pixel ratio of 2. The same sample over XWayland reported 1. In comparable compositor window captures, the XWayland text and black rules had visibly softer edges at both scales. These captures use the preview service, which normalizes resolution, and are useful for visual comparison alongside the original render scales. They do not measure the physical panel’s optical sharpness.
+- Used a temporary display configuration with a timed restore fallback. Confirmed the physical display returned to 125% with the same mode and that the saved monitor configuration was byte-identical. Only the laptop panel was connected.
+- The companion’s X11 setting was being inherited by apps opened from desktop entries and tools. Child launches now allow the app to select its normal Wayland or X11 backend. Explicit backend choices and the companion’s own XWayland placement behavior are preserved. True X11 apps can still look softer at fractional scale on the installed Mutter 46. The [GNOME 47 release notes](https://release.gnome.org/47/#other-changes) describe the experimental scaling support added for legacy X11 apps.
+
+- The private mixed-scale GNOME fixture and the installed runtime both launched disposable GTK apps through a desktop entry, desktop action and Settings tool. Automatic launches used native Wayland, explicit X11 still used XWayland, and the companion process kept its original backend. OneDrive stayed mounted and active through the companion reload.
+
+## Wayland High Contrast, Reduced Motion and fractional scaling — 2026-11-15
+
+- The taskbar uses GNOME’s live High Contrast preference. The private fixture checked all five controls, including monochrome icons, opaque backgrounds and the white keyboard focus ring. Standard and custom Start icons return when the setting is turned off. The private GTK/WebKit fixture checked opaque surfaces, decoration removal and focus, plus independent contrast and motion toggles without reloading. It also passed against the installed companion files.
+- The real two-monitor Taskbar Motion fixture checked that GNOME’s animation preference pauses the taskbar and removes active Zorin window wobble. It verified prevention of new wobble while paused, including after the vendor extension was re-enabled, and normal behavior after turning animations back on. The existing saved preset and enabled extension settings are preserved.
+- The private Wayland smoke test applied 125% and 150% to two virtual outputs and verified exact positions, logical sizes, native modes, values displayed by the companion, and a native window move onto the 150% monitor. The usual Start, Explorer, Settings, flyout, Task View, preview, notification and wallpaper checks passed in that session. Display-details unit tests also cover mirrored groups, rotation and physical layout mode. The physical laptop was read at its existing 2560 × 1600 and 125%. Physical 150% rendering and XWayland sharpness remain unverified.
+- The companion changes were activated by restarting its service with no app windows open. The updated Shell files load at the next normal sign-in. Local custom Shell integrations and the Explorer bundle were preserved. OneDrive stayed mounted and its daemon continued running throughout.
+
+Run `ZORIN11_TEST_FRACTIONAL=1 /usr/bin/python3 tests/gnome_live.py` for mixed scaling, `/usr/bin/python3 tests/taskbar_live.py` and `/usr/bin/python3 tests/motion_live.py` for Shell behavior, and `/usr/bin/python3 companion/test_accessible_appearance_live.py` for GTK/WebKit preference changes.
+
+## Keyboard controls for the Wayland taskbar — 2026-11-15
+
+- The private GNOME 46 test opens the real **Ctrl+Alt+Tab** picker and uses **Tab** and **Shift+Tab** to reach the five custom controls. It checks accessible names, the focus ring from the actor’s theme, activation with Enter, keypad Enter and Space, one activation while holding Space, Escape out of the panel, and one pointer activation. It observes which commands the controls dispatch. The separate GNOME integration test covers the opened companion surfaces.
+- Private tests also passed for taskbar centering, desktop peek, launcher progress, Start icon changes and fallback, and Shell extension disable/enable. The installed code and stylesheet load at the next normal GNOME sign-in. The local deployment preserved independent Shell integrations, and the OneDrive process stayed active.
+
+## Wayland reliability audit — 2026-11-15
+
+- Saved layouts for **All displays** and a **specific display** keep separate identities and startup choices. A display-only restore first uses windows already on the target display (or remembered windows from that recipe). If it launches a missing app on the primary display, it can move a single newly appearing matching window to its saved display without borrowing an existing unrelated window. Ambiguous new matches wait; app identity and launch timing cannot distinguish a concurrent independent launch of the same app. The new regressions cover saved scope and off-display matching. Saved Groups cards show their scope and can be searched by display; the native GTK fixture passed against the installed runtime. A private two-monitor GNOME session also verified normal layout restore and window isolation. It did not verify physical outputs or real sign-in.
+- A synchronous GNOME window read no longer consumes notifications for window close, focus or workspace change before the next asynchronous poll. A regression and the delayed private D-Bus fixture passed.
+- Initial Start/Quick Settings/Notification popup placement uses Mutter’s compositor map event, with weak tracking to prevent moving an existing popup again after minimizing it. Adaptive taskbar centering owns only the offsets it applies and preserves other tray/app effects. The private taskbar fixtures verified these cases and exercised the actual **Win+Ctrl+T** pin/unpin shortcut with native Wayland and XWayland clients.
+- Pre-update backups now skip obsolete keys left by retired settings schemas, and conservative repair includes the saved Always on Top shortcut. The prior automatic archive verified against its manifest and the OneDrive checksum; the live daily 03:00 schedule and no-reboot policy were checked without installing packages. Scoped source changes preserve independent Explorer, OneDrive and desktop extension files.
+- Private GNOME smoke covered Start, Explorer, Settings, flyouts, groups, Task View, native window resizing/previews, notifications and the Zorin wallpaper catalog. Separate private tests exercised lock timing and stray-extension cleanup, X11 fence drag/drop, Snipping Tool’s installed recording binary with real PipeWire and a consent fixture, and the installer/recovery and companion model suites. Five browser suites passed after bringing the Start fixture up to date with the six-column default, drag targets and unified search. GUI fixtures are opt-in so unit discovery cannot launch them on a developer’s desktop.
+- The actual session reported Wayland, NVIDIA active, the laptop at 125%, and OneDrive mounted and in sync at baseline. Kernel and NetworkManager logs showed two completed suspend/resume cycles on November 15 and successful Wi-Fi activation roughly 11–12 seconds after each wake. The Dell was disconnected during this audit. External-monitor wake, mixed scaling, and real sign-in restoration remain hardware checks. The local Shell changes and removal of temporary lock-screen title logging take effect on the next normal sign-in.
+
+Run the isolation-friendly suites from this directory:
+
+```sh
+/usr/bin/python3 -m unittest discover -s tests -p 'test_*.py'
+(cd companion && env XDG_CURRENT_DESKTOP=XFCE XDG_SESSION_TYPE=x11 GSETTINGS_BACKEND=memory \
+  dbus-run-session -- /usr/bin/python3 -m unittest discover -p 'test_*.py')
+/usr/bin/python3 tests/gnome_live.py
+/usr/bin/python3 tests/taskbar_live.py
+/usr/bin/python3 tests/taskbar_center_live.py
+/usr/bin/python3 tests/lock_keep_on_live.py
+```
+
+## Taskbar left on the lock screen — 2026-11-13
+
+- Seen on the real desktop on 2026-11-13: the taskbar was drawn over the lock screen after the lid was opened. The journal shows the session unlocking at 23:09:29.28 the night before and the lid closing 0.09 s later.
+- Cause, from GNOME Shell 46's `extensionSystem.js`: after an unlock, extensions are switched on one at a time. `_callExtensionDisable` returns early for an extension whose state is not yet ACTIVE, so one that is still switching on when the screen locks is skipped, finishes, and stays on. The taskbar's `enable()` is asynchronous.
+- `gnome-lockscreen-extension/stray-guard.js` switches such extensions off while the screen is locked, 0.3 s, 2 s and 6 s after the mode changes and after any extension changes state. It never switches anything on; GNOME does that at the next unlock.
+- `tests/test_stray_guard.mjs` covers which extensions count as strays, the settle delay, a late arrival, unlocking mid-sweep, a failing extension and teardown. `tests/lock_keep_on_live.py` reproduces the fault on a private GNOME session with a desktop-only extension whose `enable()` takes 0.8 s, then checks that it is switched off while locked and back on after unlock.
+- Not yet seen on the real desktop: the installed extension loads only after a sign-out.
+
+## Lock screen stays visible — 2026-11-04
+
+- A D-Bus trace of a real lock showed gsd-power setting PowerSaveMode to off 2 ms after the screen saver's ActiveChanged signal. Holding that signal back was not enough: traced locks then sent no off command at all, yet still went dark, because GNOME Shell fades a manual lock to a black lightbox and waits for input. After a manual lock (input within the last 5 seconds) the add-on now skips that fade and holds the signal back for 10 minutes. Unlocking drops it; idle locks fade and sleep as before. Both stay in place while GNOME cycles extensions during a lock.
+- `tests/test_keep_awake.mjs` covers holding, release on unlock, idle locks, disabling and the time limit. `tests/lock_keep_on_live.py` locks a private GNOME session over D-Bus and watches the real signal. A private session has no real displays, so whether they stay on has not yet been seen on the real machine.
+
 ## Taskbar Motion tab and Apply — 2026-10-23
 
 - Settings → Personalization → Taskbar opens a native preferences host with Zorin’s installed Style, Position, Behavior and Action pages plus Motion. The vendor source is loaded in place through GNOME 46’s preferences loader; vendor files and the companion frontend are unchanged. A separate Taskbar settings Start entry provides immediate access. Quick Settings Customize motion opens the same tab.
@@ -721,3 +817,10 @@ Six display parser/collector tests and the GTK/D-Bus fixture passed, including r
 - Dry run on copies of the real gdm-password and custom.conf: the diff is the two marked lines in each, and `login off` restores both byte for byte. `tests/test_yubikey.py` is 21 tests.
 - The patched gdm-password stack, run as the user with `pam_start_confdir` and the real YubiKey plugged in (no touch): GDM gets "Please touch the device." at 0.2 s; after about 29 s with no touch it asks "Password:", so the password still works. A touch on the same line is what sudo uses. A real touch at the login screen is still to be checked after the sudo step and a sign-out.
 - Sign-in by touch gives gnome-keyring no password, so the keyrings still open with a second touch in GNOME's prompt (2026-11-11 entry).
+## Explorer folder search with wildcards (2026-11-18)
+
+- Reported: typing `*.mrimgx` on a mounted NTFS drive showed "No items match your search" although four such files existed. The box did a literal substring match on the current folder only, so `*` never matched and subfolders were never searched.
+- `explorer.search` walks the folder breadth-first on a worker without following symlinked folders, matches `*`/`?` like Windows (brackets literal) or a case-insensitive substring, honors the hidden-items setting, can be cancelled by a newer request, and reports when it stops at its time, entry or result limit. The frontend keeps instant local filtering, sends `file-search` after 350 ms, shows each result's folder, and reloads the folder when the box is cleared. Folder-change refreshes no longer replace visible results.
+- `test_explorer.py` covers wildcards, case, hidden items, bracket names, a symlink loop, limits, cancellation and empty queries; `test_explorer_ui.cjs` covers wildcard filtering, the `file-search` request, result folders and clearing. Against the real WD_Black drive (about 1.03 million entries) `*.mrimgx` found the three visible images in about 12 s warm; the copy in `.Trash-1000` appears only with hidden items shown.
+
+- Installed live as a guarded patch of the installed `app.py`, `explorer.py`, `dist/main.js` and `dist/main.css`, because the installed bundle carries unmerged local changes not reproducible from any branch. Every anchor had to match exactly once; the staged copy passed `py_compile`, `node --check` and `test_explorer_ui.cjs` before install. Originals are in OneDrive `Windows 11 Desktop Backups/explorer-wildcard-search-20261118-085920` with `restore.json`/`RESTORE.txt`. The companion was restarted (no sign-out) and Explorer reopened at the drive; typing in the live window is left to the user.

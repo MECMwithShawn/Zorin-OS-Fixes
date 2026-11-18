@@ -2,10 +2,25 @@
 import json
 import os
 import time
+from pathlib import Path
 from gi.repository import Gio, GLib
 
 def active():
     return 'GNOME' in os.environ.get('XDG_CURRENT_DESKTOP','').upper().split(':')
+
+
+def maximize_hover_settings():
+    if not active():
+        return None
+    directory = Path(GLib.get_user_data_dir()) / 'gnome-shell/extensions/zorin11@zorin-os-fixes/schemas'
+    if not (directory / 'gschemas.compiled').is_file():
+        return None
+    source = Gio.SettingsSchemaSource.new_from_directory(
+        str(directory), Gio.SettingsSchemaSource.get_default(), False)
+    schema = source.lookup('org.gnome.shell.extensions.zorin11', True)
+    if schema and schema.has_key('maximize-hover'):
+        return Gio.Settings.new_full(schema, None, None)
+    return None
 
 def call(op, **values):
     bus=Gio.bus_get_sync(Gio.BusType.SESSION,None)
@@ -95,6 +110,9 @@ class Window:
 class Screen:
     def __init__(self):
         self.handlers={};self.serial=0;self.data={};self.revision=0;self.closed=False;self.pending=None;self.force_update()
+        # A synchronous read must not consume changes before the async poll
+        # calls listeners. Emitting here would reenter window operations.
+        self.event_data=self.data
         self.timer=GLib.timeout_add(350,self.poll)
     def force_update(self):
         data=call('snapshot');self.revision+=1;self.data=data
@@ -111,13 +129,14 @@ class Screen:
         def received(data,error):
             self.pending=None
             if self.closed or error or revision!=self.revision:return
-            old=self.data;self.data=data;self.revision+=1
-            live={r['id'] for r in self.data['windows']}
+            old=self.event_data
+            self.data=self.event_data=data;self.revision+=1
+            live={r['id'] for r in data['windows']}
             for row in old['windows']:
                 if row['id'] not in live:self.emit('window-closed',Window(self,row['id'],row))
             focus=lambda d:next((r['id'] for r in d['windows'] if r['focused']),None)
-            if focus(old)!=focus(self.data):self.emit('active-window-changed',None)
-            if old['current']!=self.data['current']:self.emit('active-workspace-changed',None)
+            if focus(old)!=focus(data):self.emit('active-window-changed',None)
+            if old['current']!=data['current']:self.emit('active-workspace-changed',None)
         try:self.pending=snapshot_async(received)
         except GLib.Error:pass
         return True

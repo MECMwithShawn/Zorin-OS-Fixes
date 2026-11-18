@@ -19,6 +19,8 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, WebKit2
 from model import Store
 from platform_ui import panel_button, desktop_status
 import explorer
+import accessible_appearance
+from app_launch import child_environment, launch_context
 import file_preview
 import file_thumbnails
 import unified_search
@@ -104,6 +106,7 @@ class Surface(Gtk.ApplicationWindow):
             geometry.min_width, geometry.min_height = 260, 44
             self.set_geometry_hints(None, geometry, Gdk.WindowHints.MIN_SIZE)
         manager = WebKit2.UserContentManager()
+        accessible_appearance.configure_web(self, manager)
         manager.register_script_message_handler('desktop')
         manager.connect('script-message-received::desktop', self.on_message)
         self.web = WebKit2.WebView(web_context=hub.context, user_content_manager=manager)
@@ -440,6 +443,14 @@ class Hub(Gtk.Application):
             self.multitasking.switcher.show('--switch-previous' in args)
         elif '--snap-layouts' in args:
             self.multitasking.show_snap()
+        elif '--hover-snap' in args:
+            index = args.index('--hover-snap')
+            if len(args) != index + 6 or not is_gnome():
+                return 1
+            xid, *anchor = map(int, args[index + 1:])
+            if xid < 1 or any(abs(value) > 100000 for value in anchor) or not all(0 < n <= 256 for n in anchor[2:]):
+                return 1
+            self.multitasking.show_hover_snap(xid, tuple(anchor))
         elif '--saved-groups' in args:
             self.multitasking.show_saved_groups()
         elif '--task-view' in args:
@@ -983,8 +994,7 @@ class Hub(Gtk.Application):
         elif app_id=='zorin11-settings.desktop':
             self.open_settings()
         else:
-            context = Gdk.Display.get_default().get_app_launch_context()
-            context.set_timestamp(Gdk.CURRENT_TIME)
+            context = launch_context(Gdk.CURRENT_TIME)
             if not self.apps[app_id].launch([], context):
                 raise RuntimeError('The application could not be started.')
         self.store.used(app_id)
@@ -995,8 +1005,7 @@ class Hub(Gtk.Application):
         app = self.apps.get(app_id)
         if not app or not hasattr(app, 'list_actions') or action not in app.list_actions():
             raise ValueError('This application shortcut is no longer available.')
-        context = Gdk.Display.get_default().get_app_launch_context()
-        context.set_timestamp(Gdk.CURRENT_TIME)
+        context = launch_context(Gdk.CURRENT_TIME)
         app.launch_action(action, context)
         self.store.used(app_id)
         self.start.hide()
@@ -1041,7 +1050,7 @@ class Hub(Gtk.Application):
             if preferences != self.start_preferences.snapshot() or not self.recent_history_allowed(): return
             try:
                 if location: self.open_explorer(str(Path(item['path']).parent))
-                else: Gio.AppInfo.launch_default_for_uri(ident, Gdk.Display.get_default().get_app_launch_context())
+                else: Gio.AppInfo.launch_default_for_uri(ident, launch_context())
                 self.start.hide()
             except Exception as error:
                 self.start.send(dict(type='error',message=str(error)))
@@ -1064,9 +1073,9 @@ class Hub(Gtk.Application):
             launcher = Gio.DesktopAppInfo.new_from_filename(path)
             if not launcher or not fences.launcher_trusted(path):
                 raise ValueError('Right-click this launcher on the desktop and choose Allow Launching first.')
-            launcher.launch([], Gdk.Display.get_default().get_app_launch_context())
+            launcher.launch([], launch_context())
         else:
-            Gio.AppInfo.launch_default_for_uri(Path(path).as_uri(), Gdk.Display.get_default().get_app_launch_context())
+            Gio.AppInfo.launch_default_for_uri(Path(path).as_uri(), launch_context())
         self.start.hide()
 
     def spectrum_tick(self):
@@ -1431,26 +1440,24 @@ class Hub(Gtk.Application):
     def update_settings_surface(self):
         surface=self.surfaces.get('settings')
         if surface:
-            display=Gdk.Display.get_default()
-            self.settings_data['monitors']=[{'name':display.get_monitor(i).get_model() or 'Display',
-                'x':display.get_monitor(i).get_geometry().x,
-                'y':display.get_monitor(i).get_geometry().y,
-                'width':display.get_monitor(i).get_geometry().width,
-                'height':display.get_monitor(i).get_geometry().height,
-                'scale':display.get_monitor(i).get_scale_factor(),
-                'refresh':round(display.get_monitor(i).get_refresh_rate()/1000,2)} for i in range(display.get_n_monitors())]
+            monitors = []
             if is_gnome():
                 try:
                     import display_details
                     bus=Gio.bus_get_sync(Gio.BusType.SESSION,None)
                     state=bus.call_sync(display_details.SERVICE,display_details.PATH,display_details.SERVICE,'GetCurrentState',None,None,0,1000,None).unpack()
-                    rows=display_details.parse_state(state)
-                    for monitor in self.settings_data['monitors']:
-                        match=next((r for r in rows if r['connector']==monitor['name']),None)
-                        if match and match['resolution']:
-                            monitor.update(nativeWidth=match['resolution'][0],nativeHeight=match['resolution'][1],actualScale=match['scale'])
+                    monitors = display_details.layout_rows(state)
                 except GLib.Error:
                     pass
+            if not monitors:
+                display = Gdk.Display.get_default()
+                for index in range(display.get_n_monitors()):
+                    monitor = display.get_monitor(index)
+                    geometry = monitor.get_geometry()
+                    monitors.append(dict(name=monitor.get_model() or 'Display', x=geometry.x, y=geometry.y,
+                                         width=geometry.width, height=geometry.height, scale=monitor.get_scale_factor(),
+                                         refresh=round(monitor.get_refresh_rate() / 1000, 2)))
+            self.settings_data['monitors'] = monitors
             from effects import wm_name
             self.settings_data['wobble']=('zorin-window-move-effect@zorinos.com' in Gio.Settings.new('org.gnome.shell').get_strv('enabled-extensions')) if is_gnome() else 'compiz' in wm_name()
             surface.update()
@@ -1524,7 +1531,7 @@ class Hub(Gtk.Application):
             self.settings_change(lambda:settings_backend.hardware_controls.connect_bluetooth(message.get('id'),message.get('connected')))
         elif action=='settings-refresh':self.refresh_settings()
         elif action=='settings-effects':
-            if is_gnome():subprocess.Popen(['gnome-extensions','prefs','zorin-window-move-effect@zorinos.com'])
+            if is_gnome():subprocess.Popen(['gnome-extensions','prefs','zorin-window-move-effect@zorinos.com'],env=child_environment())
             else:subprocess.Popen(['/usr/bin/python3',str(BASE/'effects.py')])
         elif action=='settings-explorer':self.open_explorer('::computer')
         elif action=='settings-launch':self.launch(message.get('id'))
@@ -1563,7 +1570,7 @@ class Hub(Gtk.Application):
             location='::computer'
         parsed=urlparse(location)
         if parsed.scheme and (parsed.scheme!='file' or parsed.netloc not in ('','localhost')):
-            subprocess.Popen(['nautilus' if is_gnome() else 'thunar',location]);return
+            subprocess.Popen(['nautilus' if is_gnome() else 'thunar',location],env=child_environment());return
         if location.startswith('file://'):
             location = unquote(urlparse(location).path)
         self.start.hide()
@@ -1598,6 +1605,8 @@ class Hub(Gtk.Application):
                         GLib.source_remove(surface.monitor_refresh)
                     def refresh():
                         surface.monitor_refresh=0
+                        # Search results stay put; clearing the search reloads the folder.
+                        if (surface.file_state or {}).get('search'):return False
                         self.load_folder(surface,surface.location,hidden)
                         return False
                     surface.monitor_refresh=GLib.timeout_add(350,refresh)
@@ -1607,6 +1616,26 @@ class Hub(Gtk.Application):
                 surface.send({'type':'error','message':error})
                 surface.send({'type':'file-loaded'})
         self.background(lambda: explorer.listing(location,hidden),loaded,failed)
+
+    def search_folder(self, surface, query, hidden=False):
+        location=surface.location
+        if not query.strip() or not location or location.startswith('::'):
+            return self.load_folder(surface,location or '::home',hidden)
+        surface.request_id += 1
+        request = surface.request_id
+        surface.send({'type':'file-loading'}) if surface.ready else None
+        def found(data):
+            if data is None or request != surface.request_id or str(id(surface)) not in self.surfaces:
+                return
+            surface.file_state = dict(data, hidden=hidden)
+            surface.set_title(data['title']+' — File Explorer')
+            surface.update()
+            file_thumbnails.prefetch(self, surface)
+        def failed(error):
+            if request==surface.request_id:
+                surface.send({'type':'error','message':error})
+                surface.send({'type':'file-loaded'})
+        self.background(lambda: explorer.search(location,query,hidden,lambda: request != surface.request_id),found,failed)
 
     def preview_file(self, surface, request):
         surface.preview_current = request
@@ -1660,7 +1689,7 @@ class Hub(Gtk.Application):
                     if not path.exists() or path.is_symlink():raise ValueError('This search result is no longer available.')
                     if action=='search-location':self.open_explorer(str(path.parent))
                     elif path.is_dir():self.open_explorer(str(path))
-                    else:Gio.AppInfo.launch_default_for_uri(path.as_uri(),Gdk.Display.get_default().get_app_launch_context())
+                    else:Gio.AppInfo.launch_default_for_uri(path.as_uri(),launch_context())
                     self.start.hide()
             else:raise ValueError('Unknown search action.')
 
@@ -1721,6 +1750,8 @@ class Hub(Gtk.Application):
             if not any(e['path']==path and not e['folder'] for e in (surface.file_state or {}).get('entries',[])):
                 raise ValueError('Select a file in the current folder to preview.')
             self.preview_file(surface,dict(path=path,id=message.get('id'),location=surface.location))
+        elif action == 'file-search':
+            self.search_folder(surface,str(message.get('query') or ''),bool(message.get('hidden')))
         elif action == 'file-navigate':
             self.load_folder(surface,str(message['path']),bool(message.get('hidden')))
         elif action == 'file-open':
@@ -1728,7 +1759,7 @@ class Hub(Gtk.Application):
             if path.is_dir():
                 self.load_folder(surface,str(path),bool(message.get('hidden')))
             else:
-                Gio.AppInfo.launch_default_for_uri(path.as_uri(),Gdk.Display.get_default().get_app_launch_context())
+                Gio.AppInfo.launch_default_for_uri(path.as_uri(),launch_context())
         elif action == 'file-open-with':
             self.modal=True
             dialog=Gtk.AppChooserDialog.new(surface,Gtk.DialogFlags.MODAL,Gio.File.new_for_path(message['path']))
@@ -1736,13 +1767,15 @@ class Hub(Gtk.Application):
             if dialog.run()==Gtk.ResponseType.OK:
                 app=dialog.get_app_info()
                 if app:
-                    app.launch([Gio.File.new_for_path(message['path'])],Gdk.Display.get_default().get_app_launch_context())
+                    app.launch([Gio.File.new_for_path(message['path'])],launch_context())
             dialog.destroy()
             self.modal=False
         elif action in ('file-network','file-trash-view'):
-            subprocess.Popen(['nautilus' if is_gnome() else 'thunar','network:///' if action=='file-network' else 'trash:///'])
+            subprocess.Popen(['nautilus' if is_gnome() else 'thunar','network:///' if action=='file-network' else 'trash:///'],
+                             env=child_environment())
         elif action == 'file-native':
-            subprocess.Popen(['nautilus' if is_gnome() else 'thunar',surface.location if not surface.location.startswith('::') else str(Path.home())])
+            subprocess.Popen(['nautilus' if is_gnome() else 'thunar',surface.location if not surface.location.startswith('::') else str(Path.home())],
+                             env=child_environment())
         elif action in ('file-minimize','file-maximize','file-move','file-resize'):
             if action=='file-minimize':surface.iconify()
             elif action=='file-maximize':

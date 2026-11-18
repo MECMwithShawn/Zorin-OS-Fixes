@@ -19,15 +19,16 @@ class SettingsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             home=Path(directory)
             host=home/'.local/share/gnome-shell/extensions/zorin11-motion@zorin-os-fixes/taskbar-settings.js'
-            with patch.object(settings.Path,'home',return_value=home),patch.object(settings,'is_gnome',return_value=True),patch.object(settings.shutil,'which',return_value='/usr/bin/gjs'),patch.object(settings.subprocess,'Popen') as launch:
+            env = {'DISPLAY': ':8'}
+            with patch.object(settings.Path,'home',return_value=home),patch.object(settings,'is_gnome',return_value=True),patch.object(settings.shutil,'which',return_value='/usr/bin/gjs'),patch.object(settings.subprocess,'Popen') as launch,patch.object(settings,'child_environment',return_value=env):
                 settings.launch('panel')
-                launch.assert_called_with(settings.TOOLS['panel'],start_new_session=True)
+                launch.assert_called_with(settings.TOOLS['panel'],start_new_session=True,env=env)
                 host.parent.mkdir(parents=True);host.write_text('// installed host')
                 settings.launch('panel')
-                launch.assert_called_with(['gjs','-m',str(host)],start_new_session=True)
+                launch.assert_called_with(['gjs','-m',str(host)],start_new_session=True,env=env)
                 with patch.object(settings,'is_gnome',return_value=False):
                     settings.launch('panel')
-                    launch.assert_called_with(settings.TOOLS['panel'],start_new_session=True)
+                    launch.assert_called_with(settings.TOOLS['panel'],start_new_session=True,env=env)
 
     def test_missing_sound_output_is_not_applied(self):
         with patch.object(settings,'sound_outputs',return_value=[{'id':'speaker','name':'Speakers'}]),patch.object(settings,'run') as run:

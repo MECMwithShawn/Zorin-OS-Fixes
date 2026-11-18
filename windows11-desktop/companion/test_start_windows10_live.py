@@ -1,4 +1,9 @@
 """Native WebKit/GTK checks for the Windows 10 Start layout: rail, app list, letter jumps and tiles."""
+
+if __name__ != '__main__':
+    import unittest
+    raise unittest.SkipTest('Run this GUI integration fixture directly.')
+
 import json
 import os
 from pathlib import Path
