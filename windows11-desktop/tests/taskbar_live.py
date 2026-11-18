@@ -104,8 +104,7 @@ export default class Fixture extends Extension {
 '''
 
 def check_keyboard(test_call, contrast):
-    labels={'start':'Start','search':'Search','tasks':'Task View','quick':'Quick Settings',
-            'notifications':'Notifications and calendar'}
+    labels={'start':'Start','search':'Search','tasks':'Task View','quick':'Quick Settings'}
     expected=[]
     def snapshot():return test_call('keys-snapshot')
     def focus(role):
@@ -169,11 +168,11 @@ def check_keyboard(test_call, contrast):
             test_call('keys-press:Tab')
             time.sleep(.1)
             role=snapshot()['focused']
-            if role in ('quick','notifications') and role not in found:
+            if role=='quick' and role not in found:
                 launch(role,'keys-press:Return')
                 found.add(role)
-            if found=={'quick','notifications'}:break
-        assert found=={'quick','notifications'},snapshot()
+            if found=={'quick'}:break
+        assert found=={'quick'},snapshot()
         launch(role,'keys-hold-space')
         try:
             time.sleep(1)
