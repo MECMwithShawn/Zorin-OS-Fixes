@@ -1,0 +1,32 @@
+#!/bin/bash
+# Makes the "Windows 11 Desktop" checkbox in Startup Applications control the
+# whole Windows 11 layout: unticked = Zorin's own desktop, ticked = Windows 11.
+# Run by zorin11-startup-sync.path whenever that checkbox changes.
+set -u
+entry="$HOME/.config/autostart/zorin11-desktop.desktop"
+exts=(zorin11@zorin-os-fixes zorin11-desktop@zorin-os-fixes zorin11-motion@zorin-os-fixes
+      zorin11-lockscreen@zorin-os-fixes zorin11-audio@zorin-os-fixes)
+
+[ -f "$entry" ] || exit 0   # entry removed: leave everything as it is
+if grep -qiE '^(X-GNOME-Autostart-enabled=false|Hidden=true)' "$entry"; then
+    action=disable
+else
+    action=enable
+fi
+
+# Only touch extensions that are not already in the wanted state.
+enabled=$(gsettings get org.gnome.shell enabled-extensions)
+changed=0
+for e in "${exts[@]}"; do
+    if [ "$action" = enable ] && [[ $enabled != *"'$e'"* ]]; then
+        gnome-extensions enable "$e" && changed=1
+    elif [ "$action" = disable ] && [[ $enabled == *"'$e'"* ]]; then
+        gnome-extensions disable "$e" && changed=1
+    fi
+done
+# Either choice needs extensions switched on (Jelly Mode is an extension too).
+if [ "$(gsettings get org.gnome.shell disable-user-extensions)" = true ]; then
+    gsettings set org.gnome.shell disable-user-extensions false; changed=1
+fi
+[ "$changed" = 1 ] && echo "Windows 11 layout: ${action}d"
+exit 0
