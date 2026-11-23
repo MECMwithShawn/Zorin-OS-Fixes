@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""Pick the Windows 11 layout or Zorin's own desktop from the login-screen session.
+
+Runs just before GNOME Shell starts (ExecStartPre on org.gnome.Shell@.service), so
+Shell comes up already in the chosen desktop:
+
+  "Windows 11 Desktop" sessions (zorin-windows11*)  -> Windows 11 layout
+  "Zorin Desktop" sessions (zorin, zorin-wayland, zorin-xorg) -> Zorin's own desktop
+  anything else -> no change
+
+Each desktop keeps its own set of enabled zorin11 extensions, icon theme and wallpaper. When
+switching, the current values are saved for the desktop being left and the saved
+values for the other one are restored. The companion's autostart entry follows the
+mode. Never fails the Shell start: errors are printed and it exits 0.
+"""
+import ast
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+HOME = Path.home()
+STATE = HOME / ".config/zorin11-hub/session-choice.json"
+ENTRY = HOME / ".config/autostart/zorin11-desktop.desktop"
+DEFAULT_EXTS = ["zorin11@zorin-os-fixes", "zorin11-desktop@zorin-os-fixes",
+                "zorin11-motion@zorin-os-fixes", "zorin11-lockscreen@zorin-os-fixes",
+                "zorin11-audio@zorin-os-fixes"]
+
+
+def gs(*args):
+    return subprocess.run(["gsettings", *args], check=True,
+                          capture_output=True, text=True).stdout.strip()
+
+
+def strv(raw):
+    return list(ast.literal_eval(raw.removeprefix("@as ")))
+
+
+BG = "org.gnome.desktop.background"
+BG_KEYS = ["picture-uri", "picture-uri-dark", "picture-options"]
+
+
+def wallpaper():
+    return {k: gs("get", BG, k).strip("'") for k in BG_KEYS}
+
+
+def set_wallpaper(saved):
+    """Restore a saved wallpaper, or Zorin's default when there is none."""
+    for k in BG_KEYS:
+        if saved and saved.get(k):
+            if saved[k] != gs("get", BG, k).strip("'"):
+                gs("set", BG, k, saved[k])
+        elif saved is None:
+            gs("reset", BG, k)
+
+
+def is_ours(ext):
+    return ext.startswith("zorin11") and ext.endswith("@zorin-os-fixes")
+
+
+def zorin_icon_default():
+    # Zorin's icon themes share the GTK theme's name (ZorinBlue-Dark etc.)
+    gtk = gs("get", "org.gnome.desktop.interface", "gtk-theme").strip("'")
+    for base in ("/usr/share/icons", str(HOME / ".local/share/icons")):
+        if Path(base, gtk).is_dir():
+            return gtk
+    return "Zorin"
+
+
+def main():
+    session = os.environ.get("DESKTOP_SESSION", "")
+    if session.startswith("zorin-windows11"):
+        mode = "windows11"
+    elif session.startswith("zorin"):
+        mode = "zorin"
+    else:
+        return
+
+    state = json.loads(STATE.read_text()) if STATE.exists() else {}
+    enabled = strv(gs("get", "org.gnome.shell", "enabled-extensions"))
+    icons = gs("get", "org.gnome.desktop.interface", "icon-theme").strip("'")
+    ours = [e for e in enabled if is_ours(e)]
+    others = [e for e in enabled if not is_ours(e)]
+
+    # Save what the desktop being left looked like. On first run, guess from the
+    # extensions: any zorin11 extension enabled means we were in Windows 11.
+    last = state.get("last") or ("windows11" if ours else "zorin")
+    state.setdefault("modes", {})[last] = {"extensions": ours, "icon_theme": icons,
+                                           "wallpaper": wallpaper()}
+
+    saved = state["modes"].get(mode)
+    if mode == "windows11":
+        want_exts = saved["extensions"] if saved and saved["extensions"] else DEFAULT_EXTS
+        want_icons = saved["icon_theme"] if saved else icons
+    else:
+        want_exts = []
+        want_icons = saved["icon_theme"] if saved else zorin_icon_default()
+
+    new = others + [e for e in want_exts if e not in others]
+    if new != enabled:
+        gs("set", "org.gnome.shell", "enabled-extensions", str(new))
+    if gs("get", "org.gnome.shell", "disable-user-extensions") == "true":
+        gs("set", "org.gnome.shell", "disable-user-extensions", "false")
+    if want_icons != icons:
+        gs("set", "org.gnome.desktop.interface", "icon-theme", want_icons)
+    if mode != last:
+        # Windows 11 with nothing saved keeps the current picture; Zorin falls back
+        # to Zorin's own default wallpaper.
+        saved_bg = saved.get("wallpaper") if saved else None
+        if saved_bg or mode == "zorin":
+            set_wallpaper(saved_bg)
+
+    if ENTRY.exists():
+        text = ENTRY.read_text()
+        line = "X-GNOME-Autostart-enabled=" + ("true" if mode == "windows11" else "false")
+        if re.search(r"(?m)^X-GNOME-Autostart-enabled=", text):
+            updated = re.sub(r"(?m)^X-GNOME-Autostart-enabled=.*$", line, text)
+        else:
+            updated = text.rstrip("\n") + "\n" + line + "\n"
+        if updated != text:
+            ENTRY.write_text(updated)
+
+    state["last"] = mode
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    STATE.write_text(json.dumps(state, indent=2) + "\n")
+    print(f"zorin11-session-select: {session} -> {mode} "
+          f"({len(want_exts)} zorin11 extensions, icons {want_icons})")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:  # never block GNOME Shell from starting
+        print(f"zorin11-session-select: {e}", file=sys.stderr)
+    sys.exit(0)

@@ -289,6 +289,8 @@ On GNOME, hold **Ctrl+Alt** and tap **Tab** until the taskbar's **Top Bar** entr
 
 ## Switch back to Zorin's own desktop
 
+**At the login screen:** [session-choice](session-choice/) adds **Windows 11 Desktop** next to **Zorin Desktop** under the gear on the login screen. Pick one when you sign in; each keeps its own extensions and icons.
+
 Optional: [startup-toggle](startup-toggle/) makes the **Windows 11 Desktop** checkbox in Startup Applications turn the whole Windows 11 layout on or off, so Zorin's own desktop and Jelly Mode are one click away.
 
 ## Restore
