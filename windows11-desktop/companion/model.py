@@ -17,7 +17,7 @@ def initial_state(app_ids, home):
         'org.xfce.ristretto.desktop', 'zorin11-terminal.desktop', 'zorin11-powershell.desktop',
         'zorin11-effects.desktop']
     pins = [i for i in preferred if i in app_ids]
-    return {'version': 1, 'pins': pins, 'recent': [], 'groups_visible': True,
+    return {'version': 1, 'pins': pins, 'recent': [], 'groups_visible': False,
         'groups': [
             {'id': 'everyday', 'title': 'Everyday', 'x': 36, 'y': 72,
              'width': 380, 'height': 280, 'collapsed': False, 'folder': None,

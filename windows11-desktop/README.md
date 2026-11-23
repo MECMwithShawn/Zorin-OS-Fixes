@@ -214,7 +214,7 @@ GNOME notifications are session history, not Xfce's persistent notification log.
 
 ## Desktop fences
 
-Desktop Groups work like Stardock Fences when they are shown (Start → Desktop groups → Show groups):
+Desktop Groups are hidden on a new install. Turn them on with Start → Desktop groups → Show groups (creating a fence also turns them on). When shown, they work like Stardock Fences:
 
 - **Drag icons in.** Drag icons from the desktop, Files or Explorer into a fence. A desktop file then appears only inside its fence. It stays in `~/Desktop` and stays visible in Files and Explorer, because only the desktop view skips it. Drag it back onto the desktop, or choose **Return to desktop**, to put the icon back.
 - **Arrange.** Drag fences by their title bar; they snap to screen edges and to each other. Resize from the bottom-right corner. Drag tiles to reorder them, or drag a tile to another fence to move it. Double-click a tile or press Enter to open it.
