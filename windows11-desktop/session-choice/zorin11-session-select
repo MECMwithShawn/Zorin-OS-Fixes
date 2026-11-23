@@ -8,7 +8,7 @@ Shell comes up already in the chosen desktop:
   "Zorin Desktop" sessions (zorin, zorin-wayland, zorin-xorg) -> Zorin's own desktop
   anything else -> no change
 
-Each desktop keeps its own set of enabled zorin11 extensions and icon theme. When
+Each desktop keeps its own set of enabled zorin11 extensions, icon theme and wallpaper. When
 switching, the current values are saved for the desktop being left and the saved
 values for the other one are restored. The companion's autostart entry follows the
 mode. Never fails the Shell start: errors are printed and it exits 0.
@@ -36,6 +36,24 @@ def gs(*args):
 
 def strv(raw):
     return list(ast.literal_eval(raw.removeprefix("@as ")))
+
+
+BG = "org.gnome.desktop.background"
+BG_KEYS = ["picture-uri", "picture-uri-dark", "picture-options"]
+
+
+def wallpaper():
+    return {k: gs("get", BG, k).strip("'") for k in BG_KEYS}
+
+
+def set_wallpaper(saved):
+    """Restore a saved wallpaper, or Zorin's default when there is none."""
+    for k in BG_KEYS:
+        if saved and saved.get(k):
+            if saved[k] != gs("get", BG, k).strip("'"):
+                gs("set", BG, k, saved[k])
+        elif saved is None:
+            gs("reset", BG, k)
 
 
 def is_ours(ext):
@@ -69,7 +87,8 @@ def main():
     # Save what the desktop being left looked like. On first run, guess from the
     # extensions: any zorin11 extension enabled means we were in Windows 11.
     last = state.get("last") or ("windows11" if ours else "zorin")
-    state.setdefault("modes", {})[last] = {"extensions": ours, "icon_theme": icons}
+    state.setdefault("modes", {})[last] = {"extensions": ours, "icon_theme": icons,
+                                           "wallpaper": wallpaper()}
 
     saved = state["modes"].get(mode)
     if mode == "windows11":
@@ -86,6 +105,12 @@ def main():
         gs("set", "org.gnome.shell", "disable-user-extensions", "false")
     if want_icons != icons:
         gs("set", "org.gnome.desktop.interface", "icon-theme", want_icons)
+    if mode != last:
+        # Windows 11 with nothing saved keeps the current picture; Zorin falls back
+        # to Zorin's own default wallpaper.
+        saved_bg = saved.get("wallpaper") if saved else None
+        if saved_bg or mode == "zorin":
+            set_wallpaper(saved_bg)
 
     if ENTRY.exists():
         text = ENTRY.read_text()

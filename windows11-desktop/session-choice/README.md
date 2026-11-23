@@ -4,8 +4,8 @@ Adds **Windows 11 Desktop** (and **Windows 11 Desktop on Xorg**) to the session 
 
 | Session you pick | You get |
 |---|---|
-| Windows 11 Desktop / on Xorg | The Windows 11 layout: zorin11 extensions on, companion (Start, Explorer, Settings, flyouts) starts, Windows 11 icons |
-| Zorin Desktop / on Wayland / on Xorg | Zorin's own desktop: zorin11 extensions off, companion doesn't start, Zorin icons. Jelly Mode and Zorin's extensions keep running |
+| Windows 11 Desktop / on Xorg | The Windows 11 layout: zorin11 extensions on, companion (Start, Explorer, Settings, flyouts) starts, Windows 11 icons and wallpaper |
+| Zorin Desktop / on Wayland / on Xorg | Zorin's own desktop: zorin11 extensions off, companion doesn't start, Zorin icons and wallpaper. Jelly Mode and Zorin's extensions keep running |
 | Anything else | No change |
 
 The login screen remembers your last choice, so you only pick when you want to switch.
@@ -18,6 +18,7 @@ Each desktop keeps its own:
 
 - **Enabled zorin11 extensions.** Whatever was enabled when you last left Windows 11 is restored (by default `zorin11`, `-desktop`, `-motion`, `-lockscreen`, `-audio`; `-glass` stays off unless you turned it on).
 - **Icon theme.** Change icons in either desktop and the other keeps its own. The first time you enter Zorin it uses the Zorin icon theme matching your GTK theme (e.g. `ZorinBlue-Dark`).
+- **Wallpaper** (light and dark picture, and how it's fitted). The first time you enter Zorin it gets Zorin's default wallpaper; Windows 11 keeps whatever picture it had (pick a Spotlight or Bing photo in Settings → Personalization → Background).
 
 The companion follows `X-GNOME-Autostart-enabled` in `~/.config/autostart/zorin11-desktop.desktop`. Other extensions and settings aren't touched. State is in `~/.config/zorin11-hub/session-choice.json`. Errors are logged and never block Shell from starting:
 
@@ -47,4 +48,4 @@ The desktop stays in whichever mode you last signed into. To go fully back to Zo
 
 ## Test
 
-Sandboxed (keyfile settings backend and a temporary home, no changes to your real desktop): each run of the selector with `DESKTOP_SESSION=zorin-wayland`, `zorin-windows11`, `zorin-xorg` and `ubuntu` was checked for extensions, icon theme and autostart. Other extensions were untouched, and `ubuntu` changed nothing.
+Sandboxed (keyfile settings backend and a temporary home, no changes to your real desktop): each run of the selector with `DESKTOP_SESSION=zorin-wayland`, `zorin-windows11`, `zorin-xorg` and `ubuntu` was checked for extensions, icon theme, wallpaper and autostart. Other extensions were untouched, and `ubuntu` changed nothing.
