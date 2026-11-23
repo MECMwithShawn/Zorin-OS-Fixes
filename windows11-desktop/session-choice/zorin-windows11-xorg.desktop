@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Windows 11 Desktop on Xorg
+Comment=Zorin OS with the Windows 11 layout (Start, taskbar, Explorer, Settings)
+Exec=env GNOME_SHELL_SESSION_MODE=zorin /usr/bin/gnome-session --session=zorin
+TryExec=/usr/bin/gnome-shell
+Type=Application
+DesktopNames=zorin:GNOME
+X-GDM-SessionRegisters=true
+X-GDM-CanRunHeadless=true
